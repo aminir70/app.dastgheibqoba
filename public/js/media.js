@@ -1,6 +1,21 @@
 // ====================================================
 // wrapper: هر pushNavHistory در این فایل section را می‌داند
 function _pnh(fn){ pushNavHistory(fn,'media'); }
+
+// ====================================================
+// حفظ موقعیت اسکرول هنگام رفت‌وبرگشت بین نماها
+// ====================================================
+const _mediaScrollMem = {};
+function _mediaScrollEl(){ return document.getElementById('media-scroll'); }
+function _saveMediaScroll(key){ const s=_mediaScrollEl(); if(s) _mediaScrollMem[key]=s.scrollTop; }
+function _restoreMediaScroll(key){
+    const s=_mediaScrollEl();
+    if(!s) return;
+    const v=_mediaScrollMem[key];
+    if(v==null) return;
+    // دو فریم صبر می‌کنیم تا layout بعد از رندر آماده شود
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ s.scrollTop=v; }));
+}
 // متغیرهای رسانه
 // ====================================================
 
@@ -520,7 +535,7 @@ async function initVideoGallery() {
     await loadVideoCategories(null, '');
 }
 
-async function loadVideoCategories(parentId, parentName) {
+async function loadVideoCategories(parentId, parentName, restoreScroll) {
     if (parentId === null && _videoNavStack.length === 0) {
         if (typeof _loadMediaTabBanner === 'function') _loadMediaTabBanner('video');
     } else {
@@ -588,7 +603,7 @@ async function loadVideoCategories(parentId, parentName) {
         }
     } catch(e) {
         if(view) view.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-exclamation-circle text-3xl opacity-30 mb-3"></i><p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p><button onclick="_videoCatsLoaded=false;initVideoGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button></div>`;
-    } finally { setMediaLoading(false); }
+    } finally { setMediaLoading(false); if(restoreScroll) _restoreMediaScroll('video-cats'); }
 }
 
 function videoNavToSub(catId, catName) {
@@ -600,6 +615,7 @@ function videoNavToSub(catId, catName) {
 
 async function loadVideoList(categoryId, title, count) {
     if (typeof _clearMediaBanner === 'function') _clearMediaBanner();
+    _saveMediaScroll('video-cats');
     try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'video-list', id: categoryId }, '', '#media-v-list-' + categoryId); } catch(e) {}
     _currentVideoCatId = categoryId;
     setMediaLoading(true);
@@ -642,6 +658,7 @@ function playVideoItem(itemId) {
 
     try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'video-play', id: itemId }, '', '#media-v-play-' + itemId); } catch(e) {}
 
+    _saveMediaScroll('video-list');
     const listView = document.getElementById('video-list-view');
     const playerView = document.getElementById('video-player-view');
     if(listView) { listView.classList.add('hidden'); listView.classList.remove('flex'); }
@@ -729,7 +746,7 @@ function backToVideoCategories() {
     // اگر از list/player برمی‌گردیم، در همان سطح فعلی بمانیم (پاپ نکنیم)
     if (listVisible || playerVisible) {
         const top = _videoNavStack[_videoNavStack.length - 1];
-        loadVideoCategories(top ? top.id : null, top ? top.name : '');
+        loadVideoCategories(top ? top.id : null, top ? top.name : '', true);
         return;
     }
     // از خود cats view: یک سطح بالا برو
@@ -747,6 +764,7 @@ function backToVideoList() {
     const playerView = document.getElementById('video-player-view');
     if(playerView) { playerView.classList.add('hidden'); playerView.classList.remove('flex'); document.getElementById('video-aparat-iframe').src = ''; }
     if(listView) { listView.classList.remove('hidden'); listView.classList.add('flex'); }
+    _restoreMediaScroll('video-list');
 }
 
 // ====================================================
@@ -790,7 +808,7 @@ function _renderGalleryCatGrid(cats, view, onClickFn) {
     }).join('');
 }
 
-async function loadGalleryCategories(parentId, parentName) {
+async function loadGalleryCategories(parentId, parentName, restoreScroll) {
     if (parentId === null && _galleryNavStack.length === 0) {
         if (typeof _loadMediaTabBanner === 'function') _loadMediaTabBanner('photo');
     } else {
@@ -867,7 +885,7 @@ async function loadGalleryCategories(parentId, parentName) {
             <p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p>
             <button onclick="_galleryCatsLoaded=false;initGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button>
         </div>`;
-    } finally { setMediaLoading(false); }
+    } finally { setMediaLoading(false); if(restoreScroll) _restoreMediaScroll('gallery-cats'); }
 }
 
 function galleryNavToSub(catId, catName) {
@@ -878,6 +896,7 @@ function galleryNavToSub(catId, catName) {
 }
 
 async function loadGalleryPhotos(categoryId, title, count) {
+    _saveMediaScroll('gallery-cats');
     try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'photo-list', id: categoryId }, '', '#media-p-list-' + categoryId); } catch(e) {}
     setMediaLoading(true);
     const catsView = document.getElementById('gallery-categories-view');
@@ -918,7 +937,7 @@ function backToGalleryCategories() {
     // اگر از photos برمی‌گردیم، در همان سطح فعلی بمانیم (پاپ نکنیم)
     if (photosVisible) {
         const top = _galleryNavStack[_galleryNavStack.length - 1];
-        loadGalleryCategories(top ? top.id : null, top ? top.name : '');
+        loadGalleryCategories(top ? top.id : null, top ? top.name : '', true);
         return;
     }
     if(_galleryNavStack.length > 0) {
@@ -1099,7 +1118,7 @@ async function initAudioGallery() {
     await loadAudioCategories(null, '');
 }
 
-async function loadAudioCategories(parentId, parentName) {
+async function loadAudioCategories(parentId, parentName, restoreScroll) {
     if (parentId === null && _audioNavStack.length === 0) {
         if (typeof _loadMediaTabBanner === 'function') _loadMediaTabBanner('audio');
     } else {
@@ -1162,7 +1181,7 @@ async function loadAudioCategories(parentId, parentName) {
         }
     } catch(e) {
         if(view) view.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-exclamation-circle text-3xl opacity-30 mb-3"></i><p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p><button onclick="_audioCatsLoaded=false;initAudioGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button></div>`;
-    } finally { setMediaLoading(false); }
+    } finally { setMediaLoading(false); if(restoreScroll) _restoreMediaScroll('audio-cats'); }
 }
 
 function audioNavToSub(catId, catName) {
@@ -1527,6 +1546,7 @@ async function setVideoSort(sort) {
 
 async function loadAudioPlaylist(categoryId, title, count) {
     if (typeof _clearMediaBanner === 'function') _clearMediaBanner();
+    _saveMediaScroll('audio-cats');
     try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'audio-list', id: categoryId }, '', '#media-a-list-' + categoryId); } catch(e) {}
     _currentAudioCatId = categoryId;
     if (_mediaViewMode !== 'list') {
@@ -1740,7 +1760,7 @@ function backToAudioCategories() {
     // اگر از playlist برمی‌گردیم، در همان سطح فعلی بمانیم (پاپ نکنیم)
     if (plVisible) {
         const top = _audioNavStack[_audioNavStack.length - 1];
-        loadAudioCategories(top ? top.id : null, top ? top.name : '');
+        loadAudioCategories(top ? top.id : null, top ? top.name : '', true);
         return;
     }
     if(_audioNavStack.length > 0) {

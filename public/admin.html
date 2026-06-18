@@ -3196,9 +3196,9 @@ async function saveGalleryCategoryEdit(){
 // ====================================================
 function renderAudioAdminCat(cat, isChild=false){
   return `
-    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100':'border-gray-100'} overflow-hidden" id="acat-${cat.id}">
+    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100':'border-gray-100'} overflow-hidden" id="acat-${cat.id}" data-cat-id="${cat.id}">
       <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}" onclick="toggleAudioCat(${cat.id})">
-        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:'<div class="w-4 shrink-0"></div>'}
+        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:`<div class="subcat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-sm"></i></div>`}
         <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
           ${cat.cover?`<img src="${cat.cover}" class="w-full h-full object-cover">`:`<div class="w-full h-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center"><i class="fas fa-headphones text-white text-xl"></i></div>`}
         </div>
@@ -3261,7 +3261,7 @@ async function loadAudioGalleryAdmin(){
       html+=`<div class="flex flex-col gap-2" data-cat-id="${cat.id}">`;
       html+=renderAudioAdminCat(cat,false);
       if(childMap[cat.id]){
-        html+=`<div class="flex flex-col gap-2 pr-4">`;
+        html+=`<div class="audio-subcats-sortable flex flex-col gap-2 pr-4">`;
         childMap[cat.id].forEach(child=>html+=renderAudioAdminCat(child,true));
         html+=`</div>`;
       }
@@ -3273,6 +3273,10 @@ async function loadAudioGalleryAdmin(){
     // DnD برای ترتیب دسته‌بندی‌ها
     const sortableEl=document.getElementById('audio-cats-sortable');
     if(sortableEl&&typeof Sortable!=='undefined'){Sortable.create(sortableEl,{animation:150,handle:'.cat-drag-handle',onEnd:async()=>{const ids=Array.from(sortableEl.children).map(el=>+el.dataset.catId).filter(Boolean);if(ids.length)await adminFetch('/api/admin/audio/sort',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});showToast('ترتیب ذخیره شد');}});}
+    // DnD برای ترتیب زیردسته‌ها (در هر دسته مادر جداگانه)
+    document.querySelectorAll('#audio-admin-list .audio-subcats-sortable').forEach(subEl=>{
+      if(typeof Sortable!=='undefined')Sortable.create(subEl,{animation:150,handle:'.subcat-drag-handle',onEnd:async()=>{const ids=Array.from(subEl.children).map(el=>+el.dataset.catId).filter(Boolean);if(ids.length)await adminFetch('/api/admin/audio/sort',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});showToast('ترتیب ذخیره شد');}});
+    });
   }catch(e){}
 }
 
@@ -3502,9 +3506,9 @@ async function saveEditAudioTrack(e){
 // ====================================================
 function renderVideoAdminCat(cat, isChild=false){
   return `
-    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-rose-100':'border-gray-100'} overflow-hidden" id="vcat-${cat.id}">
+    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-rose-100':'border-gray-100'} overflow-hidden" id="vcat-${cat.id}" data-cat-id="${cat.id}">
       <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-rose-50 bg-rose-50/20':'border-gray-100'}" onclick="toggleVideoCat(${cat.id})">
-        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:'<div class="w-4 shrink-0"></div>'}
+        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:`<div class="subcat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-sm"></i></div>`}
         <div class="w-20 h-[45px] rounded-xl overflow-hidden shrink-0 bg-gray-900 flex items-center justify-center">
           ${cat.cover?`<img src="${cat.cover}" class="w-full h-full object-cover">`:`<i class="fas fa-film text-gray-600 text-xl"></i>`}
         </div>
@@ -3567,7 +3571,7 @@ async function loadVideoGalleryAdmin(){
       html+=`<div class="flex flex-col gap-2" data-cat-id="${cat.id}">`;
       html+=renderVideoAdminCat(cat,false);
       if(childMap[cat.id]){
-        html+=`<div class="flex flex-col gap-2 pr-4">`;
+        html+=`<div class="video-subcats-sortable flex flex-col gap-2 pr-4">`;
         childMap[cat.id].forEach(child=>html+=renderVideoAdminCat(child,true));
         html+=`</div>`;
       }
@@ -3578,6 +3582,10 @@ async function loadVideoGalleryAdmin(){
     c.innerHTML=`<div id="video-cats-sortable" class="flex flex-col gap-2">${html}</div>`;
     const sortableEl=document.getElementById('video-cats-sortable');
     if(sortableEl&&typeof Sortable!=='undefined'){Sortable.create(sortableEl,{animation:150,handle:'.cat-drag-handle',onEnd:async()=>{const ids=Array.from(sortableEl.children).map(el=>+el.dataset.catId).filter(Boolean);if(ids.length)await adminFetch('/api/admin/video/sort',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});showToast('ترتیب ذخیره شد');}});}
+    // DnD برای ترتیب زیردسته‌ها (در هر دسته مادر جداگانه)
+    document.querySelectorAll('#video-admin-list .video-subcats-sortable').forEach(subEl=>{
+      if(typeof Sortable!=='undefined')Sortable.create(subEl,{animation:150,handle:'.subcat-drag-handle',onEnd:async()=>{const ids=Array.from(subEl.children).map(el=>+el.dataset.catId).filter(Boolean);if(ids.length)await adminFetch('/api/admin/video/sort',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});showToast('ترتیب ذخیره شد');}});
+    });
   }catch(e){}
 }
 
