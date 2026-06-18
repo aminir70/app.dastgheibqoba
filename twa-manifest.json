@@ -1,0 +1,53 @@
+{
+  "packageId": "info.dastgheibqoba.app",
+  "host": "app.dastgheibqoba.info",
+  "name": "نرم افزار آیت الله دستغیب",
+  "launcherName": "آیت الله دستغیب",
+  "display": "standalone",
+  "themeColor": "#0d9488",
+  "navigationColor": "#0d9488",
+  "navigationColorDark": "#0d9488",
+  "navigationDividerColor": "#0d9488",
+  "navigationDividerColorDark": "#0d9488",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://app.dastgheibqoba.info/icons/icon-512.png",
+  "maskableIconUrl": "https://app.dastgheibqoba.info/icons/icon-512-maskable.png",
+  "monochromeIconUrl": "https://app.dastgheibqoba.info/icons/icon-512.png",
+  "appVersionName": "1.0.0",
+  "appVersion": "1",
+  "shortcuts": [
+    {
+      "name": "کتابخانه",
+      "shortName": "کتاب",
+      "url": "/?go=library",
+      "iconUrl": "https://app.dastgheibqoba.info/icons/icon-192.png"
+    },
+    {
+      "name": "صوت و ویدیو",
+      "shortName": "رسانه",
+      "url": "/?go=media",
+      "iconUrl": "https://app.dastgheibqoba.info/icons/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://app.dastgheibqoba.info/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "playBilling": { "enabled": false },
+    "locationDelegation": { "enabled": false }
+  },
+  "alphaDependencies": { "enabled": false },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://app.dastgheibqoba.info/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fileHandlers": [],
+  "launchHandlerClientMode": "auto",
+  "protocolHandlers": [],
+  "shareTarget": null,
+  "splashScreenFadeOutDuration": 300
+}

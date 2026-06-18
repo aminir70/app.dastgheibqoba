@@ -1,0 +1,46 @@
+{
+  "name": "book-app",
+  "version": "3.0.0",
+  "description": "مرکز نشر آثار آیت الله دستغیب - نسخه کامل و امن",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build": "node build.js",
+    "build:watch": "node build.js --watch",
+    "postinstall": "node build.js || true",
+    "twa:init": "bubblewrap init --manifest=https://app.dastgheibqoba.info/manifest.json",
+    "twa:update": "bubblewrap update",
+    "twa:build": "bubblewrap build",
+    "twa:fingerprint": "bubblewrap fingerprint list"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^16.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "jalaali-js": "^1.2.8",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^1.4.5-lts.1",
+    "music-metadata": "^11.12.3",
+    "sharp": "^0.34.5",
+    "sortablejs": "^1.15.7",
+    "sqlite3": "^5.1.7",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "nodemon": "^3.0.2",
+    "pdfjs-dist": "^3.11.174",
+    "tailwindcss": "^3.4.19"
+  }
+}

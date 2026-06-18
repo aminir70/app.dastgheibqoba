@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>نرم افزار آیت الله دستغیب</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0d9488">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="نرم افزار آیت الله دستغیب">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="384x384" href="/icons/icon-384.png">
+    <link href="/vendor/fonts/vazir/font-face-local.css" rel="stylesheet">
+    <link href="/vendor/fonts/shabnam/font-face-local.css" rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/fa/all.local.min.css">
+
+    <link rel="stylesheet" href="/css/tailwind.dist.css?v=45">
+    <link rel="stylesheet" href="/css/app.css?v=45">
+</head>
+<body class="font-vazir antialiased text-gray-800">
+
+<!-- LOADING / SPLASH -->
+<div id="loading-screen" style="position: fixed; inset: 0; z-index: 9999; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease;">
+    <div id="splash-icon-wrap" style="display:none;margin-bottom:16px;"></div>
+    <div id="loading-spinner" style="width: 60px; height: 60px; border: 5px solid #ccfbf1; border-top: 5px solid #0d9488; border-radius: 50%; animation: inlineSpin 1s linear infinite; margin-bottom: 24px;"></div>
+    <h2 id="splash-title-el" style="font-size: 24px; font-weight: 900; color: #1f2937; margin: 0 0 10px 0; font-family: Vazir, Tahoma, sans-serif;">نرم افزار آیت الله دستغیب</h2>
+    <p id="loading-text" style="font-size: 14px; color: #6b7280; font-family: Vazir, Tahoma, sans-serif; text-align: center; line-height: 1.8;">
+        در حال آماده‌سازی و دریافت اطلاعات...<br>
+    </p>
+</div>
+<script>
+(function(){
+  try {
+    var sp = JSON.parse(localStorage.getItem('_splashSettings') || '{}');
+    var ls = document.getElementById('loading-screen');
+    if (sp.splash_bg_color && ls) ls.style.background = sp.splash_bg_color;
+    var st = document.getElementById('splash-title-el');
+    if (sp.splash_title && st) st.textContent = sp.splash_title;
+    var sub = document.getElementById('loading-text');
+    if (sp.splash_subtitle && sub) sub.textContent = sp.splash_subtitle;
+    var spin = document.getElementById('loading-spinner');
+    if (sp.splash_spinner_color && spin) {
+      spin.style.borderTopColor = sp.splash_spinner_color;
+      spin.style.borderColor = sp.splash_spinner_color + '33';
+      spin.style.borderTopColor = sp.splash_spinner_color;
+    }
+    if (sp.splash_icon_url) {
+      // نمایش تصویر به صورت تمام‌صفحه
+      if (ls) {
+        ls.style.backgroundImage = 'url("' + sp.splash_icon_url + '")';
+        ls.style.backgroundSize = 'cover';
+        ls.style.backgroundPosition = 'center center';
+        ls.style.backgroundRepeat = 'no-repeat';
+      }
+      if (spin) spin.style.display = 'none';
+      if (st) st.style.display = 'none';
+      if (sub) sub.style.display = 'none';
+    }
+  } catch(e) {}
+  // absolute fallback: if JS files fail to load, show app after 10s
+  setTimeout(function() {
+    var ls = document.getElementById('loading-screen');
+    if (ls && ls.style.display !== 'none' && !ls.classList.contains('hidden')) {
+      ls.style.opacity = '0';
+      ls.style.pointerEvents = 'none';
+      setTimeout(function() { ls.style.display = 'none'; }, 500);
+      var appWr = document.getElementById('app-wrapper');
+      if (appWr) appWr.classList.remove('hidden');
+    }
+  }, 10000);
+})();
+</script>
+
+<!-- APP WRAPPER -->
+<div id="app-wrapper" class="absolute inset-0 flex flex-col w-full bg-gray-50 overflow-hidden hidden">
+
+    <!-- DESKTOP SIDEBAR -->
+    <aside id="desktop-sidebar">
+        <div id="sd-brand">
+            <div id="sd-avatar"><img src="/icons/icon-96.png" alt="logo" style="width:40px;height:40px;object-fit:contain;border-radius:8px;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="fas fa-user" style="display:none;"></i></div>
+            <div id="sd-brand-name">نرم افزار آیت الله دستغیب</div>
+            <div id="sd-brand-sub">DastgheibQoba.info</div>
+        </div>
+        <nav id="sd-nav">
+            <button class="nav-item sdi" data-nav="home"     onclick="navToScreen('home')">    <i class="fas fa-home"></i><span>خانه</span></button>
+            <button class="nav-item sdi" data-nav="library"  onclick="navToScreen('library')"> <i class="fas fa-book"></i><span>کتابخانه</span></button>
+            <button class="nav-item sdi" data-nav="media"    onclick="navToScreen('media')">   <i class="fas fa-photo-film"></i><span>رسانه</span></button>
+            <button class="nav-item sdi" data-nav="lectures" onclick="navToScreen('lectures')"><i class="fas fa-microphone-alt"></i><span>سخنرانی</span></button>
+            <button class="nav-item sdi" data-nav="qa"       onclick="navToScreen('qa')">      <i class="fas fa-question-circle"></i><span>سوال و پاسخ</span></button>
+        </nav>
+        <div id="sd-footer">
+            <button class="sdi" onclick="openGlobalSearch()">   <i class="fas fa-search"></i><span>جستجو</span></button>
+            <button class="sdi" onclick="toggleGlobalTheme()">  <i class="fas fa-adjust"></i><span>حالت تاریک</span></button>
+            <button class="sdi" onclick="openNotifications()">  <i class="fas fa-bell"></i><span>اطلاعیه‌ها</span></button>
+            <button class="sdi" onclick="navToScreen('auth')">  <i class="fas fa-user"></i><span>حساب کاربری</span></button>
+        </div>
+    </aside>
+
+    <!-- SCREENS WRAPPER -->
+    <div id="screens-wrapper" class="flex-1 overflow-hidden relative flex flex-col">
+
+        <!-- ============================================== -->
+        <!-- 0. صفحه ورود / ثبت‌نام -->
+        <!-- ============================================== -->
+        <div id="screen-auth" class="screen flex-col bg-gray-50 h-full">
+            <header class="shrink-0 pt-safe pt-3 pb-3 px-5 bg-white border-b border-gray-100 flex items-center gap-3 shadow-sm">
+                <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-2xl text-gray-500 hover:bg-gray-100 transition">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <h1 class="font-black text-gray-800 text-base" id="auth-screen-title">ورود به حساب کاربری</h1>
+            </header>
+            <div class="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-5">
+                <!-- پروفایل کاربر (اگه لاگین باشه) -->
+                <div id="auth-profile-box" class="hidden bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex-col items-center gap-4">
+                    <div class="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center border-4 border-brand-100">
+                        <i class="fas fa-user text-3xl text-brand-600"></i>
+                    </div>
+                    <div class="text-center">
+                        <p class="font-black text-gray-800 text-lg" id="auth-profile-name"></p>
+                        <p class="text-xs text-gray-400 mt-1">عضو فعال</p>
+                    </div>
+                    <button onclick="authLogout()" class="w-full bg-red-50 border border-red-100 text-red-600 font-bold rounded-2xl py-3 text-sm hover:bg-red-100 transition">
+                        <i class="fas fa-sign-out-alt ml-2"></i>خروج از حساب
+                    </button>
+                </div>
+                <!-- فرم ورود/ثبت‌نام -->
+                <div id="auth-form-box" class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                    <!-- تب‌ها -->
+                    <div class="flex bg-gray-50 p-1.5 gap-1">
+                        <button onclick="authTab('login')" id="auth-tab-login" class="flex-1 py-2.5 rounded-xl text-sm font-bold transition bg-white shadow-sm text-brand-600">ورود</button>
+                        <button onclick="authTab('register')" id="auth-tab-reg" class="flex-1 py-2.5 rounded-xl text-sm font-bold transition text-gray-500">ثبت‌نام</button>
+                    </div>
+                    <!-- فرم ورود -->
+                    <div id="auth-login-form" class="p-5 flex flex-col gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">نام کاربری</label>
+                            <div class="relative">
+                                <i class="fas fa-user absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <input id="main-login-username" type="text" autocomplete="username" class="auth-input w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-2xl p-4 pr-10 outline-none" placeholder="نام کاربری خود را وارد کنید">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">رمز عبور</label>
+                            <div class="relative">
+                                <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <input id="main-login-password" type="password" autocomplete="current-password" class="auth-input w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-2xl p-4 pr-10 outline-none" placeholder="رمز عبور">
+                            </div>
+                        </div>
+                        <button onclick="mainLogin()" id="main-login-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl text-sm px-5 py-4 transition-colors shadow-lg shadow-brand-500/25 active:scale-[0.98]">
+                            <i class="fas fa-sign-in-alt ml-2"></i>ورود به حساب
+                        </button>
+                    </div>
+                    <!-- فرم ثبت‌نام -->
+                    <div id="auth-register-form" class="hidden p-5 flex flex-col gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">نام کاربری <span class="text-gray-400 font-normal">(حداقل ۳ کاراکتر)</span></label>
+                            <div class="relative">
+                                <i class="fas fa-user absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <input id="main-reg-username" type="text" autocomplete="username" class="auth-input w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-2xl p-4 pr-10 outline-none" placeholder="نام کاربری دلخواه">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">رمز عبور <span class="text-gray-400 font-normal">(حداقل ۶ کاراکتر)</span></label>
+                            <div class="relative">
+                                <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <input id="main-reg-password" type="password" autocomplete="new-password" class="auth-input w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-2xl p-4 pr-10 outline-none" placeholder="رمز عبور قوی انتخاب کنید">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">تکرار رمز عبور</label>
+                            <div class="relative">
+                                <i class="fas fa-lock absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                                <input id="main-reg-password2" type="password" autocomplete="new-password" class="auth-input w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-2xl p-4 pr-10 outline-none" placeholder="رمز عبور را دوباره وارد کنید">
+                            </div>
+                        </div>
+                        <button onclick="mainRegister()" id="main-reg-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl text-sm px-5 py-4 transition-colors shadow-lg shadow-brand-500/25 active:scale-[0.98]">
+                            <i class="fas fa-user-plus ml-2"></i>ایجاد حساب کاربری
+                        </button>
+                    </div>
+                </div>
+                <p class="text-center text-xs text-gray-400">ورود به این بخش برای ارسال سوال و پیگیری پاسخ‌ها لازم است.</p>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 1. داشبورد اصلی (Home) -->
+        <!-- ============================================== -->
+        <div id="screen-home" class="screen active flex-col bg-gray-50 h-full">
+            <header class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 flex justify-between items-center">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="navToScreen('auth')">
+                    <div class="w-11 h-11 bg-brand-100 rounded-full flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
+                        <i class="fas fa-user text-brand-600"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-[15px] font-black text-gray-800">نرم افزار آیت الله دستغیب</h1>
+                        <h2 class="text-[11px] font-bold text-brand-600">DastgheibQoba.info</h2>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openGlobalSearch()" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <button onclick="toggleGlobalTheme()" id="global-theme-btn" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
+                        <i class="fas fa-moon" id="global-theme-icon"></i>
+                    </button>
+                    <button onclick="openNotifications()" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition relative" id="bell-btn">
+                        <i class="far fa-bell"></i>
+                        <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    </button>
+
+                </div>
+            </header>
+
+            <!-- هدر دسکتاپ: جستجو + آیکون‌ها (فقط در حالت دسکتاپ نمایش داده می‌شه) -->
+            <div id="home-desktop-header" class="hidden shrink-0 px-6 py-3 bg-white border-b border-gray-100 items-center gap-4">
+                <h1 class="font-black text-gray-800 text-base shrink-0">خانه</h1>
+                <button onclick="openGlobalSearch()" class="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-400 text-right hover:bg-gray-100 transition cursor-pointer">
+                    <i class="fas fa-search text-gray-400 text-xs"></i>
+                    <span class="text-xs">جستجو در کتاب‌ها، سخنرانی‌ها، مطالب...</span>
+                </button>
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="openNotifications()" class="w-9 h-9 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition relative" id="bell-btn-desk">
+                        <i class="far fa-bell text-sm"></i>
+                    </button>
+                    <button onclick="navToScreen('auth')" class="w-9 h-9 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
+                        <i class="fas fa-user text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="home-scroll-content" class="flex-1 overflow-y-auto pb-10">
+
+                <!-- SLIDER -->
+                <div id="home-slider" class="relative w-full overflow-hidden mb-4" style="height:180px;display:none;">
+                    <div id="slider-track" class="flex h-full transition-transform duration-500 ease-in-out" style="direction:ltr;will-change:transform;"></div>
+                    <button onclick="sliderNext()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/30 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm"><i class="fas fa-chevron-right text-xs"></i></button>
+                    <button onclick="sliderPrev()" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/30 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm"><i class="fas fa-chevron-left text-xs"></i></button>
+                    <div id="slider-dots" class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5"></div>
+                </div>
+
+                <!-- BANNERS position: after_slider -->
+                <div id="home-banner-after_slider" class="px-4 mb-4 flex flex-col gap-3"></div>
+
+                <!-- LIVE BANNER -->
+                <div id="home-live-banner" class="px-6 mt-4 mb-4" onclick="navToScreen('live')" style="display:none;">
+                    <div class="bg-gradient-to-r from-red-600 to-rose-500 rounded-3xl p-4 flex items-center justify-between shadow-lg shadow-red-500/30 text-white cursor-pointer active:scale-95 transition-transform">
+                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                            <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center relative shrink-0">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-100 opacity-50"></span>
+                                <i class="fas fa-broadcast-tower"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h3 id="home-live-title" class="font-black text-sm truncate">پخش زنده</h3>
+                                <p id="home-live-subtitle" class="text-[10px] text-red-100 opacity-90 truncate">برای مشاهده کلیک کنید</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span id="home-live-countdown" class="hidden bg-white/20 text-white text-[11px] font-black tracking-wider px-3 py-1 rounded-full font-mono"></span>
+                            <span id="home-live-badge" class="bg-white text-red-600 text-[10px] font-black tracking-widest px-3 py-1 rounded-full shadow-sm">LIVE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SHORTCUTS: یک ردیف زیر اسلایدر -->
+                <div id="home-col-shortcuts">
+                <div id="home-shortcuts-section" class="grid grid-cols-4 gap-x-1 gap-y-3 px-4 mb-6">
+                </div>
+                <!-- BANNERS position: after_shortcuts -->
+                <div id="home-banner-after_shortcuts" class="px-4 mb-4 flex flex-col gap-3"></div>
+                </div><!-- /home-col-shortcuts -->
+
+                <!-- LATEST BOOKS (زیر two-col، تمام عرض) -->
+                <div id="home-books-section" class="mb-4">
+                    <div class="flex items-center justify-between px-6 mb-3">
+                        <h3 id="home-books-title" class="text-sm font-black text-gray-800">آخرین کتاب‌ها</h3>
+                        <button onclick="navToScreen('library')" class="text-[10px] font-bold text-brand-600 bg-brand-50 px-3 py-1 rounded-full">ورود به کتابخانه</button>
+                    </div>
+                    <div id="home-books-container" class="flex overflow-x-auto hide-scrollbar gap-2 px-6 pb-4 snap-x"></div>
+                </div>
+                <!-- BANNERS position: after_books -->
+                <div id="home-banner-after_books" class="px-4 mb-4 flex flex-col gap-3"></div>
+
+                <!-- LATEST IMAGES -->
+                <div id="home-media-images-section" class="mb-4 hidden">
+                    <div class="flex items-center justify-between px-6 mb-3">
+                        <h3 class="text-sm font-black text-gray-800">آخرین تصاویر</h3>
+                        <button onclick="navToScreen('media');setTimeout(()=>switchMediaTab('photo'),80)" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">مشاهده همه</button>
+                    </div>
+                    <div id="home-latest-images" class="grid grid-cols-4 gap-2 px-4"></div>
+                </div>
+                <!-- BANNERS position: after_images -->
+                <div id="home-banner-after_images" class="mb-4 flex flex-col gap-3"></div>
+
+                <!-- ۳ ستون دسکتاپ: مطالب | صوت | ویدیو -->
+                <div id="home-three-col-wrap">
+                <!-- ستون ۱: آخرین مطالب + بنر -->
+                <div id="home-col-lectures">
+                <div id="home-lectures-section" class="mb-4">
+                    <div class="flex items-center justify-between px-6 mb-3">
+                        <h3 class="text-sm font-black text-gray-800">آخرین مطالب</h3>
+                        <button onclick="navToScreen('lectures')" class="text-[10px] font-bold text-amber-600 bg-amber-50 px-3 py-1 rounded-full">مشاهده همه</button>
+                    </div>
+                    <div id="home-lectures-container" class="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 snap-x">
+                        <div class="text-center py-6 text-gray-400 text-xs w-full">در حال بارگذاری...</div>
+                    </div>
+                </div>
+                <div id="home-banner-after_lectures" class="px-4 mb-4 flex flex-col gap-3"></div>
+                </div><!-- /home-col-lectures -->
+
+                <!-- آخرین صوت‌ها -->
+                <div id="home-media-audio-section" class="mb-4 hidden">
+                    <div class="flex items-center justify-between px-6 mb-3">
+                        <h3 class="text-sm font-black text-gray-800">آخرین صوت‌ها</h3>
+                        <button onclick="navToScreen('media');setTimeout(()=>switchMediaTab('audio'),80)" class="text-[10px] font-bold text-brand-600 bg-brand-50 px-3 py-1 rounded-full">مشاهده همه</button>
+                    </div>
+                    <div id="home-latest-audio" class="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 snap-x"></div>
+                    <!-- BANNERS position: after_audio -->
+                    <div id="home-banner-after_audio" class="px-4 mt-2 flex flex-col gap-3"></div>
+                </div>
+
+                <!-- آخرین ویدیوها -->
+                <div id="home-media-videos-section" class="mb-4 hidden">
+                    <div class="flex items-center justify-between px-6 mb-3">
+                        <h3 class="text-sm font-black text-gray-800">آخرین ویدیوها</h3>
+                        <button onclick="navToScreen('media');setTimeout(()=>switchMediaTab('video'),80)" class="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full">مشاهده همه</button>
+                    </div>
+                    <div id="home-latest-videos" class="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 snap-x"></div>
+                    <!-- BANNERS position: after_videos -->
+                    <div id="home-banner-after_videos" class="px-4 mt-2 flex flex-col gap-3"></div>
+                </div>
+                </div><!-- /home-three-col-wrap -->
+
+                <!-- آیکن‌های لینک پایین صفحه -->
+                <div id="home-link-shortcuts-wrapper" class="mb-6">
+                    <div class="flex items-center px-6 mb-3">
+                        <h3 class="text-sm font-black text-gray-800">شبکه‌های اجتماعی</h3>
+                    </div>
+                    <div id="home-link-shortcuts-section" class="flex flex-row gap-4 overflow-x-auto px-4 pb-1 hide-scrollbar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 2. کتابخانه (Library) -->
+        <!-- ============================================== -->
+        <div id="screen-library" class="screen flex-col bg-gray-50 h-full">
+            <header class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <div>
+                        <h1 class="font-black text-xl text-gray-800">کتابخانه</h1>
+                        <p class="text-[10px] text-gray-400 mt-0.5" id="lib-count">در حال بارگذاری...</p>
+                    </div>
+                </div>
+                <button onclick="openGlobalSearch()" class="w-9 h-9 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center hover:bg-gray-100 transition active:scale-95"><i class="fas fa-search"></i></button>
+            </header>
+
+            <div class="flex-1 overflow-y-auto px-3 pb-20 pt-4">
+                <div id="library-slider-wrap" class="relative w-full overflow-hidden mb-3 rounded-2xl" style="display:none;">
+                    <div id="library-slider-track" class="flex transition-transform duration-500 ease-out" style="height:100%;"></div>
+                    <div id="library-slider-dots" class="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none"></div>
+                </div>
+                <div id="library-banner-top" class="mb-2"></div>
+                <div id="books-grid" class="grid grid-cols-3 sm:grid-cols-5 gap-3"></div>
+                <div id="lib-empty" class="hidden flex-col items-center justify-center py-32 opacity-60">
+                    <i class="fas fa-book-open text-6xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-500 text-sm font-bold">کتابخانه خالی است</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 3. رسانه (Media) -->
+        <!-- ============================================== -->
+        <div id="screen-media" class="screen flex-col bg-gray-50 h-full relative">
+            <header class="shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex flex-col">
+                <!-- ردیف اول: عنوان + دکمه‌های عملکرد -->
+                <div class="flex items-center gap-2 px-4 pt-3 pb-2.5">
+                    <button onclick="handleBackButton()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition shrink-0">
+                        <i class="fas fa-arrow-right text-sm"></i>
+                    </button>
+                    <h1 class="font-black text-lg text-gray-800 flex-1 text-center">رسانه</h1>
+                    <button id="media-search-toggle" onclick="toggleMediaSearch()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition shrink-0">
+                        <i class="fas fa-search text-sm"></i>
+                    </button>
+                    <div class="relative shrink-0">
+                        <button onclick="toggleViewModeDropdown()" id="view-mode-trigger" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full transition text-gray-500 hover:bg-gray-200">
+                            <i id="view-mode-icon" class="fas fa-th text-sm"></i>
+                        </button>
+                        <div id="view-mode-dropdown" class="hidden absolute top-11 left-0 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 py-1 min-w-[130px]">
+                            <button onclick="setMediaViewMode('grid')" class="view-mode-option w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 transition" data-mode="grid">
+                                <i class="fas fa-th w-4 text-center"></i><span>شبکه‌ای</span>
+                            </button>
+                            <button onclick="setMediaViewMode('list')" class="view-mode-option w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 transition" data-mode="list">
+                                <i class="fas fa-list w-4 text-center"></i><span>فهرستی</span>
+                            </button>
+                            <button onclick="setMediaViewMode('large')" class="view-mode-option w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 transition" data-mode="large">
+                                <i class="fas fa-th-large w-4 text-center"></i><span>بزرگ</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- ردیف دوم: تب‌های ناوبری -->
+                <div class="flex bg-gray-100 mx-4 mb-3 p-1 rounded-2xl gap-0.5">
+                    <button onclick="switchMediaTab('video')" id="tab-media-video" class="flex-1 py-2 text-xs font-bold rounded-xl bg-white shadow-sm text-brand-600 transition-all">فیلم</button>
+                    <button onclick="switchMediaTab('audio')" id="tab-media-audio" class="flex-1 py-2 text-xs font-bold rounded-xl text-gray-400 transition-all">صوت</button>
+                    <button onclick="switchMediaTab('photo')" id="tab-media-photo" class="flex-1 py-2 text-xs font-bold rounded-xl text-gray-400 transition-all">عکس</button>
+                    <button onclick="switchMediaTab('favorites')" id="tab-media-favorites" class="flex-1 py-2 text-xs font-bold rounded-xl text-gray-400 transition-all flex items-center justify-center gap-1"><i class="far fa-heart text-[11px]"></i>علاقه‌مندی</button>
+                </div>
+                <!-- نوار جستجو (پنهان) -->
+                <div id="media-search-bar" class="hidden items-center gap-2 px-4 pb-3">
+                    <div class="flex-1 relative">
+                        <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                        <input type="text" id="media-search-input" placeholder="جستجو در صوت و ویدیو..." autocomplete="off"
+                            class="w-full bg-gray-100 rounded-2xl px-4 py-2.5 pr-9 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-brand-200 transition text-right"
+                            oninput="onMediaSearchDebounced(this.value)">
+                    </div>
+                    <button onclick="openCalendarScreen()" class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-brand-50 hover:text-brand-500 transition shrink-0" title="جستجو با تقویم">
+                        <i class="fas fa-calendar-alt text-sm"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- تقویم سراسری رسانه -->
+
+            <!-- نوار عنوان پلی‌لیست صوت — خارج از scroll تا همیشه بالا بچسبه -->
+            <div id="audio-playlist-header-bar" class="hidden shrink-0 bg-white px-4 py-2 border-b border-gray-100 shadow-sm z-10">
+                <div class="flex items-center gap-2">
+                    <button onclick="backToAudioCategories()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                    <h2 id="audio-cat-title" class="font-bold text-sm text-gray-800 truncate flex-1"></h2>
+                    <div class="relative shrink-0">
+                        <button id="audio-sort-btn" onclick="toggleAudioSortDropdown()" class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1.5 rounded-lg font-bold flex items-center gap-1"><i class="fas fa-sort-amount-down text-[9px]"></i><span id="audio-sort-label">ترتیب</span></button>
+                        <div id="audio-sort-dropdown" class="hidden absolute top-9 left-0 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 py-1 min-w-[110px]">
+                            <button onclick="setAudioSort('order')" class="audio-sort-option w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 transition" data-sort="order"><i class="fas fa-sort-numeric-up-alt w-4 text-center"></i><span>ترتیب</span></button>
+                            <button onclick="setAudioSort('date')" class="audio-sort-option w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 transition" data-sort="date"><i class="fas fa-calendar-alt w-4 text-center"></i><span>تاریخ</span></button>
+                        </div>
+                    </div>
+                    <span id="audio-track-count" class="text-[10px] text-gray-400 font-medium shrink-0"></span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto relative p-6">
+                <!-- اسلایدر و بنر رسانه -->
+                <div id="media-slider-wrap" class="relative w-full overflow-hidden mb-4 rounded-2xl" style="display:none;">
+                    <div id="media-slider-track" class="flex transition-transform duration-500 ease-out" style="height:100%;"></div>
+                    <div id="media-slider-dots" class="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none"></div>
+                </div>
+                <div id="media-banner-top" class="mb-2"></div>
+                <!-- نتایج جستجو -->
+                <div id="media-search-results" class="hidden flex-col gap-3 w-full mb-4"></div>
+                <!-- وضعیت بارگذاری -->
+                <div id="media-loading" class="hidden flex-col items-center justify-center py-20 opacity-70">
+                    <div class="w-12 h-12 border-4 border-brand-100 border-t-brand-500 rounded-full animate-spin mb-4"></div>
+                    <p class="text-xs font-bold text-gray-500 tracking-wide">در حال دریافت اطلاعات...</p>
+                </div>
+
+                <!-- 1. فیلم - گالری ویدیو آپارات -->
+                <div id="media-content-video" class="w-full">
+                    <!-- نمای دسته‌بندی‌ها -->
+                    <div class="flex flex-col gap-3 w-full">
+                      <div id="video-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                        <button id="video-cats-back-btn" onclick="backToVideoCategories()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <h2 id="video-cats-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری ویدیو</h2>
+                      </div>
+                      <div id="video-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
+                    </div>
+
+                    <!-- نمای لیست ویدیوها -->
+                    <div id="video-list-view" class="hidden flex-col gap-3 w-full">
+                        <div class="flex items-center gap-2 mb-1 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                            <button onclick="backToVideoCategories()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <h2 id="video-cat-title" class="font-bold text-sm text-gray-800 truncate flex-1">ویدیوها</h2>
+                            <div class="relative shrink-0">
+                                <button id="video-sort-btn" onclick="toggleVideoSortDropdown()" class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1.5 rounded-lg font-bold flex items-center gap-1"><i class="fas fa-sort-amount-down text-[9px]"></i><span id="video-sort-label">ترتیب</span></button>
+                                <div id="video-sort-dropdown" class="hidden absolute top-9 left-0 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 py-1 min-w-[110px]">
+                                    <button onclick="setVideoSort('order')" class="video-sort-option w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 transition" data-sort="order">
+                                        <i class="fas fa-sort-numeric-up-alt w-4 text-center"></i><span>ترتیب</span>
+                                    </button>
+                                    <button onclick="setVideoSort('date')" class="video-sort-option w-full flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 transition" data-sort="date">
+                                        <i class="fas fa-calendar-alt w-4 text-center"></i><span>تاریخ</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <span id="video-count-badge" class="text-[10px] text-gray-400 font-medium shrink-0"></span>
+                        </div>
+                        <div id="video-items-list" class="flex flex-col gap-3 w-full"></div>
+                    </div>
+
+                    <!-- نمای پخش ویدیو -->
+                    <div id="video-player-view" class="hidden flex-col gap-4 w-full">
+                        <div class="flex items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                            <button onclick="backToVideoList()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <h2 id="video-player-title" class="font-bold text-xs text-gray-800 line-clamp-2 flex-1 leading-snug">پخش ویدیو</h2>
+                        </div>
+                        <!-- پلیر آپارات -->
+                        <div class="relative w-full rounded-2xl overflow-hidden shadow-md bg-black" style="padding-top:56.25%">
+                            <iframe id="video-aparat-iframe" src="" scrolling="no" allowfullscreen="true"
+                                webkitallowfullscreen="true" mozallowfullscreen="true"
+                                style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allow="autoplay">
+                            </iframe>
+                        </div>
+                        <div id="video-player-desc" class="hidden bg-white p-4 rounded-2xl shadow-sm border border-gray-100 text-xs text-gray-600 leading-relaxed"></div>
+                    </div>
+                </div>
+
+                <!-- 2. صوت - گالری صوت محلی -->
+                <div id="media-content-audio" class="hidden w-full">
+                    <!-- نمای دسته‌بندی‌ها -->
+                    <div class="flex flex-col gap-3 w-full">
+                      <div id="audio-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                        <button id="audio-cats-back-btn" onclick="backToAudioCategories()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <h2 id="audio-cats-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری صوت</h2>
+                      </div>
+                      <div id="audio-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
+                    </div>
+
+                    <!-- نمای پلی‌لیست -->
+                    <div id="audio-playlist-view" class="hidden flex-col gap-3 w-full">
+
+                        <!-- پلیر اصلی -->
+                        <div id="audio-player-card" class="hidden bg-white rounded-3xl shadow-md border border-gray-100 overflow-hidden">
+                            <!-- کاور + اطلاعات -->
+                            <div class="relative bg-gradient-to-br from-brand-600 to-brand-800 p-5 flex items-center gap-4">
+                                <div id="audio-player-cover" class="w-20 h-20 rounded-2xl bg-white/20 overflow-hidden shrink-0 shadow-lg flex items-center justify-center">
+                                    <i class="fas fa-music text-white/60 text-3xl"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h3 id="audio-player-title" class="font-black text-white text-sm line-clamp-2 mb-1">انتخاب کنید</h3>
+                                    <p id="audio-player-artist" class="text-white/70 text-xs"></p>
+                                    <div class="flex items-center gap-2 mt-2">
+                                        <button onclick="downloadCurrentAudio()" class="w-7 h-7 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition text-xs" title="دانلود"><i class="fas fa-download"></i></button>
+                                        <button onclick="shareCurrentAudio()" class="w-7 h-7 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition text-xs" title="اشتراک‌گذاری"><i class="fas fa-share-alt"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- نوار پیشرفت -->
+                            <div class="px-5 pt-4 pb-1" style="direction:ltr;">
+                                <input type="range" id="audio-progress" min="0" max="100" value="0" step="0.1"
+                                    class="w-full h-1.5 rounded-full bg-gray-200 appearance-none cursor-pointer accent-brand-600"
+                                    oninput="seekAudio(this.value)" style="-webkit-appearance:none;direction:ltr;">
+                                <div class="flex justify-between mt-1">
+                                    <span id="audio-current-time" class="text-[10px] text-gray-400 font-mono">۰:۰۰</span>
+                                    <span id="audio-duration" class="text-[10px] text-gray-400 font-mono">۰:۰۰</span>
+                                </div>
+                            </div>
+
+                            <!-- کنترل‌ها -->
+                            <div class="px-5 pb-4 flex flex-col gap-3">
+                                <!-- دکمه‌های کنترل -->
+                                <div class="flex items-center justify-center gap-4" style="direction:ltr;">
+                                    <button onclick="prevAudioTrack()" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition" title="قبلی"><i class="fas fa-step-backward"></i></button>
+                                    <button onclick="skipAudio(-15)" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition relative" title="۱۵ ثانیه عقب"><i class="fas fa-undo text-sm"></i><span class="text-[9px] absolute" style="bottom:6px;right:6px;">۱۵</span></button>
+                                    <button id="audio-play-btn" onclick="toggleAudioPlay()" class="w-16 h-16 bg-brand-600 hover:bg-brand-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95">
+                                        <i id="audio-play-icon" class="fas fa-play text-xl ml-0.5"></i>
+                                    </button>
+                                    <button onclick="skipAudio(15)" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition relative" title="۱۵ ثانیه جلو"><i class="fas fa-redo text-sm"></i><span class="text-[9px] absolute" style="bottom:6px;left:6px;">۱۵</span></button>
+                                    <button onclick="nextAudioTrack()" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition" title="بعدی"><i class="fas fa-step-forward"></i></button>
+                                </div>
+
+                                <!-- تنظیمات سرعت -->
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <span class="text-[10px] text-gray-400 font-bold ml-1">سرعت:</span>
+                                    <button onclick="setAudioSpeed(0.75)" data-speed="0.75" class="audio-speed-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-500 hover:bg-brand-50 hover:text-brand-600 transition">۰.۷۵×</button>
+                                    <button onclick="setAudioSpeed(1)" data-speed="1" class="audio-speed-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-brand-100 text-brand-700 transition">۱×</button>
+                                    <button onclick="setAudioSpeed(1.25)" data-speed="1.25" class="audio-speed-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-500 hover:bg-brand-50 hover:text-brand-600 transition">۱.۲۵×</button>
+                                    <button onclick="setAudioSpeed(1.5)" data-speed="1.5" class="audio-speed-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-500 hover:bg-brand-50 hover:text-brand-600 transition">۱.۵×</button>
+                                    <button onclick="setAudioSpeed(2)" data-speed="2" class="audio-speed-btn px-2.5 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-500 hover:bg-brand-50 hover:text-brand-600 transition">۲×</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- لیست آهنگ‌ها -->
+                        <div id="audio-tracks-list" class="flex flex-col gap-2"></div>
+                    </div>
+                </div>
+
+                <!-- 3. عکس - گالری محلی -->
+                <div id="media-content-photo" class="hidden w-full">
+                    <!-- نمای دسته‌بندی‌ها -->
+                    <div class="flex flex-col gap-3 w-full">
+                      <div id="gallery-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                        <button id="gallery-back-btn" onclick="backToGalleryCategories()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <h2 id="gallery-cat-list-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری عکس</h2>
+                      </div>
+                      <div id="gallery-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
+                    </div>
+
+                    <!-- نمای تصاویر داخل دسته -->
+                    <div id="gallery-photos-view" class="hidden flex-col gap-3 w-full">
+                        <div class="flex items-center gap-2 mb-3 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                            <button onclick="backToGalleryCategories()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <h2 id="gallery-category-title" class="font-bold text-sm text-gray-800 truncate flex-1">تصاویر</h2>
+                            <span id="gallery-photo-count" class="text-[10px] text-gray-400 font-medium shrink-0"></span>
+                        </div>
+                        <div id="gallery-photos-grid" class="grid grid-cols-3 gap-2 w-full"></div>
+                    </div>
+                </div>
+
+                <!-- علاقه‌مندی‌ها -->
+                <div id="media-content-favorites" class="hidden w-full flex-col gap-3">
+                    <!-- Sub-tabs -->
+                    <div class="flex bg-gray-100 rounded-2xl p-1 gap-1 mx-0">
+                        <button id="fav-tab-video" onclick="switchFavTab('video')" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all bg-white shadow-sm text-brand-600">
+                            <i class="fas fa-film ml-1 text-[10px]"></i>فیلم
+                        </button>
+                        <button id="fav-tab-audio" onclick="switchFavTab('audio')" class="flex-1 py-2 rounded-xl text-xs font-bold transition-all text-gray-500">
+                            <i class="fas fa-headphones ml-1 text-[10px]"></i>صوت
+                        </button>
+                    </div>
+                    <div id="fav-video-list" class="flex flex-col gap-2"></div>
+                    <div id="fav-audio-list" class="hidden flex flex-col gap-2"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 4. سوال / تیکت -->
+        <!-- ============================================== -->
+        <div id="screen-qa" class="screen flex-col bg-gray-50 h-full">
+            <header class="shrink-0 pt-3 pb-3 px-6 bg-white border-b border-gray-100 shadow-sm flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
+                    <h1 class="font-black text-xl text-gray-800">پرسش و پاسخ</h1>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="qa-username-badge" class="text-xs text-gray-500 font-bold hidden"></span>
+                    <button id="qa-logout-btn" onclick="qaLogout()" class="hidden text-xs text-red-500 font-bold px-3 py-1.5 rounded-full bg-red-50 hover:bg-red-100 transition"><i class="fas fa-sign-out-alt ml-1"></i>خروج</button>
+                    <button id="qa-new-btn" onclick="showQAForm()" class="hidden bg-brand-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-sm"><i class="fas fa-plus ml-1"></i>سوال جدید</button>
+                </div>
+            </header>
+
+            <!-- فرم ارسال تیکت -->
+            <div id="qa-form" class="hidden flex-col gap-3 p-5 bg-white border-b border-gray-100 shadow-sm shrink-0">
+                <h3 class="font-bold text-sm text-gray-800">ارسال سوال جدید</h3>
+                <select id="qa-category" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500 text-gray-700">
+                    <option value="">-- دسته‌بندی سوال (اختیاری) --</option>
+                </select>
+                <input type="text" id="qa-subject" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="موضوع سوال *">
+                <textarea id="qa-message" rows="3" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500 resize-none" placeholder="متن سوال خود را بنویسید *"></textarea>
+                <!-- پیوست و ویس -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <label class="flex items-center gap-1.5 bg-gray-100 px-3 py-2 rounded-xl cursor-pointer text-xs text-gray-600 hover:bg-gray-200 transition">
+                        <i class="fas fa-paperclip"></i>پیوست
+                        <input type="file" id="qa-attachment" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" class="hidden" onchange="qaPreviewAttachment()">
+                    </label>
+                    <button id="qa-voice-btn" onclick="qaToggleVoice()" class="flex items-center gap-1.5 bg-gray-100 px-3 py-2 rounded-xl text-xs text-gray-600 hover:bg-gray-200 transition">
+                        <i class="fas fa-microphone"></i>ویس
+                    </button>
+                    <span id="qa-attachment-name" class="text-xs text-gray-500 flex-1 truncate"></span>
+                    <span id="qa-record-timer" class="hidden text-xs font-bold text-red-500"></span>
+                </div>
+                <!-- پیش‌نمایش ویس -->
+                <div id="qa-voice-preview" class="hidden bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center gap-3">
+                    <audio id="qa-voice-player" controls class="flex-1 h-8" style="min-width:0;"></audio>
+                    <button onclick="qaCancelVoice()" class="text-xs text-red-500 font-bold hover:underline">حذف</button>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="submitQATicket()" class="flex-1 bg-brand-600 text-white font-bold py-3 rounded-xl text-sm"><i class="fas fa-paper-plane ml-2"></i>ارسال سوال</button>
+                    <button onclick="hideQAForm()" class="w-12 bg-gray-100 rounded-xl text-gray-500 font-bold"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <!-- لیست تیکت‌ها -->
+            <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-3" id="qa-tickets-list"></div>
+
+            <!-- نمایش مکالمه یک تیکت -->
+            <div id="qa-conversation" class="hidden absolute inset-0 bg-gray-50 flex-col z-10" style="height:100%;max-height:100%;">
+                <header class="shrink-0 pt-3 pb-3 px-6 bg-white border-b border-gray-100 shadow-sm flex items-center gap-3">
+                    <button onclick="closeQAConversation()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
+                    <div class="flex-1 min-w-0">
+                        <h1 id="qa-conv-title" class="font-black text-base text-gray-800 truncate">سوال</h1>
+                        <span id="qa-conv-status" class="text-xs text-brand-600 font-bold"></span>
+                    </div>
+                    <button onclick="refreshQAConversation()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-400 flex items-center justify-center hover:bg-gray-100 transition"><i class="fas fa-sync-alt text-xs"></i></button>
+                </header>
+                <div id="qa-conv-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3" style="-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0;"></div>
+                <div id="qa-conv-reply" class="shrink-0 bg-white border-t border-gray-100 hidden safe-bottom">
+                    <!-- ردیف پیوست/ویس -->
+                    <div id="qa-conv-attach-row" class="px-3 pt-2 flex items-center gap-2">
+                        <label class="flex items-center gap-1 bg-gray-100 px-2.5 py-1.5 rounded-lg cursor-pointer text-xs text-gray-500 hover:bg-gray-200 transition">
+                            <i class="fas fa-paperclip text-[11px]"></i>
+                            <input type="file" id="qa-conv-file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" class="hidden" onchange="qaConvPreviewFile()">
+                        </label>
+                        <button id="qa-conv-voice-btn" onclick="qaConvToggleVoice()" class="flex items-center gap-1 bg-gray-100 px-2.5 py-1.5 rounded-lg text-xs text-gray-500 hover:bg-gray-200 transition">
+                            <i class="fas fa-microphone text-[11px]"></i>
+                        </button>
+                        <span id="qa-conv-file-name" class="text-xs text-gray-400 flex-1 truncate"></span>
+                        <span id="qa-conv-record-timer" class="hidden text-xs font-bold text-red-500"></span>
+                    </div>
+                    <!-- پیش‌نمایش ویس در مکالمه -->
+                    <div id="qa-conv-voice-preview" class="hidden px-3 pt-1 flex items-center gap-2">
+                        <audio id="qa-conv-voice-player" controls class="flex-1 h-8" style="min-width:0;"></audio>
+                        <button onclick="qaConvCancelVoice()" class="text-xs text-red-500 font-bold">حذف</button>
+                    </div>
+                    <!-- ردیف ورودی متن -->
+                    <div class="flex gap-2 p-3">
+                        <input type="text" id="qa-conv-input" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-500 text-sm" placeholder="پیام خود را بنویسید..." onkeypress="if(event.key==='Enter')sendQAConvMessage()">
+                        <button onclick="sendQAConvMessage()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 rounded-xl font-bold text-sm transition"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+                <div id="qa-conv-limit-msg" class="hidden shrink-0 p-3 bg-amber-50 border-t border-amber-100 text-center text-xs text-amber-700 font-bold">
+                    <i class="fas fa-clock ml-1"></i>لطفاً صبر کنید تا ادمین پاسخ دهد (حداکثر ۲ پیام متوالی مجاز)
+                </div>
+            </div>
+
+            <!-- اورلی ورود / ثبت‌نام -->
+            <div id="qa-auth" class="hidden absolute inset-0 bg-gray-50 flex-col z-20">
+                <header class="shrink-0 pt-3 pb-3 px-6 bg-white border-b border-gray-100 shadow-sm flex items-center gap-3">
+                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500"><i class="fas fa-arrow-right"></i></button>
+                    <h1 class="font-black text-xl text-gray-800">پرسش و پاسخ</h1>
+                </header>
+                <div class="flex-1 overflow-y-auto p-5 flex flex-col justify-center gap-4 max-w-sm mx-auto w-full">
+                    <div class="text-center mb-2">
+                        <div class="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-user-circle text-3xl text-brand-500"></i>
+                        </div>
+                        <h2 class="font-black text-lg text-gray-800">ورود / ثبت‌نام</h2>
+                        <p class="text-sm text-gray-500 mt-1">برای ارسال سوال ابتدا وارد شوید</p>
+                    </div>
+                    <div class="flex bg-gray-100 rounded-xl p-1 gap-1">
+                        <button id="qa-tab-login" onclick="qaAuthTab('login')" class="flex-1 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-brand-600 transition">ورود</button>
+                        <button id="qa-tab-register" onclick="qaAuthTab('register')" class="flex-1 py-2 rounded-lg text-sm font-bold text-gray-500 transition">ثبت‌نام</button>
+                    </div>
+                    <div id="qa-auth-login" class="flex flex-col gap-3">
+                        <input type="text" id="qa-login-username" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="نام کاربری">
+                        <input type="password" id="qa-login-password" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="رمز عبور">
+                        <button onclick="qaLogin()" class="w-full bg-brand-600 text-white font-bold py-3 rounded-xl text-sm"><i class="fas fa-sign-in-alt ml-2"></i>ورود</button>
+                    </div>
+                    <div id="qa-auth-register" class="hidden flex-col gap-3">
+                        <input type="text" id="qa-reg-username" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="نام کاربری">
+                        <input type="password" id="qa-reg-password" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="رمز عبور">
+                        <input type="password" id="qa-reg-password2" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="تکرار رمز عبور">
+                        <button onclick="qaRegister()" class="w-full bg-brand-600 text-white font-bold py-3 rounded-xl text-sm"><i class="fas fa-user-plus ml-2"></i>ثبت‌نام</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 5. سخنرانی‌ها (Lectures) -->
+        <!-- ============================================== -->
+        <div id="screen-lectures" class="screen flex-col bg-gray-50 relative h-full">
+            <header id="lectures-header" class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between transition-colors duration-300">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <button id="btn-lectures-back" onclick="wpNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <div class="min-w-0 flex-1">
+                        <h1 id="lectures-header-title" class="font-black text-xl text-gray-800 truncate transition-colors duration-300">سخنرانی‌ها</h1>
+                    </div>
+                </div>
+                <button id="btn-lectures-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm">
+                    <i class="fas fa-font"></i>
+                </button>
+                <button id="lectures-cal-btn" onclick="openCalendarScreen('lecture')" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-calendar-alt text-sm"></i></button>
+            </header>
+
+            <div class="flex-1 overflow-y-auto px-6 pb-20 pt-6 relative">
+                <!-- اسلایدر و بنر سخنرانی -->
+                <div id="lectures-slider-wrap" class="relative w-full overflow-hidden mb-4 rounded-2xl" style="display:none;">
+                    <div id="lectures-slider-track" class="flex transition-transform duration-500 ease-out" style="height:100%;"></div>
+                    <div id="lectures-slider-dots" class="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none"></div>
+                </div>
+                <div id="lectures-banner-top" class="mb-2"></div>
+                <div id="lectures-loading" class="hidden flex-col items-center justify-center py-20 opacity-70">
+                    <div class="w-12 h-12 border-4 border-brand-100 border-t-brand-500 rounded-full animate-spin mb-4"></div>
+                    <p class="text-xs font-bold text-gray-500 tracking-wide">در حال دریافت اطلاعات...</p>
+                </div>
+
+                <div id="lectures-categories-view" class="grid grid-cols-2 gap-4"></div>
+                <div id="lectures-posts-view" class="hidden flex-col gap-3"></div>
+
+                <div id="lectures-single-view" class="hidden flex-col pb-10">
+                    <div id="single-post-image" class="w-full bg-gray-100 rounded-2xl mb-6 overflow-hidden hidden shadow-sm flex items-center justify-center">
+                        <img src="" class="max-w-full h-auto max-h-96 object-contain">
+                    </div>
+                    <h2 id="single-post-title" class="text-2xl font-black mb-3 leading-snug" style="color: var(--title-color, inherit);">عنوان</h2>
+                    <div class="flex items-center gap-2 mb-8 text-[11px] font-bold opacity-60">
+                        <i class="far fa-calendar"></i>
+                        <span id="single-post-date">تاریخ</span>
+                    </div>
+                    <div id="single-post-content" class="wp-content"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 6. اخبار (News) - WP platform like lectures -->
+        <!-- ============================================== -->
+        <div id="screen-news" class="screen flex-col bg-gray-50 relative h-full">
+            <header id="news-header" class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between transition-colors duration-300">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <button onclick="newsNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                    <h1 id="news-header-title" class="font-black text-xl text-gray-800 truncate">اخبار</h1>
+                </div>
+                <button id="btn-news-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-font"></i></button>
+            </header>
+            <div class="flex-1 overflow-y-auto px-6 pb-20 pt-6 relative">
+                <div id="news-loading" class="hidden flex-col items-center justify-center py-20 opacity-70">
+                    <div class="w-12 h-12 border-4 border-green-100 border-t-green-500 rounded-full animate-spin mb-4"></div>
+                    <p class="text-xs font-bold text-gray-500 tracking-wide">در حال دریافت اطلاعات...</p>
+                </div>
+                <div id="news-categories-view" class="grid grid-cols-2 gap-4"></div>
+                <div id="news-posts-view" class="hidden flex-col gap-3"></div>
+                <div id="news-single-view" class="hidden flex-col pb-10">
+                    <div id="news-single-image" class="w-full bg-gray-100 rounded-2xl mb-6 overflow-hidden hidden shadow-sm flex items-center justify-center"><img src="" class="max-w-full h-auto max-h-96 object-contain"></div>
+                    <h2 id="news-single-title" class="text-2xl font-black mb-3 leading-snug"></h2>
+                    <div class="flex items-center gap-2 mb-8 text-[11px] font-bold opacity-60"><i class="far fa-calendar"></i><span id="news-single-date">تاریخ</span></div>
+                    <div id="news-single-content" class="wp-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 7. بیانیه‌ها (Statements) - WP platform -->
+        <!-- ============================================== -->
+        <div id="screen-statements" class="screen flex-col bg-gray-50 relative h-full">
+            <header id="statements-header" class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between transition-colors duration-300">
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <button onclick="statementsNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                    <h1 id="statements-header-title" class="font-black text-xl text-gray-800 truncate">بیانیه‌ها</h1>
+                </div>
+                <button id="btn-statements-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-font"></i></button>
+            </header>
+            <div class="flex-1 overflow-y-auto px-6 pb-20 pt-6 relative">
+                <div id="statements-loading" class="hidden flex-col items-center justify-center py-20 opacity-70">
+                    <div class="w-12 h-12 border-4 border-purple-100 border-t-purple-500 rounded-full animate-spin mb-4"></div>
+                    <p class="text-xs font-bold text-gray-500 tracking-wide">در حال دریافت اطلاعات...</p>
+                </div>
+                <div id="statements-categories-view" class="grid grid-cols-2 gap-4"></div>
+                <div id="statements-posts-view" class="hidden flex-col gap-3"></div>
+                <div id="statements-single-view" class="hidden flex-col pb-10">
+                    <div id="statements-single-image" class="w-full bg-gray-100 rounded-2xl mb-6 overflow-hidden hidden shadow-sm flex items-center justify-center"><img src="" class="max-w-full h-auto max-h-96 object-contain"></div>
+                    <h2 id="statements-single-title" class="text-2xl font-black mb-3 leading-snug"></h2>
+                    <div class="flex items-center gap-2 mb-8 text-[11px] font-bold opacity-60"><i class="far fa-calendar"></i><span id="statements-single-date">تاریخ</span></div>
+                    <div id="statements-single-content" class="wp-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 8. پرداخت (Payment) -->
+        <!-- ============================================== -->
+        <div id="screen-payment" class="screen flex-col bg-gray-50 h-full">
+            <header class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
+                    <h1 class="font-black text-xl text-gray-800">پرداخت</h1>
+                </div>
+            </header>
+            <div class="flex-1 flex flex-col items-center justify-center gap-6 p-8 text-center">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-credit-card text-blue-500 text-2xl"></i>
+                </div>
+                <div>
+                    <p class="text-gray-700 font-semibold text-lg mb-2">صفحه پرداخت</p>
+                    <p class="text-gray-500 text-sm">برای پرداخت، روی دکمه زیر کلیک کنید تا صفحه پرداخت در مرورگر باز شود.</p>
+                </div>
+                <a href="https://dastgheibqoba.info/pay/" target="_blank" class="bg-blue-500 text-white font-bold px-8 py-3 rounded-xl shadow hover:bg-blue-600 transition flex items-center gap-2">
+                    <i class="fas fa-external-link-alt"></i>
+                    رفتن به صفحه پرداخت
+                </a>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 9. پخش زنده (Live) -->
+        <!-- ============================================== -->
+        <div id="screen-live" class="screen flex-col bg-gray-50 h-full">
+            <header class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <span class="relative flex h-2.5 w-2.5">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+                        </span>
+                        <h1 class="font-black text-xl text-gray-800">پخش زنده</h1>
+                    </div>
+                </div>
+            </header>
+            <div class="flex-1 overflow-y-auto pb-10 pt-6">
+                <div class="px-6">
+                    <h2 id="live-page-title" class="hidden text-lg font-black text-gray-800 mb-4 leading-relaxed"></h2>
+                    <div class="bg-white rounded-3xl overflow-hidden shadow-lg shadow-red-500/10 border border-red-100">
+                        <div id="live-embed-container" class="w-full bg-black">
+                            <div class="flex flex-col items-center justify-center py-20 text-gray-500 gap-3">
+                                <i class="fas fa-satellite-dish text-4xl opacity-30"></i>
+                                <p class="text-sm font-bold opacity-50">در حال بارگذاری...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="live-page-description" class="hidden mt-5 bg-white rounded-3xl p-5 shadow-sm border border-gray-100 text-gray-700 text-sm leading-loose whitespace-pre-line"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <nav id="bottom-nav" class="shrink-0 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,.04)] z-50">
+        <div class="flex items-center justify-around px-1 pt-2 pb-2 h-16">
+            <button class="nav-item active flex flex-col items-center justify-center gap-0.5 flex-1" data-nav="home" onclick="navToScreen('home')">
+                <i class="fas fa-home text-lg" style="color:#0d9488"></i>
+                <span class="text-[9px] font-bold" style="color:#0d9488">خانه</span>
+            </button>
+            <button class="nav-item flex flex-col items-center justify-center gap-0.5 flex-1" data-nav="library" onclick="navToScreen('library')">
+                <i class="fas fa-book text-lg" style="color:#9ca3af"></i>
+                <span class="text-[9px] font-bold" style="color:#9ca3af">کتابخانه</span>
+            </button>
+            <button class="nav-item flex flex-col items-center justify-center gap-0.5 flex-1" data-nav="media" onclick="navToScreen('media')">
+                <i class="fas fa-photo-film text-lg" style="color:#9ca3af"></i>
+                <span class="text-[9px] font-bold" style="color:#9ca3af">رسانه</span>
+            </button>
+            <button class="nav-item flex flex-col items-center justify-center gap-0.5 flex-1" data-nav="lectures" onclick="navToScreen('lectures')">
+                <i class="fas fa-microphone-alt text-lg" style="color:#9ca3af"></i>
+                <span class="text-[9px] font-bold" style="color:#9ca3af">سخنرانی</span>
+            </button>
+            <button class="nav-item flex flex-col items-center justify-center gap-0.5 flex-1" data-nav="qa" onclick="navToScreen('qa')">
+                <i class="fas fa-question-circle text-lg" style="color:#9ca3af"></i>
+                <span class="text-[9px] font-bold" style="color:#9ca3af">سوال</span>
+            </button>
+        </div>
+    </nav>
+</div>
+
+<!-- مودال نمایش تمام صفحه عکس با دانلود و اشتراک‌گذاری -->
+<div id="image-modal" class="fixed inset-0 z-[300] hidden bg-black/95 backdrop-blur-sm flex-col" onclick="handleModalBackdropClick(event)">
+    <div class="flex items-center justify-between p-4 shrink-0">
+        <button onclick="closeImageModal()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition"><i class="fas fa-times text-lg"></i></button>
+        <p id="modal-image-title" class="text-white text-xs font-bold truncate flex-1 text-center px-3 opacity-80"></p>
+        <div class="flex gap-2">
+            <button onclick="downloadCurrentImage()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition" title="دانلود"><i class="fas fa-download"></i></button>
+            <button onclick="shareCurrentImage()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition" title="اشتراک‌گذاری"><i class="fas fa-share-alt"></i></button>
+        </div>
+    </div>
+    <div class="flex-1 flex items-center justify-center relative overflow-hidden" id="modal-img-container">
+        <button onclick="navigateGallery(-1)" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition z-10" id="modal-prev-btn"><i class="fas fa-chevron-right"></i></button>
+        <img id="fullscreen-image" src="" class="max-w-[90vw] max-h-[75vh] object-contain select-none" draggable="false">
+        <button onclick="navigateGallery(1)" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition z-10" id="modal-next-btn"><i class="fas fa-chevron-left"></i></button>
+    </div>
+    <div class="p-4 shrink-0 flex justify-center gap-2" id="modal-dots"></div>
+</div>
+
+<!-- ============================================== -->
+<!-- OVERLAYS (TOC & READER) -->
+<!-- ============================================== -->
+
+<!-- TOC OVERLAY -->
+<div id="toc-overlay" class="theme-light">
+    <header class="shrink-0 pt-3 pb-2 px-6 bg-white border-b border-gray-100 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3 min-w-0">
+                <button onclick="history.back()" class="w-10 h-10 bg-gray-50 text-gray-500 rounded-2xl flex items-center justify-center shrink-0">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                <h1 class="font-black text-lg text-gray-800 truncate" id="toc-book-title">کتاب</h1>
+            </div>
+        </div>
+        <div class="flex space-x-reverse space-x-2 bg-gray-100 p-1 rounded-xl mb-2">
+            <button onclick="switchTab('toc')" id="tab-btn-toc" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-brand-600">فهرست</button>
+            <button onclick="switchTab('bookmarks')" id="tab-btn-bookmarks" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500">نشان‌ها</button>
+            <button onclick="switchTab('notes')" id="tab-btn-notes" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500">یادداشت‌ها</button>
+        </div>
+    </header>
+    <div class="flex-1 overflow-y-auto px-6 pb-10 pt-4">
+        <div id="tab-content-toc">
+            <div class="bg-gradient-to-br from-brand-900 to-brand-800 rounded-[2rem] p-4 text-white shadow-lg mb-4 cursor-pointer" onclick="resumeReading()">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-book text-base text-white/80"></i>
+                    </div>
+                    <span class="bg-white/20 text-xs font-bold px-3 py-1 rounded-full">در حال مطالعه</span>
+                </div>
+                <h2 id="book-main-title" class="text-base font-bold mb-2 line-clamp-1">...</h2>
+                <div class="flex justify-between text-xs text-brand-100 mb-2 font-medium">
+                    <span id="toc-progress-text">0٪</span>
+                    <span id="toc-page-info">صفحه 1</span>
+                </div>
+                <div class="w-full bg-black/20 rounded-full h-1.5 overflow-hidden">
+                    <div id="toc-progress-bar" class="bg-brand-400 h-full rounded-full transition-all duration-700" style="width:0%"></div>
+                </div>
+            </div>
+            <h3 class="text-sm font-bold text-gray-500 mb-3 px-1"><i class="fas fa-list-ul ml-1"></i> فصول کتاب</h3>
+            <div id="main-toc-container" class="space-y-3"></div>
+        </div>
+        <div id="tab-content-bookmarks" class="hidden">
+            <div id="bookmarks-container" class="space-y-3"></div>
+        </div>
+        <div id="tab-content-notes" class="hidden">
+            <div id="notes-container" class="space-y-3"></div>
+        </div>
+    </div>
+</div>
+
+<!-- READER OVERLAY -->
+<div id="reader-overlay" class="theme-light">
+    <header id="reader-header" class="fixed top-0 inset-x-0 h-16 glass border-b border-gray-200/50 flex items-center justify-between px-4 z-[210] fade-transform">
+        <div class="flex items-center flex-1 min-w-0">
+            <button onclick="history.back()" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 text-gray-600 ml-3 shrink-0">
+                <i class="fas fa-arrow-right"></i>
+            </button>
+            <div class="truncate pr-1">
+                <h1 id="chapter-title" class="text-[10px] font-bold text-brand-600 uppercase tracking-wider mb-0.5 truncate">فصل</h1>
+                <h2 id="header-title" class="font-bold text-sm text-gray-800 truncate">نام صفحه</h2>
+            </div>
+        </div>
+        <div class="flex items-center space-x-reverse space-x-1 shrink-0 relative">
+            <button onclick="openSearch()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-search"></i></button>
+            <button onclick="openSettings()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-font"></i></button>
+            <button onclick="togglePageMenu()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-ellipsis-v"></i></button>
+            <div id="page-action-menu" class="hidden absolute top-12 left-0 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
+                <button onclick="toggleBookmark()" class="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center border-b border-gray-100">
+                    <i id="menu-bookmark-icon" class="far fa-bookmark ml-3 w-4 text-center"></i> نشان‌گذاری
+                </button>
+                <button onclick="openNoteModal()" class="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center border-b border-gray-100">
+                    <i class="fas fa-pen-alt ml-3 w-4 text-center"></i> درج یادداشت
+                </button>
+                <button onclick="copyPageText()" class="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center">
+                    <i class="far fa-copy ml-3 w-4 text-center"></i> کپی متن
+                </button>
+            </div>
+        </div>
+    </header>
+    <main id="content-container" class="flex-1 overflow-y-auto overflow-x-hidden pt-20 pb-28">
+        <div class="max-w-xl mx-auto px-6 sm:px-10">
+            <div id="text-content" class="reader-text text-lg text-gray-800 pb-10"></div>
+        </div>
+    </main>
+    <footer id="reader-footer" class="fixed bottom-0 inset-x-0 glass border-t border-gray-100/60 z-[210] fade-transform" style="padding-bottom:var(--safe-bottom);">
+        <div class="h-16 flex items-center gap-4 px-6">
+            <button onclick="nextPage()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-all active:scale-90">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+            <div class="flex-1 flex flex-col items-center gap-2.5">
+                <span id="page-counter" class="text-[11px] font-bold text-gray-400 tracking-widest" dir="ltr">1 / 100</span>
+                <input type="range" id="page-slider" min="0" max="100" value="0" class="w-full h-[3px] bg-gray-200 rounded-full appearance-none cursor-pointer accent-brand-600 outline-none">
+            </div>
+            <button onclick="prevPage()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-all active:scale-90">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+    </footer>
+</div>
+
+<!-- MODALS -->
+<div id="note-modal" class="fixed inset-y-0 inset-x-0 z-[250] hidden flex-col bg-black/50 backdrop-blur-sm justify-end shadow-2xl">
+    <div class="bg-white rounded-t-[2rem] p-6 shadow-2xl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-gray-800">درج یادداشت</h3>
+            <button onclick="closeNoteModal()" class="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-500"><i class="fas fa-times"></i></button>
+        </div>
+        <textarea id="note-textarea" rows="4" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4 text-gray-800 outline-none focus:border-brand-500 transition" placeholder="یادداشت..."></textarea>
+        <button onclick="saveNote()" class="w-full bg-brand-600 text-white font-bold py-3 rounded-xl">ذخیره</button>
+    </div>
+</div>
+
+<div id="search-modal" class="fixed inset-y-0 inset-x-0 z-[240] hidden flex-col bg-gray-50 shadow-2xl">
+    <div class="h-16 bg-white border-b border-gray-200 flex items-center px-4 shrink-0">
+        <button onclick="closeSearch()" class="w-10 h-10 flex items-center justify-center text-gray-500"><i class="fas fa-arrow-right"></i></button>
+        <input type="text" id="search-input" placeholder="جستجو..." class="flex-1 border-none bg-transparent outline-none px-4 text-gray-800 font-medium">
+        <button onclick="performSearch()" class="w-10 h-10 flex items-center justify-center text-brand-600 bg-brand-50 rounded-full"><i class="fas fa-search"></i></button>
+    </div>
+    <div id="search-results" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-overlay" onclick="closeSettings()" class="fixed inset-y-0 inset-x-0 bg-black/30 backdrop-blur-sm z-[230] hidden opacity-0 transition-opacity"></div>
+<div id="settings-modal" class="fixed bottom-0 left-0 right-0 bg-white rounded-t-[2.5rem] shadow-2xl z-[235] transform translate-y-full transition-transform max-w-md mx-auto" style="padding-bottom:var(--safe-bottom);">
+    <div class="p-6 pb-2 max-h-[80vh] overflow-y-auto">
+        <div class="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
+        <div class="mb-6">
+            <span class="text-sm font-bold text-gray-800 block mb-3">نوع قلم</span>
+            <div class="flex bg-gray-50 p-1 rounded-xl">
+                <button onclick="setFont('vazir')" id="font-btn-vazir" class="flex-1 py-2 text-sm rounded-lg font-vazir bg-white shadow-sm font-bold text-brand-600">وزیر</button>
+                <button onclick="setFont('shabnam')" id="font-btn-shabnam" class="flex-1 py-2 text-sm rounded-lg font-shabnam text-gray-500">شبنم</button>
+                <button onclick="setFont('tahoma')" id="font-btn-tahoma" class="flex-1 py-2 text-sm rounded-lg font-tahoma text-gray-500">تاهوما</button>
+            </div>
+        </div>
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-sm font-bold text-gray-800">اندازه متن</span>
+                <span id="font-size-display" class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">16px</span>
+            </div>
+            <div class="flex items-center bg-gray-50 p-1.5 rounded-2xl">
+                <button onclick="changeFontSize(1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
+                <div class="w-2"></div>
+                <button onclick="changeFontSize(-1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
+            </div>
+        </div>
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-sm font-bold text-gray-800">فاصله خطوط</span>
+                <span id="line-height-display" class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">2.2</span>
+            </div>
+            <div class="flex items-center bg-gray-50 p-1.5 rounded-2xl">
+                <button onclick="changeLineHeight(0.2)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
+                <div class="w-2"></div>
+                <button onclick="changeLineHeight(-0.2)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
+            </div>
+        </div>
+        <div class="mb-6">
+            <span class="text-sm font-bold text-gray-800 block mb-3">رنگ تیترها</span>
+            <div class="flex flex-wrap gap-3">
+                <button data-title-color="inherit" onclick="setTitleColor('inherit')" class="color-swatch w-10 h-10 rounded-full bg-gray-800 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-title-color="#0d9488" onclick="setTitleColor('#0d9488')" class="color-swatch w-10 h-10 rounded-full bg-teal-600 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-title-color="#2563eb" onclick="setTitleColor('#2563eb')" class="color-swatch w-10 h-10 rounded-full bg-blue-600 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-title-color="#e11d48" onclick="setTitleColor('#e11d48')" class="color-swatch w-10 h-10 rounded-full bg-rose-600 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-title-color="#1e3a8a" onclick="setTitleColor('#1e3a8a')" class="color-swatch w-10 h-10 rounded-full bg-blue-900 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-title-color="#f97316" onclick="setTitleColor('#f97316')" class="color-swatch w-10 h-10 rounded-full bg-orange-500 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-title-color="#a855f7" onclick="setTitleColor('#a855f7')" class="color-swatch w-10 h-10 rounded-full bg-purple-500 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-title-color="#0ea5e9" onclick="setTitleColor('#0ea5e9')" class="color-swatch w-10 h-10 rounded-full bg-sky-500 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-title-color="#ffffff" onclick="setTitleColor('#ffffff')" class="color-swatch w-10 h-10 rounded-full shadow-sm border-2 border-gray-300 transition-transform" style="background:#ffffff"></button>
+                <button data-title-color="#fef3c7" onclick="setTitleColor('#fef3c7')" class="color-swatch w-10 h-10 rounded-full shadow-sm border-2 border-gray-300 transition-transform" style="background:#fef3c7"></button>
+            </div>
+        </div>
+        <div class="mb-6">
+            <span class="text-sm font-bold text-gray-800 block mb-3">رنگ متن</span>
+            <div class="flex flex-wrap gap-3">
+                <button data-text-color="inherit" onclick="setTextColor('inherit')" class="color-swatch w-10 h-10 rounded-full bg-gray-800 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-text-color="#334155" onclick="setTextColor('#334155')" class="color-swatch w-10 h-10 rounded-full bg-slate-700 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-text-color="#0d9488" onclick="setTextColor('#0d9488')" class="color-swatch w-10 h-10 rounded-full bg-teal-600 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-text-color="#1d4ed8" onclick="setTextColor('#1d4ed8')" class="color-swatch w-10 h-10 rounded-full bg-blue-700 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-text-color="#92400e" onclick="setTextColor('#92400e')" class="color-swatch w-10 h-10 rounded-full bg-amber-800 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-text-color="#f97316" onclick="setTextColor('#f97316')" class="color-swatch w-10 h-10 rounded-full bg-orange-500 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-text-color="#a855f7" onclick="setTextColor('#a855f7')" class="color-swatch w-10 h-10 rounded-full bg-purple-500 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-text-color="#0ea5e9" onclick="setTextColor('#0ea5e9')" class="color-swatch w-10 h-10 rounded-full bg-sky-500 shadow-sm border-2 border-white transition-transform"></button>
+                <button data-text-color="#ffffff" onclick="setTextColor('#ffffff')" class="color-swatch w-10 h-10 rounded-full shadow-sm border-2 border-gray-300 transition-transform" style="background:#ffffff"></button>
+                <button data-text-color="#fef3c7" onclick="setTextColor('#fef3c7')" class="color-swatch w-10 h-10 rounded-full shadow-sm border-2 border-gray-300 transition-transform" style="background:#fef3c7"></button>
+            </div>
+        </div>
+        <div class="mb-4">
+            <span class="text-sm font-bold text-gray-800 block mb-3">تم</span>
+            <div class="grid grid-cols-3 gap-3">
+                <button onclick="setTheme('light')" id="theme-btn-light" class="py-3 rounded-xl border-2 border-brand-500 bg-white text-gray-800 font-bold text-sm shadow-sm"><i class="fas fa-sun text-yellow-500 mb-1 block text-lg"></i>روز</button>
+                <button onclick="setTheme('sepia')" id="theme-btn-sepia" class="py-3 rounded-xl border-2 border-transparent bg-[#f4ecd8] text-[#5c4b37] font-bold text-sm shadow-sm"><i class="fas fa-book-open text-amber-700 mb-1 block text-lg"></i>مطالعه</button>
+                <button onclick="setTheme('dark')" id="theme-btn-dark" class="py-3 rounded-xl border-2 border-transparent bg-gray-900 text-white font-bold text-sm shadow-sm"><i class="fas fa-moon text-blue-300 mb-1 block text-lg"></i>شب</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- HIGHLIGHT TOOLBAR -->
+<div id="highlight-toolbar" ontouchstart="saveSelectionForMobile()" class="fixed z-[260] bg-gray-900 text-white rounded-2xl shadow-2xl px-3 py-2 flex items-center gap-2 hidden" style="transform:translateX(-50%);direction:ltr;">
+    <button onclick="saveSelectionToNote()" class="w-7 h-7 bg-amber-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="ذخیره در یادداشت"><i class="fas fa-sticky-note text-xs"></i></button>
+    <button onclick="copySelectedText()" class="w-7 h-7 bg-sky-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="کپی متن"><i class="fas fa-copy text-xs"></i></button>
+    <button onclick="shareSelectedText()" class="w-7 h-7 bg-teal-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="انتشار متنی"><i class="fas fa-share-alt text-xs"></i></button>
+    <button onclick="shareSelectedTextAsImage()" class="w-7 h-7 bg-purple-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="انتشار به صورت عکس"><i class="fas fa-image text-xs"></i></button>
+    <div class="w-px h-5 bg-white/20"></div>
+    <button onclick="applyHighlight('#fde68a')" class="w-7 h-7 bg-yellow-300 rounded-full border-2 border-white shadow-sm" title="زرد"></button>
+    <button onclick="applyHighlight('#bbf7d0')" class="w-7 h-7 bg-green-300 rounded-full border-2 border-white shadow-sm" title="سبز"></button>
+    <button onclick="applyHighlight('#bfdbfe')" class="w-7 h-7 bg-blue-300 rounded-full border-2 border-white shadow-sm" title="آبی"></button>
+    <button onclick="applyHighlight('#fecaca')" class="w-7 h-7 bg-red-300 rounded-full border-2 border-white shadow-sm" title="قرمز"></button>
+    <button onclick="removeHighlight()" class="w-7 h-7 bg-gray-200 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-gray-700" title="حذف"><i class="fas fa-times text-xs"></i></button>
+</div>
+
+<!-- SHARE AS IMAGE MODAL -->
+<div id="share-image-modal" class="fixed inset-0 z-[350] bg-black/80 flex items-end justify-center hidden" style="backdrop-filter:blur(4px)">
+    <div class="bg-white rounded-t-3xl w-full max-w-md overflow-y-auto" style="max-height:92vh;padding-bottom:max(env(safe-area-inset-bottom),16px)">
+        <div class="flex items-center justify-between px-5 pt-5 pb-3">
+            <h3 class="font-bold text-gray-800 text-base">انتشار به صورت عکس</h3>
+            <button onclick="closeShareImageModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500"><i class="fas fa-times text-sm"></i></button>
+        </div>
+        <!-- Size toggle -->
+        <div class="px-5 pb-3">
+            <span class="text-xs text-gray-400 font-bold block mb-2">اندازه:</span>
+            <div class="flex bg-gray-100 p-1 rounded-xl gap-1">
+                <button id="share-size-square" onclick="setShareSize('square')" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-gray-800 flex items-center justify-center gap-1">
+                    <i class="fas fa-square text-gray-500"></i> مربع (۱:۱)
+                </button>
+                <button id="share-size-story" onclick="setShareSize('story')" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 flex items-center justify-center gap-1">
+                    <i class="fas fa-mobile-alt text-gray-400"></i> استوری (۹:۱۶)
+                </button>
+            </div>
+        </div>
+        <!-- Preview canvas -->
+        <div class="px-5">
+            <canvas id="share-canvas" class="w-full rounded-2xl shadow-lg" style="display:block"></canvas>
+        </div>
+        <!-- Color spectrum picker -->
+        <div class="px-5 pt-4 pb-1" id="share-bg-color-section">
+            <span class="text-xs text-gray-400 font-bold block mb-2">رنگ پس‌زمینه:</span>
+            <!-- طیف رنگی -->
+            <div class="relative h-9 rounded-full overflow-hidden shadow-inner" style="background:linear-gradient(to right,hsl(0,70%,18%),hsl(40,70%,18%),hsl(80,70%,18%),hsl(120,70%,18%),hsl(160,70%,18%),hsl(200,70%,18%),hsl(240,70%,18%),hsl(280,70%,18%),hsl(320,70%,18%),hsl(360,70%,18%))">
+                <input type="range" id="share-hue-slider" min="0" max="359" value="220"
+                    oninput="onShareHueChange(this.value)"
+                    style="-webkit-user-select:none;user-select:none;position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0">
+                <!-- نشانگر موقعیت -->
+                <div id="share-hue-indicator" class="absolute top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-white shadow-lg pointer-events-none" style="left:calc(220/359*100%);background:hsl(220,60%,30%)"></div>
+            </div>
+        </div>
+        <!-- Background image picker -->
+        <div class="px-5 pt-3 pb-1">
+            <span class="text-xs text-gray-400 font-bold block mb-2">پس‌زمینه تصویری:</span>
+            <div class="flex items-center gap-3">
+                <button onclick="document.getElementById('share-bg-input').click()" class="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl text-sm font-bold text-gray-700 active:scale-95 transition-transform">
+                    <i class="fas fa-image text-purple-500"></i> انتخاب از گالری
+                </button>
+                <button id="share-bg-clear-btn" onclick="clearShareBgImage()" class="hidden px-4 py-2 bg-red-50 rounded-xl text-sm font-bold text-red-500 active:scale-95 transition-transform">
+                    <i class="fas fa-times"></i> حذف تصویر
+                </button>
+            </div>
+            <input type="file" id="share-bg-input" accept="image/*" class="hidden" onchange="onShareBgImagePick(this)">
+        </div>
+        <!-- Custom text at bottom -->
+        <div class="px-5 pt-3 pb-1">
+            <span class="text-xs text-gray-400 font-bold block mb-2">متن دلخواه (پایین تصویر):</span>
+            <input type="text" id="share-custom-text" placeholder="مثلاً: @username یا نام صفحه..." dir="rtl"
+                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-teal-400"
+                oninput="onShareCustomTextChange(this.value)">
+        </div>
+        <!-- Action buttons -->
+        <div class="flex gap-3 px-5 pt-4 pb-4">
+            <button onclick="downloadShareImage()" class="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-600 text-white rounded-2xl font-bold text-sm shadow active:scale-95 transition-transform">
+                <i class="fas fa-download"></i> دانلود
+            </button>
+            <button onclick="shareShareImage()" class="flex-1 flex items-center justify-center gap-2 py-3 bg-gray-100 text-gray-700 rounded-2xl font-bold text-sm active:scale-95 transition-transform">
+                <i class="fas fa-share-alt"></i> اشتراک‌گذاری
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="fixed bottom-28 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold transition-all duration-300 opacity-0 pointer-events-none z-[300]">پیام</div>
+
+<!-- NOTIFICATIONS PANEL -->
+<div id="notif-panel" class="fixed inset-0 z-[280] hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="closeNotifications()"></div>
+  <div class="absolute top-0 right-0 bottom-0 w-full max-w-sm bg-white flex flex-col shadow-2xl">
+    <div class="shrink-0 pt-3 pb-3 px-5 bg-white border-b border-gray-100 flex items-center justify-between">
+      <h2 class="font-black text-lg">اعلان‌ها</h2>
+      <div class="flex items-center gap-2">
+        <button onclick="markAllNotifsRead()" class="text-xs text-brand-600 font-bold bg-brand-50 px-3 py-1.5 rounded-full">همه خوانده شد</button>
+        <button onclick="closeNotifications()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-500 flex items-center justify-center"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div id="notif-list" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"></div>
+  </div>
+</div>
+
+<!-- NOTIFICATION DETAIL MODAL -->
+<div id="notif-detail-modal" class="fixed inset-0 z-[290] hidden">
+  <div class="absolute inset-0 bg-black/50" onclick="closeNotifDetail()"></div>
+  <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92%] max-w-md bg-white rounded-3xl shadow-2xl flex flex-col max-h-[80vh]">
+    <div class="shrink-0 pt-4 pb-3 px-5 border-b border-gray-100 flex items-center justify-between">
+      <div class="flex items-center gap-2 min-w-0">
+        <div id="notif-detail-icon-wrap" class="w-9 h-9 bg-teal-100 rounded-full flex items-center justify-center shrink-0"><i id="notif-detail-icon" class="fas fa-bullhorn text-teal-600 text-sm"></i></div>
+        <h2 id="notif-detail-title" class="font-black text-base truncate"></h2>
+      </div>
+      <button onclick="closeNotifDetail()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-500 flex items-center justify-center shrink-0"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-5">
+      <p id="notif-detail-message" class="text-sm text-gray-700 leading-loose whitespace-pre-wrap"></p>
+      <span id="notif-detail-date" class="text-[11px] text-gray-400 block mt-4"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ====== PDF VIEWER ====== -->
+<div id="pdf-viewer-overlay" class="fixed inset-0 z-[290] hidden flex-col bg-gray-800">
+  <!-- Header -->
+  <div class="shrink-0 h-12 bg-gray-900 flex items-center px-3 gap-1">
+    <button onclick="closePdfViewer()" class="w-9 h-9 flex items-center justify-center text-white rounded-full hover:bg-white/10 transition"><i class="fas fa-times"></i></button>
+    <span id="pdf-viewer-title" class="flex-1 text-sm font-bold text-white truncate text-center px-1"></span>
+    <button onclick="pdfZoomOut()" class="w-8 h-8 flex items-center justify-center text-gray-300 rounded-full hover:bg-white/10 transition"><i class="fas fa-search-minus text-xs"></i></button>
+    <button onclick="pdfZoomIn()" class="w-8 h-8 flex items-center justify-center text-gray-300 rounded-full hover:bg-white/10 transition"><i class="fas fa-search-plus text-xs"></i></button>
+    <button onclick="downloadPdfBook()" class="w-8 h-8 flex items-center justify-center text-gray-300 rounded-full hover:bg-white/10 transition"><i class="fas fa-download text-xs"></i></button>
+  </div>
+  <!-- Page image container -->
+  <div id="pdf-canvas-container" class="flex-1 overflow-auto bg-gray-700 flex flex-col items-center p-3">
+    <img id="pdf-page-img" src="" alt="" class="shadow-2xl rounded select-none" draggable="false" style="width:100%;max-width:100%">
+  </div>
+  <!-- Loading overlay -->
+  <div id="pdf-loading" class="absolute inset-0 bg-gray-900/90 flex flex-col items-center justify-center z-10">
+    <i class="fas fa-spinner fa-spin text-4xl text-teal-400 mb-4"></i>
+    <p class="text-white text-sm font-bold">در حال بارگذاری...</p>
+  </div>
+  <!-- Bottom navigation -->
+  <div class="shrink-0 h-14 bg-gray-900 flex items-center justify-between px-5">
+    <button id="pdf-btn-prev" onclick="pdfPrevPage()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-700 text-white active:scale-90 transition disabled:opacity-30 disabled:pointer-events-none">
+      <i class="fas fa-chevron-right text-sm"></i>
+    </button>
+    <button onclick="pdfGoToPage()" class="text-center active:opacity-70">
+      <div class="text-white text-sm font-bold"><span id="pdf-page-current">--</span> / <span id="pdf-page-total">--</span></div>
+      <div class="text-gray-400 text-[10px] mt-0.5">برو به صفحه</div>
+    </button>
+    <button id="pdf-btn-next" onclick="pdfNextPage()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-700 text-white active:scale-90 transition disabled:opacity-30 disabled:pointer-events-none">
+      <i class="fas fa-chevron-left text-sm"></i>
+    </button>
+  </div>
+</div>
+<!-- GLOBAL SEARCH PANEL -->
+<!-- ====== CONTENT PAGE OVERLAY ====== -->
+<div id="content-page-overlay" class="fixed inset-0 z-[290] hidden flex-col bg-gray-50">
+  <header class="shrink-0 pt-3 pb-3 px-4 bg-white/90 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center gap-3">
+    <button onclick="history.back()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0">
+      <i class="fas fa-arrow-right"></i>
+    </button>
+    <h1 id="content-page-title" class="font-black text-lg text-gray-800 truncate"></h1>
+  </header>
+  <div class="flex-1 overflow-y-auto p-5 pb-24">
+    <div id="content-page-body" class="prose prose-sm max-w-none text-gray-700 leading-relaxed" style="direction:rtl;"></div>
+  </div>
+</div>
+
+<!-- ====== WEBVIEW MODAL ====== -->
+<div id="webview-modal" class="fixed inset-0 z-[300] hidden flex-col bg-white">
+  <div class="shrink-0 h-12 bg-white border-b border-gray-100 shadow-sm flex items-center px-2 gap-1">
+    <button onclick="closeWebView()" class="w-9 h-9 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition" title="بستن"><i class="fas fa-times text-sm"></i></button>
+    <button onclick="webviewGoBack()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="برگشت"><i class="fas fa-arrow-right text-xs"></i></button>
+    <div class="flex-1 min-w-0 bg-gray-100 rounded-full px-3 py-1.5 flex items-center gap-2 overflow-hidden cursor-pointer" onclick="webviewCopyUrl()">
+      <i class="fas fa-lock text-emerald-500 text-xs shrink-0"></i>
+      <span id="webview-url-bar" class="text-xs text-gray-500 truncate font-medium flex-1 text-right" dir="ltr"></span>
+    </div>
+    <button onclick="webviewReload()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="بارگذاری مجدد"><i class="fas fa-sync-alt text-xs"></i></button>
+    <button onclick="webviewOpenExternal()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="باز کردن در مرورگر"><i class="fas fa-external-link-alt text-xs"></i></button>
+  </div>
+  <!-- نوار پیشرفت بارگذاری -->
+  <div id="webview-progress-bar" class="absolute top-12 left-0 right-0 h-0.5 bg-transparent z-20 overflow-hidden hidden">
+    <div class="h-full bg-brand-500 animate-[webview-progress_2s_ease-in-out_infinite]" style="width:30%"></div>
+  </div>
+  <div id="webview-loading" class="absolute inset-0 top-12 flex items-center justify-center bg-white/90 z-10 hidden">
+    <div class="flex flex-col items-center gap-3">
+      <div class="w-10 h-10 border-4 border-brand-100 border-t-brand-500 rounded-full animate-spin"></div>
+      <span class="text-xs text-gray-400">در حال بارگذاری...</span>
+    </div>
+  </div>
+  <iframe id="webview-iframe" src="" class="flex-1 w-full border-none bg-gray-50"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation"
+    referrerpolicy="no-referrer"></iframe>
+</div>
+
+<div id="global-search-modal" class="fixed inset-0 z-[270] hidden flex-col bg-white">
+  <div class="h-16 bg-white border-b border-gray-200 flex items-center px-4 shrink-0 gap-2">
+    <button onclick="closeGlobalSearch()" class="w-10 h-10 flex items-center justify-center text-gray-500 shrink-0"><i class="fas fa-arrow-right"></i></button>
+    <input type="text" id="global-search-input" placeholder="جستجو در کتاب‌ها..." class="flex-1 border-none bg-transparent outline-none text-gray-800 font-medium text-sm">
+    <button onclick="closeGlobalSearch();openCalendarScreen('audio')" title="انتخاب بر اساس تاریخ" class="w-10 h-10 flex items-center justify-center text-teal-600 bg-teal-50 rounded-full shrink-0"><i class="fas fa-calendar-alt"></i></button>
+    <button onclick="performGlobalSearch()" class="w-10 h-10 flex items-center justify-center text-brand-600 bg-brand-50 rounded-full shrink-0"><i class="fas fa-search"></i></button>
+  </div>
+  <div class="p-4 border-b border-gray-100 bg-gray-50">
+    <p class="text-xs text-gray-500">جستجو در عناوین و متن کتاب‌ها، یا انتخاب بر اساس تاریخ</p>
+  </div>
+  <div id="global-search-results" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+</div>
+
+<script src="/vendor/pdfjs/pdf.min.js"></script>
+<script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.js';</script>
+<script src="/js/dist/utils.min.js?v=45"></script>
+<script src="/js/dist/offline.min.js?v=45"></script>
+<script src="/js/dist/books.min.js?v=45"></script>
+<script src="/js/dist/lectures.min.js?v=45"></script>
+<script src="/js/dist/media.min.js?v=45"></script>
+<script src="/js/dist/news.min.js?v=45"></script>
+<script src="/js/dist/app.min.js?v=45"></script>
+
+<!-- PWA Install Modal -->
+<div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" onclick="closePwaModal()">
+  <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+    <!-- هدر -->
+    <div class="bg-gradient-to-r from-brand-600 to-brand-700 p-5 flex items-center gap-3">
+      <img id="pwa-modal-icon" src="/icons/icon-96.png" class="w-14 h-14 rounded-2xl shadow-md border-2 border-white/30" alt="icon" onerror="this.style.display='none'">
+      <div class="flex-1">
+        <div class="font-black text-white text-base" id="pwa-modal-appname">نرم افزار آیت الله دستغیب</div>
+        <div class="text-xs text-white/70 mt-0.5">نصب اپلیکیشن رایگان</div>
+      </div>
+      <button onclick="closePwaModal()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition shrink-0">
+        <i class="fas fa-times text-sm"></i>
+      </button>
+    </div>
+
+    <div class="p-5">
+      <!-- مزایا -->
+      <div class="flex flex-col gap-2 mb-5">
+        <div class="flex items-center gap-2 text-xs text-gray-600"><i class="fas fa-bolt text-amber-500 w-4 text-center"></i>سریع‌تر از مرورگر</div>
+        <div class="flex items-center gap-2 text-xs text-gray-600"><i class="fas fa-wifi-slash text-brand-500 w-4 text-center"></i>کار در حالت آفلاین</div>
+        <div class="flex items-center gap-2 text-xs text-gray-600"><i class="fas fa-bell text-rose-500 w-4 text-center"></i>دریافت اعلان‌های جدید</div>
+        <div class="flex items-center gap-2 text-xs text-gray-600"><i class="fas fa-expand text-green-500 w-4 text-center"></i>تمام‌صفحه بدون نوار مرورگر</div>
+      </div>
+
+      <!-- راهنمای iOS -->
+      <div id="pwa-ios-guide" class="hidden bg-brand-50 rounded-2xl p-4 mb-4">
+        <p class="text-xs font-bold text-brand-700 mb-3">برای نصب در iPhone/iPad:</p>
+        <div class="space-y-2 text-xs text-gray-700">
+          <div class="flex items-center gap-2"><span class="w-5 h-5 bg-brand-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">۱</span><span>دکمه <i class="fas fa-share-from-square mx-0.5 text-brand-600"></i> پایین Safari را بزنید</span></div>
+          <div class="flex items-center gap-2"><span class="w-5 h-5 bg-brand-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">۲</span><span>گزینه <b>«Add to Home Screen»</b> را انتخاب کنید</span></div>
+          <div class="flex items-center gap-2"><span class="w-5 h-5 bg-brand-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold shrink-0">۳</span><span>روی <b>«Add»</b> تأیید کنید</span></div>
+        </div>
+      </div>
+
+      <!-- راهنمای عمومی -->
+      <div id="pwa-generic-guide" class="hidden bg-gray-50 rounded-2xl p-4 mb-4 text-xs text-gray-600 leading-relaxed"></div>
+
+      <!-- دکمه‌ها -->
+      <div class="flex gap-2">
+        <button id="pwa-install-confirm" class="hidden flex-1 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl py-3 text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm">
+          <i class="fas fa-download"></i>نصب اپلیکیشن
+        </button>
+        <button onclick="closePwaModal(true)" class="flex-1 bg-gray-100 text-gray-600 rounded-2xl py-3 text-sm font-medium hover:bg-gray-200 transition">بعداً</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- بنر بروزرسانی نسخه جدید -->
+<div id="update-banner" class="hidden fixed bottom-20 left-4 right-4 z-[9999]">
+  <div class="bg-gray-900 text-white rounded-2xl px-4 py-3 flex items-center justify-between shadow-2xl gap-3">
+    <div class="flex items-center gap-2 min-w-0">
+      <i class="fas fa-sync-alt text-teal-400 text-sm shrink-0"></i>
+      <span class="text-sm font-bold truncate">نسخه جدید آماده است</span>
+    </div>
+    <button onclick="applyUpdate()" class="bg-teal-500 hover:bg-teal-400 text-white text-xs font-black px-4 py-1.5 rounded-xl shrink-0 active:scale-95 transition-transform">
+      بروزرسانی
+    </button>
+  </div>
+</div>
+
+<!-- دیالوگ تأیید خروج از برنامه -->
+<div id="exit-confirm-modal" class="hidden fixed inset-0 z-[10000] flex items-center justify-center px-6" style="background:rgba(0,0,0,0.5)">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl text-center">
+    <div class="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i class="fas fa-sign-out-alt text-red-500 text-xl"></i>
+    </div>
+    <h3 class="font-black text-gray-800 text-lg mb-2">خروج از برنامه</h3>
+    <p class="text-gray-500 text-sm mb-6">آیا می‌خواهید از برنامه خارج شوید؟</p>
+    <div class="flex gap-3">
+      <button onclick="closeExitDialog()" class="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-700 font-bold text-sm hover:bg-gray-200 transition">خیر</button>
+      <button onclick="confirmExit()" class="flex-1 py-3 rounded-2xl bg-red-500 text-white font-bold text-sm hover:bg-red-600 transition">بله، خارج شو</button>
+    </div>
+  </div>
+</div>
+
+<!-- دکمه شناور نصب اپ (وقتی مودال بسته است) -->
+<div id="pwa-fab" class="hidden fixed bottom-20 left-4 z-[9998] flex items-center gap-1">
+  <button onclick="showPwaInstallPrompt()" class="bg-brand-600 hover:bg-brand-700 text-white rounded-2xl px-4 py-2.5 shadow-lg flex items-center gap-2 text-xs font-bold transition active:scale-95">
+    <i class="fas fa-download text-sm"></i>
+    <span>نصب اپ</span>
+  </button>
+  <button onclick="document.getElementById('pwa-fab').classList.add('hidden')" class="w-6 h-6 bg-gray-700/80 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition" title="بستن">
+    <i class="fas fa-times text-[10px]"></i>
+  </button>
+</div>
+
+<!-- ===== صفحه تقویم ===== -->
+<div id="calendar-screen" class="fixed inset-0 bg-gray-50 z-[300] flex-col hidden" dir="rtl">
+  <!-- هدر -->
+  <div class="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">
+    <button onclick="closeCalendarScreen()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0">
+      <i class="fas fa-arrow-right text-sm"></i>
+    </button>
+    <h2 class="font-bold text-base text-gray-800 flex-1 text-center">تقویم</h2>
+    <div class="w-9"></div>
+  </div>
+  <!-- تب‌ها -->
+  <div class="flex gap-2 px-4 py-2.5 bg-white border-b border-gray-100 shrink-0">
+    <button id="cs-tab-audio" onclick="csSetTab('audio')" class="flex-1 py-2 rounded-xl text-xs font-bold transition bg-teal-500 text-white">
+      <i class="fas fa-headphones ml-1"></i>صوت
+    </button>
+    <button id="cs-tab-video" onclick="csSetTab('video')" class="flex-1 py-2 rounded-xl text-xs font-bold transition bg-gray-100 text-gray-500">
+      <i class="fas fa-film ml-1"></i>فیلم
+    </button>
+    <button id="cs-tab-lecture" onclick="csSetTab('lecture')" class="flex-1 py-2 rounded-xl text-xs font-bold transition bg-gray-100 text-gray-500">
+      <i class="fas fa-microphone-alt ml-1"></i>سخنرانی
+    </button>
+  </div>
+  <!-- محتوا -->
+  <div class="flex-1 overflow-y-auto">
+    <div id="cs-cal-wrap" class="bg-white mx-4 mt-4 rounded-2xl shadow-sm border border-gray-100 p-4"></div>
+    <div id="cs-results" class="px-4 pt-3 pb-24 flex flex-col gap-3"></div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,91 @@
+# ==========================================
+# Nginx Config برای مرکز نشر آثار
+# ==========================================
+# این فایل را در /etc/nginx/sites-available/nashr-asar قرار دهید
+# سپس: sudo ln -s /etc/nginx/sites-available/nashr-asar /etc/nginx/sites-enabled/
+# و: sudo nginx -t && sudo systemctl reload nginx
+
+server {
+    listen 80;
+    server_name YOUR_DOMAIN.com www.YOUR_DOMAIN.com;
+
+    # حداکثر حجم آپلود - برای دیتابیس کتاب‌ها تا ۴۱۰ مگابایت
+    client_max_body_size 410M;
+
+    # timeout برای آپلود فایل‌های بزرگ
+    client_body_timeout 300s;
+    proxy_read_timeout 300s;
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 300s;
+
+    # ==========================================
+    # مسیر /ai — اپ رساله دستغیب
+    # ==========================================
+
+    # redirect بدون slash به /ai/
+    location = /ai {
+        return 301 /ai/;
+    }
+
+    # API رساله روی port 8000
+    location /ai/api/ {
+        rewrite ^/ai/api/(.*) /api/$1 break;
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # فایل‌های استاتیک frontend رساله
+    location /ai/ {
+        alias /opt/resaleh/frontend/;
+        try_files $uri $uri/ /ai/index.html;
+        index index.html;
+    }
+
+    # ==========================================
+    # مسیر اصلی — اپ کتاب‌خانه
+    # ==========================================
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+
+        # برای آپلود فایل‌های بزرگ
+        proxy_request_buffering off;
+    }
+
+    # فایل‌های استاتیک - مستقیم از nginx
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|woff|woff2|ttf|svg)$ {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        expires 1d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Service Worker - باید cache نشه
+    location = /sw.js {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # manifest.json - باید cache نشه
+    location = /manifest.json {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        add_header Cache-Control "no-cache";
+    }
+}
+
+# برای HTTPS (با Certbot/Let's Encrypt):
+# sudo certbot --nginx -d YOUR_DOMAIN.com -d www.YOUR_DOMAIN.com

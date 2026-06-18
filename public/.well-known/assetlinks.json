@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "info.dastgheibqoba.app.twa",
+        "sha256_cert_fingerprints": ["10:85:A6:E6:0A:25:E1:E1:10:32:0C:12:B4:C9:36:C3:3D:3A:C3:78:A9:9F:16:54:15:A6:98:DC:46:8D:6A:04"]
+      }
+    }]

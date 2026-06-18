@@ -1,0 +1,401 @@
+/* ====================================================
+   استایل‌های اصلی اپلیکیشن
+   ==================================================== */
+
+/* فونت وزیر — مستقل از Tailwind تا در هر شرایطی لود شود */
+@font-face { font-family: Vazir; src: url('/vendor/fonts/vazir/Vazir-Thin.woff2') format('woff2'); font-weight: 100; font-display: swap; }
+@font-face { font-family: Vazir; src: url('/vendor/fonts/vazir/Vazir-Light.woff2') format('woff2'); font-weight: 300; font-display: swap; }
+@font-face { font-family: Vazir; src: url('/vendor/fonts/vazir/Vazir-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: Vazir; src: url('/vendor/fonts/vazir/Vazir-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: Vazir; src: url('/vendor/fonts/vazir/Vazir-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+@font-face { font-family: Vazir; src: url('/vendor/fonts/vazir/Vazir-Black.woff2') format('woff2'); font-weight: 900; font-display: swap; }
+@font-face { font-family: Shabnam; src: url('/vendor/fonts/shabnam/Shabnam-Thin.woff2') format('woff2'); font-weight: 100; font-display: swap; }
+@font-face { font-family: Shabnam; src: url('/vendor/fonts/shabnam/Shabnam-Light.woff2') format('woff2'); font-weight: 300; font-display: swap; }
+@font-face { font-family: Shabnam; src: url('/vendor/fonts/shabnam/Shabnam.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: Shabnam; src: url('/vendor/fonts/shabnam/Shabnam-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: Shabnam; src: url('/vendor/fonts/shabnam/Shabnam-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+:root { --safe-bottom: 20px; --title-color: inherit; --text-color: inherit; --line-height: 2.2; --home-gap: 16px; --banner-gap: 0px; }
+#home-scroll-content > div { margin-bottom: var(--home-gap) !important; }
+[id^="home-banner-"]:empty { display: none !important; margin: 0 !important; padding: 0 !important; }
+[id^="home-banner-"]:not(:empty) { padding-top: var(--banner-gap) !important; padding-bottom: var(--banner-gap) !important; }
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+     :root { --safe-bottom: env(safe-area-inset-bottom); }
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+body { overflow: hidden; overscroll-behavior-y: none; background: #f1f5f9; margin: 0; padding: 0; font-family: 'Vazir', 'Tahoma', sans-serif; }
+
+.hidden { display: none !important; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+#bottom-nav { padding-bottom: var(--safe-bottom); border-radius: 24px 24px 0 0; }
+.nav-item { transition: all .3s ease; flex: 1; }
+.nav-item i { color: #858992; }
+.nav-item span { color: #858992; }
+.nav-item.active i { color: #109487 !important; transform: translateY(-2px); }
+.nav-item.active span { color: #109487 !important; font-weight: 800; }
+.nav-icon-img { opacity: 1; filter: brightness(0) saturate(0%) invert(57%) sepia(6%) saturate(300%) hue-rotate(192deg) brightness(97%); transition: opacity .3s, filter .3s; }
+.nav-item.active .nav-icon-img { opacity: 1 !important; filter: brightness(0) saturate(100%) invert(38%) sepia(75%) saturate(500%) hue-rotate(142deg) brightness(95%) !important; }
+
+
+.screen { display:none; }
+.screen.active { display:flex;flex-direction:column; animation: fadeIn 0.4s ease forwards; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes inlineSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
+.glass{background:rgba(255,255,255,0.92);backdrop-filter:blur(16px)}
+.theme-light{background-color:#fff;color:#334155}
+.theme-sepia{background-color:#fcfaf8;color:#4a3f35}
+.theme-dark{background-color:#0f172a;color:#cbd5e1}
+.theme-dark .glass{background:rgba(30,41,59,0.92)}
+.theme-sepia .glass{background:rgba(244,236,216,0.92)}
+.reader-text{line-height:var(--line-height)!important;user-select:text;text-align:justify;color:var(--text-color)!important}
+.reader-text h2{color:var(--title-color)!important}
+.color-swatch{cursor:pointer;}
+.fade-transform{transition:transform .4s cubic-bezier(.16,1,.3,1),opacity .4s ease}
+.slide-up-hide{transform:translateY(-100%);opacity:0}
+.slide-down-hide{transform:translateY(100%);opacity:0}
+
+#reader-overlay, #toc-overlay {
+    position: fixed; top: 0; bottom: 0; left: 0; right: 0;
+    margin: 0 auto;
+    z-index: 200; display: none; flex-direction: column;
+    box-shadow: 0 0 40px rgba(0,0,0,0.08);
+}
+#reader-overlay.open, #toc-overlay.open { display: flex; animation: slideUp 0.3s ease; }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+.auth-input { transition: all 0.3s ease; }
+.auth-input:focus { border-color: #0d9488; box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); }
+
+.h_iframe-aparat_embed_frame { position: relative; }
+.h_iframe-aparat_embed_frame .ratio { display: block; width: 100%; height: auto; }
+.h_iframe-aparat_embed_frame iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+/* WORDPRESS CONTENT STYLE & READING MODE */
+.wp-content { text-align: justify; line-height: var(--line-height)!important; color: var(--text-color)!important; }
+.wp-content p { margin-bottom: 1.2em; }
+.wp-content img { max-width: 100%; height: auto; border-radius: 16px; margin: 1.5em auto; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.wp-content a { color: #0d9488; text-decoration: none; font-weight: bold; }
+.wp-content h1, .wp-content h2, .wp-content h3 { font-weight: 900; margin-top: 1.5em; margin-bottom: 0.5em; color: var(--title-color, inherit) !important; }
+.wp-content h2 { font-size: 1.25rem; }
+.wp-content ul, .wp-content ol { margin-right: 1.5rem; margin-bottom: 1.2em; }
+.wp-content li { margin-bottom: 0.5em; }
+.wp-content blockquote { border-right: 4px solid #0d9488; padding-right: 1rem; color: #64748b; font-style: italic; background: rgba(13, 148, 136, 0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1.2em; }
+
+/* AUDIO FIXES */
+.wp-content .mejs-container, .wp-content .mejs-controls, .wp-content .mejs-offscreen, .wp-content .mejs-time, .wp-content .wp-audio-shortcode { display: none !important; }
+
+/* Theme Styles for Reading Mode */
+.reading-mode { transition: background-color 0.4s ease, color 0.4s ease; }
+.reading-mode.theme-dark { background-color: #0f172a !important; color: #cbd5e1 !important; }
+.reading-mode.theme-dark header { background: rgba(30,41,59,0.92) !important; border-color: rgba(255,255,255,0.05) !important; }
+.reading-mode.theme-dark h1, .reading-mode.theme-dark h2 { color: #f1f5f9 !important; }
+.reading-mode.theme-dark button { background: rgba(255,255,255,0.1) !important; color: #cbd5e1 !important; }
+
+.reading-mode.theme-sepia { background-color: #fcfaf8 !important; color: #4a3f35 !important; }
+.reading-mode.theme-sepia header { background: rgba(244,236,216,0.92) !important; border-color: rgba(0,0,0,0.05) !important; }
+.reading-mode.theme-sepia h1, .reading-mode.theme-sepia h2 { color: #4a3f35 !important; }
+.reading-mode.theme-sepia button { background: rgba(0,0,0,0.05) !important; color: #4a3f35 !important; }
+
+.reading-mode.theme-light { background-color: #ffffff !important; color: #334155 !important; }
+.reading-mode.theme-light header { background: rgba(255,255,255,0.92) !important; border-color: rgba(0,0,0,0.05) !important; }
+.reading-mode.theme-light h1, .reading-mode.theme-light h2 { color: #1f2937 !important; }
+.reading-mode.theme-light button { background: #f9fafb !important; color: #6b7280 !important; }
+
+/* Global Dark Mode */
+body.global-dark { background: #0f172a; }
+body.global-dark #app-wrapper { background: #0f172a; }
+body.global-dark .screen { background-color: #0f172a; color: #cbd5e1; }
+body.global-dark header { background: rgba(15,23,42,0.95) !important; border-color: rgba(255,255,255,0.07) !important; color: #cbd5e1; }
+body.global-dark h1, body.global-dark h2, body.global-dark h3, body.global-dark h4 { color: #e2e8f0 !important; }
+body.global-dark .bg-white { background-color: #1e293b !important; }
+body.global-dark .bg-gray-50 { background-color: #0f172a !important; }
+body.global-dark .bg-gray-100 { background-color: #1e293b !important; }
+body.global-dark .bg-gray-200 { background-color: #334155 !important; }
+body.global-dark .border-gray-100 { border-color: rgba(255,255,255,0.08) !important; }
+body.global-dark .border-gray-200 { border-color: rgba(255,255,255,0.1) !important; }
+body.global-dark .text-gray-800 { color: #e2e8f0 !important; }
+body.global-dark .text-gray-700 { color: #cbd5e1 !important; }
+body.global-dark .text-gray-600 { color: #94a3b8 !important; }
+body.global-dark .text-gray-500 { color: #64748b !important; }
+body.global-dark .text-gray-400 { color: #475569 !important; }
+body.global-dark .shadow-sm { box-shadow: 0 1px 4px rgba(0,0,0,0.4) !important; }
+body.global-dark #bottom-nav { background: #1e293b !important; border-color: rgba(255,255,255,0.07) !important; }
+body.global-dark .nav-item span { color: #94a3b8; }
+body.global-dark .nav-item i { color: #94a3b8; }
+body.global-dark .nav-item.active i { color: #2dd4bf; }
+body.global-dark .nav-item.active span { color: #2dd4bf; }
+body.global-dark .nav-item.active .nav-icon-img { filter: brightness(0) saturate(100%) invert(78%) sepia(40%) saturate(500%) hue-rotate(130deg) brightness(105%) !important; }
+body.global-dark input, body.global-dark textarea, body.global-dark select { background: #1e293b !important; color: #e2e8f0 !important; border-color: rgba(255,255,255,0.1) !important; }
+body.global-dark #loading-screen { background: #0f172a !important; }
+body.global-dark #loading-screen h2 { color: #e2e8f0 !important; }
+body.global-dark #loading-screen p { color: #94a3b8 !important; }
+body.global-dark .notif-panel > div:last-child { background: #1e293b !important; }
+.shortcut-icon { background:#f1f5f9; border:1px solid #e2e8f0; color:#64748b; transition: background 0.2s, color 0.2s, border-color 0.2s; }
+.shortcut-icon:hover { background:#10b981; border-color:#059669; color:#fff; }
+.shortcut-item:hover .shortcut-label { color:#059669; }
+.book-card { transition: transform 0.2s; }
+.book-card:hover { transform: translateY(-4px); }
+.book-card:hover .book-cover-wrap { box-shadow: 0 12px 28px rgba(0,0,0,0.18); }
+.book-card:hover .book-title { color: #059669; }
+
+/* ====================================================
+   DESKTOP SIDEBAR
+   ==================================================== */
+#desktop-sidebar {
+    display: none;
+    flex-direction: column;
+    width: 230px;
+    min-width: 230px;
+    background: #ffffff;
+    border-left: 1px solid #e2e8f0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
+}
+#sd-brand {
+    background: linear-gradient(160deg, #134e4a 0%, #0d9488 100%);
+    padding: 26px 18px 22px;
+    text-align: center;
+    flex-shrink: 0;
+}
+#sd-avatar {
+    width: 60px; height: 60px;
+    background: #ffffff;
+    border: 3px solid rgba(255,255,255,0.9);
+    border-radius: 14px;
+    margin: 0 auto 12px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    font-size: 20px; color: #0d9488;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+#sd-brand-name {
+    font-size: 11.5px; font-weight: 900;
+    color: rgba(255,255,255,0.95); line-height: 1.7; margin-bottom: 4px;
+}
+#sd-brand-sub { font-size: 10px; color: rgba(255,255,255,0.55); font-weight: 600; }
+#sd-nav {
+    flex: 1; overflow-y: auto;
+    padding: 14px 10px 8px;
+    display: flex; flex-direction: column; gap: 2px;
+}
+#sd-footer {
+    padding: 8px 10px 16px;
+    border-top: 1px solid #f1f5f9;
+    display: flex; flex-direction: column; gap: 2px;
+    flex-shrink: 0;
+}
+.sdi {
+    display: flex; flex-direction: row;
+    align-items: center; gap: 10px;
+    width: 100%; padding: 10px 12px;
+    border-radius: 10px; border: none; cursor: pointer;
+    font-family: Vazir, Tahoma, sans-serif;
+    font-size: 13px; font-weight: 700;
+    color: #475569; background: transparent;
+    text-align: right; transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.sdi:hover { background: #f8fafc; color: #0f172a; }
+.sdi i { width: 18px; text-align: center; font-size: 13px; flex-shrink: 0; color: #94a3b8; transition: color 0.15s; }
+.sdi:hover i { color: #0d9488; }
+.nav-item.sdi { flex-direction: row; flex: initial; }
+.nav-item.sdi.active { background: #f0fdfa; color: #0d9488; }
+.nav-item.sdi.active i { color: #0d9488; }
+body.global-dark #desktop-sidebar { background: #1e293b; border-left-color: rgba(255,255,255,0.07); }
+body.global-dark .sdi { color: #94a3b8; }
+body.global-dark .sdi:hover { background: rgba(255,255,255,0.06); color: #e2e8f0; }
+body.global-dark .sdi:hover i { color: #2dd4bf; }
+body.global-dark .nav-item.sdi.active { background: rgba(13,148,136,0.14); color: #2dd4bf; }
+body.global-dark .nav-item.sdi.active i { color: #2dd4bf; }
+
+/* موبایل: آخرین تصاویر فقط ۴ تا */
+#home-latest-images > *:nth-child(n+5) { display: none; }
+
+/* Desktop Full-Width Layout */
+@media (min-width: 640px) {
+    html { background: #f1f5f9; }
+    body { background: #f1f5f9; }
+
+    /* Main app wrapper — تمام عرض صفحه */
+    #app-wrapper {
+        position: fixed !important;
+        top: 0 !important; bottom: 0 !important;
+        left: 0 !important; right: 0 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Loading screen */
+    #loading-screen {
+        left: 0 !important; right: 0 !important;
+        width: 100% !important; max-width: 100vw !important;
+    }
+
+    /* Full-screen overlays */
+    #image-modal, #note-modal, #search-modal,
+    #settings-overlay, #notif-panel,
+    #pdf-viewer-overlay, #content-page-overlay,
+    #webview-modal, #global-search-modal,
+    #pwa-install-modal, #exit-confirm-modal,
+    #share-image-modal {
+        left: 0 !important; right: 0 !important;
+        width: 100% !important; max-width: 100vw !important;
+    }
+
+    /* Reader overlay & TOC */
+    #reader-overlay, #toc-overlay {
+        left: 0 !important; right: 0 !important;
+        width: 100% !important; max-width: 100vw !important;
+        transform: none !important;
+    }
+
+    /* Reader content full width */
+    #content-container > div {
+        max-width: none !important;
+        padding-left: 48px !important;
+        padding-right: 48px !important;
+    }
+
+    /* Reader fixed header/footer */
+    #reader-header, #reader-footer {
+        left: 0 !important; right: 0 !important;
+        width: 100% !important; max-width: 100vw !important;
+        transform: none !important;
+    }
+
+    /* Settings bottom sheet */
+    #settings-modal {
+        left: 0 !important; right: 0 !important;
+        width: 100% !important; max-width: 100vw !important;
+    }
+
+    /* Floating FAB */
+    #pwa-fab { left: 16px !important; }
+
+    /* Update banner */
+    #update-banner { left: 0 !important; right: 0 !important; }
+
+    /* Exit confirm modal */
+    #exit-confirm-modal { justify-content: center; }
+
+    /* ── Layout: sidebar + content ── */
+    #app-wrapper { flex-direction: row !important; }
+    #desktop-sidebar { display: flex !important; }
+    #bottom-nav { display: none !important; }
+    #screens-wrapper { flex: 1 !important; min-width: 0 !important; overflow: hidden !important; display: flex !important; flex-direction: column !important; }
+
+    /* ── Home: hide mobile header, show desktop header ── */
+    #screen-home > header { display: none !important; }
+    #home-desktop-header { display: flex !important; }
+
+    /* ── Shortcuts: یک ردیف تمام عرض ── */
+    #home-col-shortcuts { padding: 0 20px !important; }
+    #home-shortcuts-section {
+        grid-template-columns: repeat(8, 1fr) !important;
+        padding: 0 !important;
+        gap: 8px 4px !important;
+    }
+
+    /* ── Books: full-width below two-col ── */
+    #home-books-section { padding: 0 20px !important; }
+    #home-books-section > div:first-child { padding: 0 0 8px !important; }
+    #home-books-container {
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: visible !important;
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        padding: 0 0 8px !important;
+    }
+    #home-books-container > * { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
+    #home-books-container .book-cover-wrap { height: 120px !important; max-height: 120px !important; }
+    #home-books-container img { height: 100% !important; object-fit: cover !important; }
+    #home-books-container .book-title { font-size: 9px !important; line-height: 1.3 !important; }
+
+    /* ── آخرین تصاویر: ۸ تا در ۸ ستون (مربعی کوچک) ── */
+    #home-latest-images > *:nth-child(n+5) { display: block !important; }
+    #home-latest-images {
+        grid-template-columns: repeat(8, 1fr) !important;
+        gap: 6px !important;
+        padding: 0 20px !important;
+    }
+    #home-latest-images > *:nth-child(n+9) { display: none !important; }
+    #home-media-images-section > div:first-child { padding: 0 20px 10px !important; }
+
+    /* ── سه ستون دسکتاپ: مطالب | صوت | ویدیو ── */
+    #home-three-col-wrap {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 0 16px !important;
+        padding: 0 20px !important;
+        align-items: start !important;
+    }
+    #home-col-lectures { padding: 0 !important; }
+    #home-lectures-section { margin-bottom: 0 !important; }
+    #home-lectures-section > div:first-child,
+    #home-media-audio-section > div:first-child,
+    #home-media-videos-section > div:first-child { padding: 0 4px 10px !important; }
+    /* containers: عمودی در دسکتاپ */
+    #home-lectures-container, #home-latest-audio, #home-latest-videos {
+        flex-direction: column !important;
+        overflow-x: visible !important;
+        padding: 0 4px !important;
+        gap: 8px !important;
+    }
+    /* کارت‌ها: افقی (عکس چپ، متن راست) در دسکتاپ */
+    #home-lectures-container > *, #home-latest-audio > *, #home-latest-videos > * {
+        width: auto !important;
+        flex-shrink: unset !important;
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 10px !important;
+        background: white !important;
+        border-radius: 16px !important;
+        padding: 10px !important;
+        border: 1px solid #f1f5f9 !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,.05) !important;
+        align-items: center !important;
+    }
+    /* تصویر داخل کارت: مربع کوچک */
+    #home-lectures-container > * > div:first-child,
+    #home-latest-audio > * > div:first-child,
+    #home-latest-videos > * > div:first-child {
+        width: 52px !important;
+        height: 52px !important;
+        aspect-ratio: unset !important;
+        flex-shrink: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* ── ویدیو + صوت ── */
+    #home-media-videos-section, #home-media-audio-section { margin-bottom: 0 !important; padding: 0 !important; }
+
+    /* تصاویر زیر کتابخانه — نسبت طبیعی */
+    #home-media-images-section { display: block !important; }
+    #home-media-images-section > div:first-child { padding: 0 20px 10px !important; }
+
+    /* ── شبکه‌های اجتماعی: grid مساوی تمام عرض (مثل میانبرها) ── */
+    #home-link-shortcuts-wrapper { padding: 0 20px !important; }
+    #home-link-shortcuts-section {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fit, minmax(48px, 1fr)) !important;
+        overflow-x: visible !important;
+        padding: 0 !important;
+        gap: 8px 4px !important;
+    }
+    #home-link-shortcuts-section > * { width: auto !important; }
+
+    /* ── محدود به ۵ آیتم در دسکتاپ ── */
+    #home-latest-videos > *:nth-child(n+6),
+    #home-latest-audio > *:nth-child(n+6),
+    #home-lectures-container > *:nth-child(n+6) { display: none !important; }
+}
