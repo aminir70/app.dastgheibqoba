@@ -230,6 +230,7 @@ function _paLoad(uid, idx) {
     }
     const wrap = document.getElementById('post-player-wrap-' + uid); if (wrap) wrap.classList.remove('hidden');
     const te = document.getElementById('post-cur-title-' + uid); if (te) te.textContent = tr.title || '';
+    const ae = document.getElementById('post-cur-artist-' + uid); if (ae) ae.textContent = tr.artist || '';
     const ne = document.getElementById('post-cur-num-' + uid); if (ne) ne.textContent = toFa(idx + 1) + ' / ' + toFa(tracks.length);
     const ii = document.getElementById('post-item-icon-' + uid + '-' + idx); if (ii) ii.className = 'fas fa-pause text-sm';
     const ib = document.getElementById('post-item-btn-' + uid + '-' + idx); if (ib) { ib.classList.add('bg-brand-600','text-white'); ib.classList.remove('bg-brand-50','text-brand-600'); }
@@ -299,18 +300,20 @@ function _buildAudioHtml(tracks, hideHeader) {
         h += `<div class="bg-gradient-to-br from-brand-600 to-brand-800 p-4 flex items-center gap-3">`;
         h += `<div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-headphones text-white/60 text-2xl"></i></div>`;
         h += `<div class="flex-1 min-w-0">`;
-        if (tr.title) h += `<p class="font-bold text-white text-sm line-clamp-2 mb-1">${tr.title}</p>`;
+        if (tr.title) h += `<p class="font-bold text-white text-sm line-clamp-2 mb-0.5">${tr.title}</p>`;
+        if (tr.artist) h += `<p class="text-white/70 text-xs line-clamp-1 mb-1">${tr.artist}</p>`;
         h += `<a href="${tr.src}" target="_blank" download class="inline-flex items-center gap-1 text-xs font-bold mt-1 px-3 py-1 rounded-xl" style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.4);color:#fff"><i class="fas fa-download text-[10px]"></i>دانلود</a>`;
         h += `</div></div>`;
         h += _paCtrl(uid, tr.src, tr.duration);
         h += `</div>`;
     } else {
-        const tracksEnc = encodeURIComponent(JSON.stringify(tracks.map(t => ({src:t.src,title:t.title||'',duration:t.duration||''}))));
+        const tracksEnc = encodeURIComponent(JSON.stringify(tracks.map(t => ({src:t.src,title:t.title||'',artist:t.artist||'',duration:t.duration||''}))));
         h += `<div data-pa-uid="${uid}" data-pa-tracks="${tracksEnc}">`;
         // Shared player (hidden until track selected)
         h += `<div id="post-player-wrap-${uid}" class="hidden bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 mb-3">`;
         h += `<div class="bg-gradient-to-br from-brand-600 to-brand-800 p-4">`;
         h += `<p id="post-cur-title-${uid}" class="font-bold text-white text-sm line-clamp-2 mb-0.5"></p>`;
+        h += `<p id="post-cur-artist-${uid}" class="text-white/70 text-xs mb-0.5"></p>`;
         h += `<p id="post-cur-num-${uid}" class="text-white/60 text-xs"></p>`;
         h += `</div>`;
         h += _paCtrl(uid, '', '');
@@ -322,6 +325,7 @@ function _buildAudioHtml(tracks, hideHeader) {
             h += `<button id="post-item-btn-${uid}-${i}" class="w-10 h-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center shrink-0 transition-colors"><i id="post-item-icon-${uid}-${i}" class="fas fa-play text-sm ml-0.5"></i></button>`;
             h += `<div class="flex-1 min-w-0">`;
             h += `<p class="font-bold text-sm text-gray-800 line-clamp-2">${tr.title || toFa(i + 1)}</p>`;
+            if (tr.artist) h += `<p class="text-xs text-gray-500 mt-0.5 line-clamp-1">${tr.artist}</p>`;
             if (tr.duration) h += `<p class="text-xs text-gray-400 mt-0.5">${tr.duration}</p>`;
             h += `</div>`;
             h += `<a href="${tr.src}" target="_blank" download onclick="event.stopPropagation()" class="shrink-0 w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-brand-50 text-gray-400 hover:text-brand-600 rounded-full border border-gray-100 transition"><i class="fas fa-download text-xs"></i></a>`;
@@ -468,6 +472,7 @@ async function showWPSingleView(postId) {
                 const m = _bySrc[_normSrc(t.src)];
                 if (m) {
                     if (!t.title && m.title) t.title = m.title;
+                    if (!t.artist && m.artist) t.artist = m.artist;
                     if (!t.duration && m.duration) t.duration = m.duration;
                 }
             });

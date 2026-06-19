@@ -364,12 +364,16 @@ async function _fetchPostAudioTracks(postId) {
         if (!mr.ok) return [];
         const items = await mr.json();
         if (!Array.isArray(items)) return [];
-        return items.map(item => ({
-            src: item.source_url || '',
-            title: (item.title && item.title.rendered) ? item.title.rendered : '',
-            duration: (item.media_details && item.media_details.length_formatted) || '',
-            thumb: ''
-        })).filter(t => t.src);
+        return items.map(item => {
+            const md = item.media_details || {};
+            return {
+                src: item.source_url || '',
+                title: (item.title && item.title.rendered) ? item.title.rendered : '',
+                artist: md.artist || md.album || '',
+                duration: md.length_formatted || '',
+                thumb: ''
+            };
+        }).filter(t => t.src);
     } catch(e) { return []; }
 }
 
