@@ -389,7 +389,12 @@ async function showWPSingleView(postId) {
         (media.hasAudioPlaylist && media.audioTracks.length < 2) ||
         _missingTitles > 0) {
         const extra = await _fetchPostAudioTracks(postId);
-        if (extra.length > media.audioTracks.length) {
+        if (extra.length && _missingTitles > 0 && extra.length >= media.audioTracks.length) {
+            // پست‌های «گالری صوتی»: صوت در متن نیست و فقط ضمیمه است. استخراج از JSON
+            // گاهی src را خراب می‌کند (نه عنوان می‌گیرد نه پخش می‌شود). فهرست ضمیمه‌های
+            // وردپرس کامل، دارای عنوان و لینک معتبر است → کلاً جایگزین کن.
+            media.audioTracks = extra;
+        } else if (extra.length > media.audioTracks.length) {
             // media endpoint کامل‌تر است: همان را پایه قرار بده (دارای عنوان)
             media.audioTracks = _mergeAudioTracks(extra, media.audioTracks);
         } else if (extra.length) {
