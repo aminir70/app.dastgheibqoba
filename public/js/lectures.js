@@ -381,12 +381,29 @@ async function showWPSingleView(postId) {
 
     const media = extractMediaFromPost(post);
 
-    // پلی‌لیست صوتی: اگر فقط یک تراک استخراج شده (وردپرس اسکریپت تراک‌ها را حذف کرده)،
-    // بقیه تراک‌ها را از media endpoint بگیر
-    if ((media.audioTracks.length === 0) || (media.hasAudioPlaylist && media.audioTracks.length < 2)) {
+    // پلی‌لیست صوتی: اگر تراک‌ها ناقص استخراج شده یا عنوان ندارند (وردپرس اسکریپت پلی‌لیست
+    // را در REST حذف می‌کند و صوت‌ها بدون عنوان از <audio>/لینک‌ها استخراج می‌شوند)،
+    // عنوان‌ها/تراک‌ها را از media endpoint وردپرس بگیر
+    const _missingTitles = media.audioTracks.filter(t => !t.title).length;
+    if ((media.audioTracks.length === 0) ||
+        (media.hasAudioPlaylist && media.audioTracks.length < 2) ||
+        _missingTitles > 0) {
         const extra = await _fetchPostAudioTracks(postId);
         if (extra.length > media.audioTracks.length) {
+            // media endpoint کامل‌تر است: همان را پایه قرار بده (دارای عنوان)
             media.audioTracks = _mergeAudioTracks(extra, media.audioTracks);
+        } else if (extra.length) {
+            // فقط عنوان/مدت تراک‌های بدون عنوان را با تطابق src پر کن (ترتیب حفظ می‌شود)
+            const _normSrc = u => (u || '').split('?')[0].replace(/^https?:/i, '').replace(/\/+$/, '').toLowerCase();
+            const _bySrc = {};
+            extra.forEach(t => { if (t.src) _bySrc[_normSrc(t.src)] = t; });
+            media.audioTracks.forEach(t => {
+                const m = _bySrc[_normSrc(t.src)];
+                if (m) {
+                    if (!t.title && m.title) t.title = m.title;
+                    if (!t.duration && m.duration) t.duration = m.duration;
+                }
+            });
         }
     }
 
