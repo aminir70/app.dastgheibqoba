@@ -287,12 +287,12 @@ function _paCtrl(uid, src, duration) {
     h += `</div></div>`;
     return h;
 }
-function _buildAudioHtml(tracks) {
+function _buildAudioHtml(tracks, hideHeader) {
     if (!tracks || tracks.length === 0) return '';
     const multi = tracks.length > 1;
-    const uid = 'pa' + (Date.now() % 999999);
+    const uid = 'pa' + (Date.now() % 999999) + 'x' + (window._paSeq = (window._paSeq || 0) + 1);
     let h = `<div class="bg-brand-50/50 p-4 rounded-2xl mb-6 border border-brand-100 shadow-sm">`;
-    if (multi || !tracks[0].title) h += `<h3 class="font-bold text-sm text-brand-800 mb-3"><i class="fas fa-headphones-alt ml-2 text-brand-600"></i>${multi ? 'فایل‌های صوتی (' + toFa(tracks.length) + ')' : 'فایل صوتی'}</h3>`;
+    if (!hideHeader && (multi || !tracks[0].title)) h += `<h3 class="font-bold text-sm text-brand-800 mb-3"><i class="fas fa-headphones-alt ml-2 text-brand-600"></i>${multi ? 'فایل‌های صوتی (' + toFa(tracks.length) + ')' : 'فایل صوتی'}</h3>`;
     if (!multi) {
         const tr = tracks[0];
         h += `<div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">`;
@@ -331,6 +331,68 @@ function _buildAudioHtml(tracks) {
     }
     h += `</div>`;
     return h;
+}
+
+// استخراج «کلید شب» از یک رشته مثل «... شب اول محرم ...» → «اول»
+function _nightKey(s) {
+    const m = (s || '').match(/شب\s+([^\s<>،,.()]+)\s*(?:محرم|رمضان|صفر)/);
+    return m ? m[1].trim() : null;
+}
+const _NIGHT_ORD = {'اول':1,'اوّل':1,'يكم':1,'یکم':1,'دوم':2,'دوّم':2,'سوم':3,'سوّم':3,'چهارم':4,'پنجم':5,'ششم':6,'هفتم':7,'هشتم':8,'نهم':9,'دهم':10,'یازدهم':11,'دوازدهم':12};
+function _nightOrder(t) {
+    const m = (t.src || '').match(/Shab[-_]?(\d+)/i);
+    if (m) return parseInt(m[1], 10);
+    const k = _nightKey(t.title);
+    return (k && _NIGHT_ORD[k]) ? _NIGHT_ORD[k] : 999;
+}
+// رندر گروه‌بندی‌شده‌ی صوت‌ها بر اساس شب (مثل سایت: هر عنوان + صوت‌های همان شب)
+// اگر گروه‌بندی ممکن نبود null برمی‌گرداند. عنوان‌های متن (media.cleanHtml) که با شب
+// تطابق دارند حذف می‌شوند تا تکراری نمایش داده نشوند.
+function _buildGroupedNightAudio(media) {
+    const tracks = media.audioTracks || [];
+    if (tracks.length <= 2) return null;
+    const keyed = tracks.filter(t => _nightKey(t.title));
+    if (keyed.length < tracks.length * 0.6) return null;            // اکثر تراک‌ها باید الگوی «شب X محرم» داشته باشند
+    const groups = {};
+    tracks.forEach(t => {
+        const k = _nightKey(t.title) || '_';
+        (groups[k] = groups[k] || []).push(t);
+    });
+    const keys = Object.keys(groups);
+    if (keys.filter(k => k !== '_').length < 2) return null;        // حداقل دو شب مختلف
+    // ترتیب گروه‌ها بر اساس شماره شب
+    keys.sort((a, b) => {
+        const oa = a === '_' ? 1e6 : (_NIGHT_ORD[a] || _nightOrder(groups[a][0]));
+        const ob = b === '_' ? 1e6 : (_NIGHT_ORD[b] || _nightOrder(groups[b][0]));
+        return oa - ob;
+    });
+    // عنوان‌های متن را از cleanHtml بردار و بر اساس شب نگاشت کن
+    const headingByKey = {};
+    if (media.cleanHtml) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = media.cleanHtml;
+        tmp.querySelectorAll('h1,h2,h3,h4,h5,h6,p,strong,b,div,li,span').forEach(el => {
+            const txt = (el.textContent || '').trim();
+            if (txt.length === 0 || txt.length > 90) return;
+            const k = _nightKey(txt);
+            if (k && /فایل|صوت|شب/.test(txt)) {
+                if (!headingByKey[k]) headingByKey[k] = txt;
+                el.remove();
+            }
+        });
+        // پاک‌کردن ظرف‌های خالی باقی‌مانده
+        tmp.querySelectorAll('p,div,h1,h2,h3,h4,h5,h6,strong,b,span').forEach(el => {
+            if ((el.textContent || '').trim() === '') el.remove();
+        });
+        media.cleanHtml = tmp.innerHTML;
+    }
+    let html = '';
+    keys.forEach(k => {
+        const title = k === '_' ? '' : (headingByKey[k] || ('شب ' + k + ' محرم'));
+        if (title) html += `<h3 class="font-black text-base text-brand-800 mt-6 mb-3 pr-1 border-r-4 border-brand-500">${title}</h3>`;
+        html += _buildAudioHtml(groups[k], true);
+    });
+    return html;
 }
 
 async function showWPSingleView(postId) {
@@ -424,7 +486,10 @@ async function showWPSingleView(postId) {
     media.iframes.forEach(src => { finalHtml += `<div class="h_iframe-aparat_embed_frame mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-200"><span style="display: block;padding-top: 57%"></span><iframe scrolling="no" allowFullScreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${src}"></iframe></div>`; });
     media.videos.forEach(src => { finalHtml += `<video controls src="${src}" class="w-full rounded-2xl mb-6 shadow-sm bg-black"></video>`; });
 
-    finalHtml += _buildAudioHtml(media.audioTracks);
+    // اگر صوت‌ها بر اساس شب گروه‌بندی‌شدنی‌اند (مثل پست‌های گالری صوتی محرم)،
+    // هر گروه را زیر عنوان خودش نمایش بده؛ وگرنه یک پلی‌لیست یکجا
+    const _groupedAudio = _buildGroupedNightAudio(media);
+    finalHtml += _groupedAudio || _buildAudioHtml(media.audioTracks);
     // گالری تصاویر
     const _featuredUrl = post._embedded && post._embedded['wp:featuredmedia'] ? (post._embedded['wp:featuredmedia'][0] || {}).source_url || '' : '';
     const _galleryImgs = (media.images || []).filter(src => src && src !== _featuredUrl);
