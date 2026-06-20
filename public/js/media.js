@@ -768,6 +768,95 @@ function backToVideoList() {
 }
 
 // ====================================================
+// نمای ریلز ویدیو — اسکرول عمودی تمام‌صفحه مثل اینستاگرام
+// ویدیوهای دستهٔ جاری (videoCachedItems) را زیر هم نشان می‌دهد
+// ====================================================
+let _reelsObserver = null;
+function openVideoReels() {
+    const items = (typeof videoCachedItems !== 'undefined' && Array.isArray(videoCachedItems)) ? videoCachedItems : [];
+    if (!items.length) { if (typeof showToast === 'function') showToast('ویدیویی برای نمایش نیست', false); return; }
+    const screen = document.getElementById('video-reels-screen');
+    const container = document.getElementById('reels-container');
+    if (!screen || !container) return;
+    const titleEl = document.getElementById('reels-title');
+    const catTitle = document.getElementById('video-cat-title');
+    if (titleEl) titleEl.textContent = catTitle ? catTitle.textContent : 'ریلز';
+    container.innerHTML = items.map((v, i) => {
+        const thumb = v.thumbnail || v._catCover || '';
+        const poster = thumb ? `<img src="${thumb}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';
+        const embed = (v.embed_url || '').replace(/"/g, '&quot;');
+        const dateStr = v.publish_date ? `<p class="text-white/60 text-[11px] mt-1">${toFa(v.publish_date)}</p>` : '';
+        return `<div class="reels-slide snap-start snap-always relative w-full bg-black overflow-hidden" style="height:100%" data-idx="${i}" data-embed="${embed}">
+            <div class="reels-mount absolute inset-0 flex items-center justify-center"></div>
+            <div class="reels-poster absolute inset-0 flex items-center justify-center bg-black cursor-pointer">
+                ${poster}
+                <div class="relative w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/40 shadow-lg"><i class="fas fa-play text-white text-xl mr-[-2px]"></i></div>
+            </div>
+            <div class="absolute bottom-0 inset-x-0 p-4 pb-10 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
+                <h3 class="text-white font-bold text-sm leading-snug line-clamp-2">${v.title || ''}</h3>
+                ${dateStr}
+            </div>
+        </div>`;
+    }).join('');
+    screen.classList.remove('hidden'); screen.classList.add('flex');
+    container.scrollTop = 0;
+    container.querySelectorAll('.reels-slide').forEach(slide => {
+        slide.addEventListener('click', () => _reelsMount(slide, true));
+    });
+    _reelsSetupObserver(container);
+    const first = container.querySelector('.reels-slide');
+    if (first) _reelsMount(first, false);
+}
+
+function _reelsMount(slide, autoplay) {
+    if (!slide || slide.dataset.mounted === '1') return;
+    const embed = slide.dataset.embed;
+    if (!embed) return;
+    const mount = slide.querySelector('.reels-mount');
+    const poster = slide.querySelector('.reels-poster');
+    if (!mount) return;
+    let src = embed;
+    if (autoplay && /aparat\.com/.test(src) && !/[?&]autoplay/i.test(src)) {
+        src += (src.indexOf('?') >= 0 ? '&' : '?') + 'autoplay=true';
+    }
+    mount.innerHTML = `<iframe src="${src}" class="w-full h-full" style="border:none" allow="autoplay; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen scrolling="no"></iframe>`;
+    if (poster) poster.style.display = 'none';
+    slide.dataset.mounted = '1';
+}
+
+function _reelsUnmount(slide) {
+    if (!slide || slide.dataset.mounted !== '1') return;
+    const mount = slide.querySelector('.reels-mount');
+    const poster = slide.querySelector('.reels-poster');
+    if (mount) mount.innerHTML = '';
+    if (poster) poster.style.display = '';
+    slide.dataset.mounted = '0';
+}
+
+function _reelsSetupObserver(container) {
+    if (_reelsObserver) { try { _reelsObserver.disconnect(); } catch(e) {} }
+    if (typeof IntersectionObserver === 'undefined') return;
+    _reelsObserver = new IntersectionObserver((entries) => {
+        entries.forEach(en => {
+            if (en.isIntersecting && en.intersectionRatio >= 0.6) {
+                _reelsMount(en.target, true);
+            } else if (en.intersectionRatio < 0.2) {
+                _reelsUnmount(en.target);
+            }
+        });
+    }, { root: container, threshold: [0, 0.2, 0.6, 0.9] });
+    container.querySelectorAll('.reels-slide').forEach(s => _reelsObserver.observe(s));
+}
+
+function closeVideoReels() {
+    const screen = document.getElementById('video-reels-screen');
+    const container = document.getElementById('reels-container');
+    if (_reelsObserver) { try { _reelsObserver.disconnect(); } catch(e) {} _reelsObserver = null; }
+    if (container) container.innerHTML = '';
+    if (screen) { screen.classList.add('hidden'); screen.classList.remove('flex'); }
+}
+
+// ====================================================
 // گالری عکس محلی
 // ====================================================
 let _galleryCatsLoaded = false;

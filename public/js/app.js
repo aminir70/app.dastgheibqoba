@@ -1765,6 +1765,7 @@ function _resetBackCounter() {
 
 // لیست modal/overlay هایی که back آنها رو می‌بنده
 function _closeAnyTransientModal() {
+    if (_isVisible('video-reels-screen'))   { closeVideoReels();    return true; }
     if (_isVisible('exit-confirm-modal'))   { closeExitDialog();    return true; }
     if (_isVisible('pwa-install-modal'))    { closePwaModal(false); return true; }
     if (_isVisible('image-modal'))          { closeImageModal();    return true; }

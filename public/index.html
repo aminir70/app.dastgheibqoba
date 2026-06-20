@@ -487,6 +487,7 @@
                                     </button>
                                 </div>
                             </div>
+                            <button onclick="openVideoReels()" id="video-reels-btn" class="text-[10px] bg-rose-50 text-rose-500 px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 shrink-0 hover:bg-rose-100 transition"><i class="fas fa-film text-[9px]"></i>ریلز</button>
                             <span id="video-count-badge" class="text-[10px] text-gray-400 font-medium shrink-0"></span>
                         </div>
                         <div id="video-items-list" class="flex flex-col gap-3 w-full"></div>
@@ -1451,6 +1452,20 @@
 </div>
 
 <!-- ===== صفحه تقویم ===== -->
+<!-- نمای ریلز ویدیو (اسکرول عمودی تمام‌صفحه) -->
+<style>
+  #reels-container{scrollbar-width:none;-ms-overflow-style:none;}
+  #reels-container::-webkit-scrollbar{display:none;}
+</style>
+<div id="video-reels-screen" class="fixed inset-0 bg-black z-[320] flex-col hidden" dir="rtl">
+  <div class="absolute top-0 inset-x-0 z-20 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
+    <button onclick="closeVideoReels()" class="pointer-events-auto w-9 h-9 flex items-center justify-center bg-white/15 backdrop-blur-sm rounded-full text-white shrink-0"><i class="fas fa-arrow-right text-sm"></i></button>
+    <h2 id="reels-title" class="font-bold text-sm text-white flex-1 text-center truncate" style="text-shadow:0 1px 3px rgba(0,0,0,.6)">ریلز</h2>
+    <div class="w-9 shrink-0"></div>
+  </div>
+  <div id="reels-container" class="flex-1 overflow-y-scroll snap-y snap-mandatory"></div>
+</div>
+
 <div id="calendar-screen" class="fixed inset-0 bg-gray-50 z-[300] flex-col hidden" dir="rtl">
   <!-- هدر -->
   <div class="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">
