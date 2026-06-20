@@ -556,6 +556,9 @@ async function loadVideoCategories(parentId, parentName, restoreScroll) {
     if(backBtn) backBtn.style.display = _videoNavStack.length > 0 ? '' : 'none';
     if(titleEl) titleEl.textContent = parentName || 'گالری ویدیو';
     if(hdr) { if(_videoNavStack.length > 0 || parentName) { hdr.classList.remove('hidden'); hdr.classList.add('flex'); } else { hdr.classList.add('hidden'); hdr.classList.remove('flex'); } }
+    // بنر ریلز فقط در صفحهٔ اصلی ویدیو (سطح ریشه)
+    const _reelsBanner = document.getElementById('video-reels-banner');
+    if(_reelsBanner) _reelsBanner.classList.toggle('hidden', _videoNavStack.length > 0);
 
     try {
         const url = parentId != null ? `/api/videos/categories?parent_id=${parentId}` : '/api/videos/categories';
@@ -625,6 +628,8 @@ async function loadVideoList(categoryId, title, count) {
     const list = document.getElementById('video-items-list');
 
     if(catsView) catsView.classList.add('hidden');
+    const _reelsBanner = document.getElementById('video-reels-banner');
+    if(_reelsBanner) _reelsBanner.classList.add('hidden');
     if(playerView) playerView.classList.add('hidden');
     if(listView) { listView.classList.remove('hidden'); listView.classList.add('flex'); }
     const _vCatsHdr = document.getElementById('video-cats-header');
@@ -772,15 +777,50 @@ function backToVideoList() {
 // ویدیوهای دستهٔ جاری (videoCachedItems) را زیر هم نشان می‌دهد
 // ====================================================
 let _reelsObserver = null;
+// جمع‌آوری همهٔ ویدیوها با پیمایش دسته‌ها و زیردسته‌ها
+async function _fetchAllVideos() {
+    const out = [], seen = new Set();
+    async function walk(parentId) {
+        const url = parentId != null ? `/api/videos/categories?parent_id=${parentId}` : '/api/videos/categories';
+        let cats = [];
+        try { cats = await fetch(url).then(r => r.json()); } catch(e) {}
+        if (!Array.isArray(cats)) return;
+        for (const c of cats) {
+            if (c.sub_count > 0) await walk(c.id);
+            try {
+                const items = await fetch(`/api/videos/categories/${c.id}/items`).then(r => r.json());
+                if (Array.isArray(items)) items.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); out.push(v); } });
+            } catch(e) {}
+        }
+    }
+    await walk(null);
+    return out;
+}
+// ریلز همهٔ ویدیوها (از ابتدای صفحهٔ ویدیو)
+let _reelsLoading = false;
+async function openAllVideoReels() {
+    if (_reelsLoading) return;
+    _reelsLoading = true;
+    if (typeof showToast === 'function') showToast('در حال بارگذاری ویدیوها…');
+    let items = [];
+    try { items = await _fetchAllVideos(); } catch(e) {}
+    _reelsLoading = false;
+    if (!Array.isArray(items) || !items.length) { if (typeof showToast === 'function') showToast('ویدیویی برای نمایش نیست', false); return; }
+    _renderReels(items, 'ریلز ویدیوها');
+}
+// ریلز ویدیوهای دستهٔ جاری
 function openVideoReels() {
     const items = (typeof videoCachedItems !== 'undefined' && Array.isArray(videoCachedItems)) ? videoCachedItems : [];
     if (!items.length) { if (typeof showToast === 'function') showToast('ویدیویی برای نمایش نیست', false); return; }
+    const catTitle = document.getElementById('video-cat-title');
+    _renderReels(items, catTitle ? catTitle.textContent : 'ریلز');
+}
+function _renderReels(items, title) {
     const screen = document.getElementById('video-reels-screen');
     const container = document.getElementById('reels-container');
     if (!screen || !container) return;
     const titleEl = document.getElementById('reels-title');
-    const catTitle = document.getElementById('video-cat-title');
-    if (titleEl) titleEl.textContent = catTitle ? catTitle.textContent : 'ریلز';
+    if (titleEl) titleEl.textContent = title || 'ریلز';
     container.innerHTML = items.map((v, i) => {
         const thumb = v.thumbnail || v._catCover || '';
         const poster = thumb ? `<img src="${thumb}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';
@@ -819,7 +859,7 @@ function _reelsMount(slide, autoplay) {
     if (autoplay && /aparat\.com/.test(src) && !/[?&]autoplay/i.test(src)) {
         src += (src.indexOf('?') >= 0 ? '&' : '?') + 'autoplay=true';
     }
-    mount.innerHTML = `<iframe src="${src}" class="w-full h-full" style="border:none" allow="autoplay; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen scrolling="no"></iframe>`;
+    mount.innerHTML = `<iframe src="${src}" style="border:none" allow="autoplay; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen scrolling="no"></iframe>`;
     if (poster) poster.style.display = 'none';
     slide.dataset.mounted = '1';
 }
