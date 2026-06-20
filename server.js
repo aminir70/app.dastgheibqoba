@@ -2132,20 +2132,14 @@ app.post('/api/admin/audio/tracks',adminAuth,uploadAudio.fields([{name:'audio_fi
     const coverUrlInput=req.body.cover_url&&req.body.cover_url.trim().length>5?san(req.body.cover_url.trim()):null;
     const coverFile=req.files&&req.files['audio_cover']?req.files['audio_cover'][0]:null;
     let cover=coverFile?`/gallery/${coverFile.filename}`:(coverUrlInput||'');
-    // اگه کاور آپلود نشده، از تگ‌های ID3 فایل صوتی استخراج کن
-    if(!cover&&audioFile&&mm){
+    // اگه کاور آپلود نشده، از تگ ID3 خود فایل صوتی (محلی یا لینک راه‌دور) استخراج کن
+    if(!cover){
         try{
-            const fp=path.resolve(__dirname,'public','audio',audioFile.filename);
-            const meta=await mm.parseFile(fp,{skipCovers:false});
-            const pic=mm.selectCover?mm.selectCover(meta.common.picture):(meta.common.picture&&meta.common.picture[0]);
-            if(pic&&pic.data){
-                const ext=(pic.format||'image/jpeg').replace('image/','').replace('jpg','jpeg')||'jpeg';
-                const coverName=audioFile.filename.replace(/\.[^.]+$/,'')+'-cover.'+ext;
-                const coverPath=path.resolve(__dirname,'public','gallery',coverName);
-                fs.writeFileSync(coverPath,Buffer.from(pic.data));
-                cover='/gallery/'+coverName;
-            }
-        }catch(e){console.warn('ID3 cover extract:',e.message);}
+            cover=await _saveExtractedCover({
+                localPath: audioFile ? path.resolve(__dirname,'public','audio',audioFile.filename) : null,
+                remoteUrl: audioFile ? null : audioUrl
+            });
+        }catch(e){console.warn('ID3 cover extract:',e.message); cover='';}
     }
     const artist=san(req.body.artist||'');
     const publishDate=req.body.publish_date||null;
@@ -2386,6 +2380,52 @@ async function _extractAudioCover(fp) {
         return { data: Buffer.from(pic.data), ext: ext === 'jpg' ? 'jpg' : ext };
     } catch(e) { return null; }
 }
+// دانلود بخش ابتدایی یک فایل راه‌دور (برای خواندن تگ ID3 بدون دانلود کل فایل)
+function _fetchRemotePartial(url, redirects=0) {
+    return new Promise(resolve => {
+        try {
+            const lib = url.startsWith('https') ? require('https') : require('http');
+            const req = lib.get(url, { headers: { Range: 'bytes=0-2000000', 'User-Agent': 'cover-extract' } }, res => {
+                if ([301,302,307,308].includes(res.statusCode) && res.headers.location && redirects < 3) {
+                    res.resume(); return resolve(_fetchRemotePartial(res.headers.location, redirects+1));
+                }
+                if (res.statusCode >= 400) { res.resume(); return resolve(null); }
+                const ch = []; res.on('data', c => ch.push(c)); res.on('end', () => resolve(Buffer.concat(ch)));
+            });
+            req.on('error', () => resolve(null));
+            req.setTimeout(20000, () => req.destroy());
+        } catch(e) { resolve(null); }
+    });
+}
+// استخراج کاور ID3 از فایل محلی یا لینک راه‌دور → {data, ext} یا null
+async function _extractCoverData(opts) {
+    const lib = await getMusicMeta();
+    if (!lib) return null;
+    try {
+        let meta;
+        if (opts.localPath && fs.existsSync(opts.localPath)) {
+            meta = await lib.parseFile(opts.localPath, { skipCovers: false, duration: false });
+        } else if (opts.remoteUrl && /^https?:\/\//i.test(opts.remoteUrl)) {
+            const buf = await _fetchRemotePartial(opts.remoteUrl);
+            if (!buf || !buf.length) return null;
+            meta = await lib.parseBuffer(buf, { mimeType: 'audio/mpeg' }, { duration: false });
+        } else return null;
+        const pic = lib.selectCover ? lib.selectCover(meta.common.picture) : (meta.common.picture && meta.common.picture[0]);
+        if (!pic || !pic.data) return null;
+        const ext = String(pic.format || 'image/jpeg').includes('png') ? 'png' : 'jpg';
+        return { data: Buffer.from(pic.data), ext };
+    } catch(e) { return null; }
+}
+// استخراج و ذخیره‌ی کاور در پوشه‌ی gallery → مسیر '/gallery/...' یا ''
+async function _saveExtractedCover(opts) {
+    const img = await _extractCoverData(opts);
+    if (!img) return '';
+    const galleryDir = path.join(__dirname, 'public', 'gallery');
+    if (!fs.existsSync(galleryDir)) fs.mkdirSync(galleryDir, { recursive: true });
+    const name = crypto.randomBytes(8).toString('hex') + '-cover.' + img.ext;
+    fs.writeFileSync(path.join(galleryDir, name), img.data);
+    return '/gallery/' + name;
+}
 // استخراج thumbnail از فایل ویدیویی با ffmpeg
 function _extractVideoCover(fp) {
     return new Promise(resolve => {
@@ -2401,37 +2441,28 @@ function _extractVideoCover(fp) {
 }
 
 app.post('/api/admin/audio/extract-covers', adminAuth, async(req, res) => {
-    const galleryDir = path.join(__dirname, 'public', 'gallery');
-    if (!fs.existsSync(galleryDir)) fs.mkdirSync(galleryDir, { recursive: true });
-    // فایل‌های صوتی بدون کاور را پیدا کن
-    mainDb.all(`SELECT at.id, at.audio_url, at.cover, COALESCE(ac.cover,'') as cat_cover
-                FROM audio_tracks at LEFT JOIN audio_categories ac ON at.category_id=ac.id
-                WHERE (at.cover IS NULL OR at.cover='') AND at.audio_url LIKE '/audio/%'`,
+    // تراک‌های بدون کاور (هم فایل محلی، هم لینک راه‌دور)
+    mainDb.all(`SELECT at.id, at.audio_url FROM audio_tracks at
+                WHERE (at.cover IS NULL OR at.cover='') AND (at.audio_url LIKE '/audio/%' OR at.audio_url LIKE 'http%')`,
     [], async (err, tracks) => {
         if (err) return res.status(500).json({ error: err.message });
-        let updated = 0, fromFile = 0, fromCategory = 0;
+        let fromFile = 0, noCover = 0;
         for (const tr of (tracks || [])) {
             try {
-                const fp = path.resolve(__dirname, 'public', tr.audio_url.replace(/^\//, ''));
-                let coverImg = null;
-                if (fs.existsSync(fp)) {
-                    coverImg = await _extractAudioCover(fp);
-                }
-                if (coverImg) {
-                    // ذخیره کاور استخراج‌شده از فایل
-                    const coverName = crypto.randomBytes(8).toString('hex') + '-cover.' + coverImg.ext;
-                    const coverPath = path.join(galleryDir, coverName);
-                    fs.writeFileSync(coverPath, coverImg.data);
-                    await new Promise(r => mainDb.run('UPDATE audio_tracks SET cover=? WHERE id=?', ['/gallery/' + coverName, tr.id], r));
-                    updated++; fromFile++;
-                } else if (tr.cat_cover) {
-                    // fallback: کاور دسته‌بندی
-                    await new Promise(r => mainDb.run('UPDATE audio_tracks SET cover=? WHERE id=?', [tr.cat_cover, tr.id], r));
-                    updated++; fromCategory++;
-                }
+                const isLocal = /^\/audio\//.test(tr.audio_url || '');
+                const cover = await _saveExtractedCover({
+                    localPath: isLocal ? path.resolve(__dirname, 'public', tr.audio_url.replace(/^\//, '')) : null,
+                    remoteUrl: isLocal ? null : tr.audio_url
+                });
+                if (cover) {
+                    // کاور فقط از خود فایل گرفته می‌شود؛ اگر فایل کاور نداشت خالی می‌ماند
+                    // تا اپ هنگام نمایش، خودش کاور دسته‌بندی را fallback کند
+                    await new Promise(r => mainDb.run('UPDATE audio_tracks SET cover=? WHERE id=?', [cover, tr.id], r));
+                    fromFile++;
+                } else { noCover++; }
             } catch(e) {}
         }
-        res.json({ success: true, updated, fromFile, fromCategory, total: (tracks || []).length });
+        res.json({ success: true, updated: fromFile, fromFile, fromCategory: 0, noCover, total: (tracks || []).length });
     });
 });
 
