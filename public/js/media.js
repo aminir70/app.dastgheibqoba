@@ -821,6 +821,9 @@ function _renderReels(items, title) {
     if (!screen || !container) return;
     const titleEl = document.getElementById('reels-title');
     if (titleEl) titleEl.textContent = title || 'ریلز';
+    // نمایش تصادفی (روی کپی تا ترتیب لیست عادی دست‌نخورده بماند)
+    items = items.slice();
+    for (let k = items.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); const t = items[k]; items[k] = items[j]; items[j] = t; }
     container.innerHTML = items.map((v, i) => {
         const thumb = v.thumbnail || v._catCover || '';
         const poster = thumb ? `<img src="${thumb}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';
