@@ -290,6 +290,7 @@ function initDb() {
         // Migration: add publish_date and sort_order
         mainDb.run(`ALTER TABLE audio_tracks ADD COLUMN publish_date TEXT DEFAULT NULL`, () => {});
         mainDb.run(`ALTER TABLE video_items ADD COLUMN publish_date TEXT DEFAULT NULL`, () => {});
+        mainDb.run(`ALTER TABLE video_items ADD COLUMN vertical INTEGER DEFAULT 0`, () => {});
         mainDb.run(`ALTER TABLE books ADD COLUMN sort_order INTEGER DEFAULT 0`, () => {});
         mainDb.run(`ALTER TABLE books ADD COLUMN book_type TEXT DEFAULT 'db'`, () => {});
         mainDb.run(`ALTER TABLE books ADD COLUMN pdf_filename TEXT DEFAULT ''`, () => {});
@@ -2310,9 +2311,10 @@ app.post('/api/admin/video/items',adminAuth,uploadImage.single('gallery_image'),
     let thumbnail=thumbFile?`/gallery/${thumbFile.filename}`:(thumbUrlInput||extractAparatThumb(embedUrl));
     const desc=san(req.body.description||'');
     const publishDate=req.body.publish_date||null;
+    const vertical=(req.body.vertical==='1'||req.body.vertical==='on'||req.body.vertical===true)?1:0;
     mainDb.get('SELECT MAX(sort_order) as mx FROM video_items WHERE category_id=?',[catId],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
-        mainDb.run('INSERT INTO video_items (category_id,title,embed_url,thumbnail,description,sort_order,publish_date) VALUES (?,?,?,?,?,?,?)',[catId,title,embedUrl,thumbnail,desc,so,publishDate],function(err2){
+        mainDb.run('INSERT INTO video_items (category_id,title,embed_url,thumbnail,description,sort_order,publish_date,vertical) VALUES (?,?,?,?,?,?,?,?)',[catId,title,embedUrl,thumbnail,desc,so,publishDate,vertical],function(err2){
             if(err2) return res.status(500).json({error:err2.message});
             // Auto-set category cover if empty
             if(thumbnail) mainDb.run('UPDATE video_categories SET cover=? WHERE id=? AND (cover IS NULL OR cover="")',[thumbnail,catId]);
@@ -2358,7 +2360,8 @@ app.put('/api/admin/video/items/:id',adminAuth,uploadImage.single('gallery_image
     const title=san(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان الزامی است'});
     const desc=san(req.body.description||'');
     const publishDate=req.body.publish_date||null;
-    const sets=['title=?','description=?','publish_date=?'];const vals=[title,desc,publishDate];
+    const vertical=(req.body.vertical==='1'||req.body.vertical==='on'||req.body.vertical===true)?1:0;
+    const sets=['title=?','description=?','publish_date=?','vertical=?'];const vals=[title,desc,publishDate,vertical];
     const embedRaw=req.body.embed_url||'';
     if(embedRaw.trim()){const embedUrl=parseAparatEmbed(embedRaw);if(embedUrl){sets.push('embed_url=?');vals.push(embedUrl);}}
     const thumbUrlInput=req.body.thumb_url&&req.body.thumb_url.trim().length>5?san(req.body.thumb_url.trim()):null;
