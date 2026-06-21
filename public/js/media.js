@@ -826,11 +826,12 @@ function _renderReels(items, title) {
     for (let k = items.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); const t = items[k]; items[k] = items[j]; items[j] = t; }
     container.innerHTML = items.map((v, i) => {
         const thumb = v.thumbnail || v._catCover || '';
+        const thumbAttr = thumb.replace(/"/g, '&quot;');
         const poster = thumb ? `<img src="${thumb}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';
         const embed = (v.embed_url || '').replace(/"/g, '&quot;');
         const dateStr = v.publish_date ? `<p class="text-white/60 text-[11px] mt-1">${toFa(v.publish_date)}</p>` : '';
-        return `<div class="reels-slide snap-start snap-always relative w-full bg-black overflow-hidden" style="height:100%" data-idx="${i}" data-embed="${embed}">
-            <div class="reels-mount absolute inset-0 flex items-center justify-center"></div>
+        return `<div class="reels-slide snap-start snap-always relative w-full bg-black overflow-hidden" style="height:100%" data-idx="${i}" data-embed="${embed}" data-thumb="${thumbAttr}">
+            <div class="reels-mount cover absolute inset-0 overflow-hidden"></div>
             <div class="reels-poster absolute inset-0 flex items-center justify-center bg-black cursor-pointer">
                 ${poster}
                 <div class="relative w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/40 shadow-lg"><i class="fas fa-play text-white text-xl mr-[-2px]"></i></div>
@@ -845,10 +846,27 @@ function _renderReels(items, title) {
     container.scrollTop = 0;
     container.querySelectorAll('.reels-slide').forEach(slide => {
         slide.addEventListener('click', () => _reelsMount(slide, true));
+        _reelsApplyAspect(slide);
     });
     _reelsSetupObserver(container);
     const first = container.querySelector('.reels-slide');
     if (first) _reelsMount(first, false);
+}
+
+// تشخیص نسبت تصویر از روی بندانگشتی: عمودی → cover (پر صفحه)، افقی → contain (واید)
+function _reelsApplyAspect(slide) {
+    const mount = slide && slide.querySelector('.reels-mount');
+    const thumb = slide && slide.dataset.thumb;
+    if (!mount || !thumb) return;
+    const img = new Image();
+    img.onload = () => {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (!w || !h) return;
+        const portrait = h > w * 1.05;   // عمودی
+        mount.classList.toggle('cover', portrait);
+        mount.classList.toggle('contain', !portrait);
+    };
+    img.src = thumb;
 }
 
 function _reelsMount(slide, autoplay) {
