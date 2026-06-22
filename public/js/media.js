@@ -700,9 +700,11 @@ function _renderVideoItems(pairs) {
         const isFav = _isFav('video', v.id);
         const favBtn = `<button class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="video" data-fid="${v.id}" onclick="event.stopPropagation();toggleMediaFav('video','${v.id}')">${isFav ? '<i class="fas fa-heart text-red-500 text-sm"></i>' : '<i class="far fa-heart text-gray-300 text-sm"></i>'}</button>`;
         const dateStr = v.publish_date ? `<p class="text-[10px] text-gray-400 mt-0.5">${toFa(v.publish_date)}</p>` : '';
+        // ویدیوهای عمودی (استوری) با نسبت ۹:۱۶ نمایش داده می‌شوند
+        const aspR = (v.vertical == 1 || v.vertical === '1' || v.vertical === true) ? '9/16' : '16/9';
         if (_mediaViewMode === 'grid') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
-            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-gray-900 overflow-hidden relative">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" class="w-full bg-gray-900 overflow-hidden relative" style="aspect-ratio:${aspR}">${thumbHtml}${playBtn}</div>
             <div class="px-2 py-2 flex flex-col gap-0.5">
                 <div class="flex items-start gap-1">
                     <h4 onclick="playVideoItem(${v.id})" class="font-bold text-[11px] text-gray-800 line-clamp-2 leading-snug flex-1">${v.title}</h4>
@@ -713,7 +715,7 @@ function _renderVideoItems(pairs) {
         </div>`;
         if (_mediaViewMode === 'large') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all active:scale-[0.98] flex flex-col">
-            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-gray-900 overflow-hidden relative">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" class="w-full bg-gray-900 overflow-hidden relative" style="aspect-ratio:${aspR}">${thumbHtml}${playBtn}</div>
             <div class="p-3 flex items-start gap-2">
                 <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
                     <h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
@@ -815,15 +817,21 @@ function openVideoReels() {
     const catTitle = document.getElementById('video-cat-title');
     _renderReels(items, catTitle ? catTitle.textContent : 'ریلز');
 }
-function _renderReels(items, title) {
+function _renderReels(items, title, startId) {
     const screen = document.getElementById('video-reels-screen');
     const container = document.getElementById('reels-container');
     if (!screen || !container) return;
     const titleEl = document.getElementById('reels-title');
     if (titleEl) titleEl.textContent = title || 'ریلز';
-    // نمایش تصادفی (روی کپی تا ترتیب لیست عادی دست‌نخورده بماند)
     items = items.slice();
-    for (let k = items.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); const t = items[k]; items[k] = items[j]; items[j] = t; }
+    if (startId != null) {
+        // شروع از ویدیوی انتخاب‌شده (بدون شافل)
+        const idx = items.findIndex(v => v.id === startId);
+        if (idx > 0) { const sel = items.splice(idx, 1)[0]; items.unshift(sel); }
+    } else {
+        // نمایش تصادفی (روی کپی تا ترتیب لیست عادی دست‌نخورده بماند)
+        for (let k = items.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); const t = items[k]; items[k] = items[j]; items[j] = t; }
+    }
     container.innerHTML = items.map((v, i) => {
         const thumb = v.thumbnail || v._catCover || '';
         const poster = thumb ? `<img src="${thumb}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';

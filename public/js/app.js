@@ -156,6 +156,7 @@ async function init() {
         try { await loadHomeLinkShortcuts(); } catch(e) { console.warn('LinkShortcuts err:', e); }
         try { fetchLatestLectures(); } catch(e) { console.warn('Lectures err:', e); }
         try { loadHomeLatestMedia(); } catch(e) {}
+        try { loadHomeStories(); } catch(e) {}
         if (qaUser) { try { startNotifPolling(); } catch(e) {} }
     } catch(e) {
         console.error("Critical Init Error:", e);
@@ -404,7 +405,7 @@ function openHomeAudio(idx) {
 async function loadHomeLatestMedia() {
     try {
         const [imgRes, vidRes, audRes] = await Promise.all([
-            fetch('/api/gallery/latest?limit=12').catch(()=>null),
+            fetch('/api/gallery/latest?limit=10').catch(()=>null),
             fetch('/api/videos/latest?limit=10').catch(()=>null),
             fetch('/api/audio/latest?limit=10').catch(()=>null)
         ]);
@@ -416,7 +417,7 @@ async function loadHomeLatestMedia() {
         const imgSec = document.getElementById('home-media-images-section');
         const imgEl = document.getElementById('home-latest-images');
         if (imgEl && _homeLatestImages.length > 0) {
-            imgEl.innerHTML = _homeLatestImages.map((ph, i) => `<div onclick="openHomeImage(${i})" class="rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm active:scale-95 transition-transform"><img src="${ph.image}" loading="lazy" class="w-full h-auto block" onerror="this.parentElement.style.display='none'"></div>`).join('');
+            imgEl.innerHTML = _homeLatestImages.map((ph, i) => `<div onclick="openHomeImage(${i})" class="snap-start shrink-0 w-28 rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm active:scale-95 transition-transform" style="aspect-ratio:1/1"><img src="${ph.image}" loading="lazy" class="w-full h-full object-cover block" onerror="this.parentElement.style.display='none'"></div>`).join('');
             if (imgSec) imgSec.classList.remove('hidden');
         }
 
@@ -458,6 +459,67 @@ async function loadHomeLatestMedia() {
             if (audSec) audSec.classList.remove('hidden');
         }
     } catch(e) {}
+}
+
+// ====================================================
+// بخش استوری صفحه اصلی (ویدیوهای دسته «کلیپ»)
+// ====================================================
+let _homeStoryCat = null, _homeStoryItems = [];
+async function _findClipCategory() {
+    const match = c => /کلیپ/.test(c.name || '');
+    let roots = [];
+    try { roots = await fetch('/api/videos/categories').then(r => r.json()); } catch(e) {}
+    if (!Array.isArray(roots)) return null;
+    let found = roots.find(match);
+    if (found) return found;
+    for (const c of roots) {
+        if (c.sub_count > 0) {
+            try {
+                const kids = await fetch('/api/videos/categories?parent_id=' + c.id).then(r => r.json());
+                const f = (kids || []).find(match);
+                if (f) return f;
+            } catch(e) {}
+        }
+    }
+    return null;
+}
+async function loadHomeStories() {
+    const sec = document.getElementById('home-story-section');
+    const strip = document.getElementById('home-story-strip');
+    if (!sec || !strip) return;
+    try {
+        const cat = await _findClipCategory();
+        if (!cat) return;
+        const items = await fetch('/api/videos/categories/' + cat.id + '/items').then(r => r.json());
+        if (!Array.isArray(items) || !items.length) return;
+        _homeStoryCat = cat; _homeStoryItems = items;
+        strip.innerHTML = items.slice(0, 10).map(v => {
+            const thumb = v.thumbnail || v._catCover || '';
+            const t = thumb ? `<img src="${thumb}" loading="lazy" class="w-full h-full object-cover" onerror="this.style.display='none'">` : '';
+            return `<div onclick="openHomeStory(${v.id})" class="snap-start shrink-0 w-24 cursor-pointer active:scale-95 transition">
+                <div class="w-24 rounded-2xl overflow-hidden bg-gray-900 relative shadow-sm ring-2 ring-rose-500" style="aspect-ratio:9/16">
+                    ${t}
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                    <div class="absolute bottom-1.5 inset-x-1.5"><p class="text-white text-[9px] font-bold line-clamp-2 leading-tight">${v.title || ''}</p></div>
+                    <div class="absolute top-1.5 right-1.5 w-6 h-6 bg-white/25 backdrop-blur-sm rounded-full flex items-center justify-center"><i class="fas fa-play text-white text-[9px] mr-[-1px]"></i></div>
+                </div>
+            </div>`;
+        }).join('');
+        sec.classList.remove('hidden');
+    } catch(e) {}
+}
+function openHomeStory(id) {
+    if (typeof _renderReels === 'function' && _homeStoryItems.length) {
+        _renderReels(_homeStoryItems, (_homeStoryCat && _homeStoryCat.name) || 'استوری', id);
+    }
+}
+function openHomeStoriesAll() {
+    const cat = _homeStoryCat; if (!cat) return;
+    navToScreen('media');
+    setTimeout(() => {
+        try { switchMediaTab('video'); } catch(e) {}
+        setTimeout(() => { try { loadVideoList(cat.id, cat.name, (_homeStoryItems || []).length); } catch(e) {} }, 90);
+    }, 90);
 }
 
 // ====================================================

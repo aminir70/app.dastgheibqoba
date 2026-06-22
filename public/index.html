@@ -18,8 +18,8 @@
     <link href="/vendor/fonts/shabnam/font-face-local.css" rel="stylesheet">
     <link rel="stylesheet" href="/vendor/fa/all.local.min.css">
 
-    <link rel="stylesheet" href="/css/tailwind.dist.css?v=c0d0ed3f1e">
-    <link rel="stylesheet" href="/css/app.css?v=c0d0ed3f1e">
+    <link rel="stylesheet" href="/css/tailwind.dist.css?v=15730df530">
+    <link rel="stylesheet" href="/css/app.css?v=15730df530">
 </head>
 <body class="font-vazir antialiased text-gray-800">
 
@@ -290,7 +290,15 @@
                         <h3 class="text-sm font-black text-gray-800">آخرین تصاویر</h3>
                         <button onclick="navToScreen('media');setTimeout(()=>switchMediaTab('photo'),80)" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">مشاهده همه</button>
                     </div>
-                    <div id="home-latest-images" class="grid grid-cols-4 gap-2 px-4"></div>
+                    <div id="home-latest-images" class="flex overflow-x-auto hide-scrollbar gap-2 px-4 pb-2 snap-x"></div>
+                </div>
+                <!-- STORY (ویدیوهای دسته کلیپ) -->
+                <div id="home-story-section" class="mb-4 hidden">
+                    <div class="flex items-center justify-between px-6 mb-3">
+                        <h3 class="text-sm font-black text-gray-800"><i class="fas fa-circle-play text-rose-500 ml-1"></i>استوری</h3>
+                        <button onclick="openHomeStoriesAll()" class="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full">مشاهده همه</button>
+                    </div>
+                    <div id="home-story-strip" class="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 snap-x"></div>
                 </div>
                 <!-- BANNERS position: after_images -->
                 <div id="home-banner-after_images" class="mb-4 flex flex-col gap-3"></div>
@@ -1364,13 +1372,13 @@
 
 <script src="/vendor/pdfjs/pdf.min.js"></script>
 <script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.js';</script>
-<script src="/js/dist/utils.min.js?v=c0d0ed3f1e"></script>
-<script src="/js/dist/offline.min.js?v=c0d0ed3f1e"></script>
-<script src="/js/dist/books.min.js?v=c0d0ed3f1e"></script>
-<script src="/js/dist/lectures.min.js?v=c0d0ed3f1e"></script>
-<script src="/js/dist/media.min.js?v=c0d0ed3f1e"></script>
-<script src="/js/dist/news.min.js?v=c0d0ed3f1e"></script>
-<script src="/js/dist/app.min.js?v=c0d0ed3f1e"></script>
+<script src="/js/dist/utils.min.js?v=15730df530"></script>
+<script src="/js/dist/offline.min.js?v=15730df530"></script>
+<script src="/js/dist/books.min.js?v=15730df530"></script>
+<script src="/js/dist/lectures.min.js?v=15730df530"></script>
+<script src="/js/dist/media.min.js?v=15730df530"></script>
+<script src="/js/dist/news.min.js?v=15730df530"></script>
+<script src="/js/dist/app.min.js?v=15730df530"></script>
 
 <!-- PWA Install Modal -->
 <div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" onclick="closePwaModal()">
