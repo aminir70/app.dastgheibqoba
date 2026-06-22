@@ -417,7 +417,7 @@ async function loadHomeLatestMedia() {
         const imgSec = document.getElementById('home-media-images-section');
         const imgEl = document.getElementById('home-latest-images');
         if (imgEl && _homeLatestImages.length > 0) {
-            imgEl.innerHTML = _homeLatestImages.map((ph, i) => `<div onclick="openHomeImage(${i})" class="snap-start shrink-0 w-24 rounded-2xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm active:scale-95 transition-transform" style="aspect-ratio:9/16"><img src="${ph.image}" loading="lazy" class="w-full h-full object-cover block" onerror="this.parentElement.style.display='none'"></div>`).join('');
+            imgEl.innerHTML = _homeLatestImages.map((ph, i) => `<div onclick="openHomeImage(${i})" class="snap-start shrink-0 w-24 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm active:scale-95 transition-transform flex items-center justify-center" style="aspect-ratio:9/16"><img src="${ph.image}" loading="lazy" referrerpolicy="no-referrer" class="w-full h-full object-cover block" onerror="this.onerror=null;this.src='/api/proxy?url='+encodeURIComponent('${ph.image}')"></div>`).join('');
             if (imgSec) imgSec.classList.remove('hidden');
         }
 
