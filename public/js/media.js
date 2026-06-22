@@ -672,6 +672,25 @@ function playVideoItem(itemId) {
     document.getElementById('video-player-title').textContent = item.title;
     document.getElementById('video-aparat-iframe').src = item.embed_url;
 
+    // ویدیوهای عمودی (استوری) را در پلیر هم عمودی نشان بده
+    const _pframe = document.getElementById('video-player-frame');
+    if (_pframe) {
+        const isVert = (item.vertical == 1 || item.vertical === '1' || item.vertical === true);
+        if (isVert) {
+            _pframe.style.paddingTop = '';
+            _pframe.style.aspectRatio = '9/16';
+            _pframe.style.maxHeight = '78vh';
+            _pframe.style.width = 'auto';
+            _pframe.style.margin = '0 auto';
+        } else {
+            _pframe.style.aspectRatio = '';
+            _pframe.style.maxHeight = '';
+            _pframe.style.width = '';
+            _pframe.style.margin = '';
+            _pframe.style.paddingTop = '56.25%';
+        }
+    }
+
     const descEl = document.getElementById('video-player-desc');
     if(item.description && item.description.trim()) {
         descEl.textContent = item.description;
