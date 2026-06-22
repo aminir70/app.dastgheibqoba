@@ -508,6 +508,12 @@ async function loadHomeStories() {
         if (!cat) return;
         const items = await _collectCategoryVideos(cat.id);
         if (!Array.isArray(items) || !items.length) return;
+        // جدیدترین بر اساس تاریخ اول (publish_date یا در نبودش created_at)
+        items.sort((a, b) => {
+            const ka = (a.publish_date && a.publish_date.trim()) ? a.publish_date : (a.created_at || '');
+            const kb = (b.publish_date && b.publish_date.trim()) ? b.publish_date : (b.created_at || '');
+            return kb.localeCompare(ka);
+        });
         _homeStoryCat = cat; _homeStoryItems = items;
         strip.innerHTML = items.slice(0, 10).map(v => {
             const thumb = v.thumbnail || v._catCover || '';
