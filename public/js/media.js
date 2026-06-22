@@ -727,7 +727,7 @@ function _renderVideoItems(pairs) {
         </div>`;
         return `
         <div class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
-            <div onclick="playVideoItem(${v.id})" class="w-28 h-[63px] bg-gray-900 rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" style="${aspR === '9/16' ? 'width:74px;height:131px' : 'width:112px;height:63px'}" class="bg-gray-900 rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
             <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
                 <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
                 ${v.description ? `<p class="text-[10px] text-gray-400 mt-0.5 line-clamp-1">${v.description}</p>` : ''}

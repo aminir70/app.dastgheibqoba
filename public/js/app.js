@@ -417,7 +417,7 @@ async function loadHomeLatestMedia() {
         const imgSec = document.getElementById('home-media-images-section');
         const imgEl = document.getElementById('home-latest-images');
         if (imgEl && _homeLatestImages.length > 0) {
-            imgEl.innerHTML = _homeLatestImages.map((ph, i) => `<div onclick="openHomeImage(${i})" class="snap-start shrink-0 w-28 rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm active:scale-95 transition-transform" style="aspect-ratio:1/1"><img src="${ph.image}" loading="lazy" class="w-full h-full object-cover block" onerror="this.parentElement.style.display='none'"></div>`).join('');
+            imgEl.innerHTML = _homeLatestImages.map((ph, i) => `<div onclick="openHomeImage(${i})" class="snap-start shrink-0 w-24 rounded-2xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm active:scale-95 transition-transform" style="aspect-ratio:9/16"><img src="${ph.image}" loading="lazy" class="w-full h-full object-cover block" onerror="this.parentElement.style.display='none'"></div>`).join('');
             if (imgSec) imgSec.classList.remove('hidden');
         }
 
@@ -465,6 +465,22 @@ async function loadHomeLatestMedia() {
 // بخش استوری صفحه اصلی (ویدیوهای دسته «کلیپ»)
 // ====================================================
 let _homeStoryCat = null, _homeStoryItems = [];
+// جمع‌آوری ویدیوهای یک دسته و همهٔ زیردسته‌هایش
+async function _collectCategoryVideos(catId) {
+    const out = [], seen = new Set();
+    async function walk(id) {
+        try {
+            const items = await fetch('/api/videos/categories/' + id + '/items').then(r => r.json());
+            if (Array.isArray(items)) items.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); out.push(v); } });
+        } catch(e) {}
+        try {
+            const subs = await fetch('/api/videos/categories?parent_id=' + id).then(r => r.json());
+            if (Array.isArray(subs)) for (const sc of subs) await walk(sc.id);
+        } catch(e) {}
+    }
+    await walk(catId);
+    return out;
+}
 async function _findClipCategory() {
     const match = c => /کلیپ/.test(c.name || '');
     let roots = [];
@@ -490,7 +506,7 @@ async function loadHomeStories() {
     try {
         const cat = await _findClipCategory();
         if (!cat) return;
-        const items = await fetch('/api/videos/categories/' + cat.id + '/items').then(r => r.json());
+        const items = await _collectCategoryVideos(cat.id);
         if (!Array.isArray(items) || !items.length) return;
         _homeStoryCat = cat; _homeStoryItems = items;
         strip.innerHTML = items.slice(0, 10).map(v => {
@@ -518,8 +534,13 @@ function openHomeStoriesAll() {
     navToScreen('media');
     setTimeout(() => {
         try { switchMediaTab('video'); } catch(e) {}
-        setTimeout(() => { try { loadVideoList(cat.id, cat.name, (_homeStoryItems || []).length); } catch(e) {} }, 90);
-    }, 90);
+        setTimeout(() => {
+            try {
+                if (cat.sub_count > 0 && typeof videoNavToSub === 'function') videoNavToSub(cat.id, cat.name);
+                else if (typeof loadVideoList === 'function') loadVideoList(cat.id, cat.name, (_homeStoryItems || []).length);
+            } catch(e) {}
+        }, 120);
+    }, 120);
 }
 
 // ====================================================
