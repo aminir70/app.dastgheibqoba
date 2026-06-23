@@ -676,16 +676,17 @@ function playVideoItem(itemId) {
     const _pframe = document.getElementById('video-player-frame');
     if (_pframe) {
         const isVert = (item.vertical == 1 || item.vertical === '1' || item.vertical === true);
+        _pframe.style.aspectRatio = '';
+        _pframe.style.maxHeight = '';
         if (isVert) {
-            _pframe.style.paddingTop = '';
-            _pframe.style.aspectRatio = '9/16';
-            _pframe.style.maxHeight = '78vh';
-            _pframe.style.width = 'auto';
+            // قاب عمودی ۹:۱۶ وسط‌چین (ارتفاع از padding-top که مطمئن است)
+            _pframe.style.width = '44vh';
+            _pframe.style.maxWidth = '100%';
             _pframe.style.margin = '0 auto';
+            _pframe.style.paddingTop = '177.78%';
         } else {
-            _pframe.style.aspectRatio = '';
-            _pframe.style.maxHeight = '';
             _pframe.style.width = '';
+            _pframe.style.maxWidth = '';
             _pframe.style.margin = '';
             _pframe.style.paddingTop = '56.25%';
         }
