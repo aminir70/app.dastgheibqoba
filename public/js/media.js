@@ -672,8 +672,9 @@ function playVideoItem(itemId) {
     document.getElementById('video-player-title').textContent = item.title;
     document.getElementById('video-aparat-iframe').src = item.embed_url;
 
-    // ویدیوهای عمودی (استوری) را در پلیر هم عمودی نشان بده
+    // ویدیوهای عمودی (استوری) را در پلیر هم عمودی و تمام‌قاب نشان بده
     const _pframe = document.getElementById('video-player-frame');
+    const _ifr = document.getElementById('video-aparat-iframe');
     if (_pframe) {
         const isVert = (item.vertical == 1 || item.vertical === '1' || item.vertical === true);
         _pframe.style.aspectRatio = '';
@@ -684,11 +685,25 @@ function playVideoItem(itemId) {
             _pframe.style.maxWidth = '100%';
             _pframe.style.margin = '0 auto';
             _pframe.style.paddingTop = '177.78%';
+            _pframe.style.overflow = 'hidden';
+            // پلیر ۱۶:۹ آپارات را طوری بزرگ کن که قاب عمودی را پر کند (crop کناره‌ها)
+            if (_ifr) {
+                _ifr.style.top = '50%'; _ifr.style.left = '50%';
+                _ifr.style.transform = 'translate(-50%,-50%)';
+                _ifr.style.height = '100%'; _ifr.style.width = 'auto';
+                _ifr.style.aspectRatio = '16/9'; _ifr.style.minWidth = '100%';
+            }
         } else {
             _pframe.style.width = '';
             _pframe.style.maxWidth = '';
             _pframe.style.margin = '';
+            _pframe.style.overflow = '';
             _pframe.style.paddingTop = '56.25%';
+            if (_ifr) {
+                _ifr.style.top = '0'; _ifr.style.left = '0';
+                _ifr.style.transform = ''; _ifr.style.width = '100%';
+                _ifr.style.height = '100%'; _ifr.style.aspectRatio = ''; _ifr.style.minWidth = '';
+            }
         }
     }
 
