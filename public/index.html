@@ -18,8 +18,8 @@
     <link href="/vendor/fonts/shabnam/font-face-local.css" rel="stylesheet">
     <link rel="stylesheet" href="/vendor/fa/all.local.min.css">
 
-    <link rel="stylesheet" href="/css/tailwind.dist.css?v=cf9db1dff3">
-    <link rel="stylesheet" href="/css/app.css?v=cf9db1dff3">
+    <link rel="stylesheet" href="/css/tailwind.dist.css?v=15efa21a0b">
+    <link rel="stylesheet" href="/css/app.css?v=15efa21a0b">
 </head>
 <body class="font-vazir antialiased text-gray-800">
 
@@ -290,7 +290,7 @@
                         <h3 class="text-sm font-black text-gray-800">آخرین تصاویر</h3>
                         <button onclick="navToScreen('media');setTimeout(()=>switchMediaTab('photo'),80)" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">مشاهده همه</button>
                     </div>
-                    <div id="home-latest-images" class="flex overflow-x-auto hide-scrollbar gap-2 px-4 pb-2 snap-x"></div>
+                    <div id="home-latest-images" class="flex flex-wrap justify-center md:flex-nowrap md:justify-start overflow-x-auto hide-scrollbar gap-2 px-4 pb-2 snap-x"></div>
                 </div>
                 <!-- STORY (ویدیوهای دسته کلیپ) -->
                 <div id="home-story-section" class="mb-4 hidden">
@@ -1372,13 +1372,13 @@
 
 <script src="/vendor/pdfjs/pdf.min.js"></script>
 <script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.js';</script>
-<script src="/js/dist/utils.min.js?v=cf9db1dff3"></script>
-<script src="/js/dist/offline.min.js?v=cf9db1dff3"></script>
-<script src="/js/dist/books.min.js?v=cf9db1dff3"></script>
-<script src="/js/dist/lectures.min.js?v=cf9db1dff3"></script>
-<script src="/js/dist/media.min.js?v=cf9db1dff3"></script>
-<script src="/js/dist/news.min.js?v=cf9db1dff3"></script>
-<script src="/js/dist/app.min.js?v=cf9db1dff3"></script>
+<script src="/js/dist/utils.min.js?v=15efa21a0b"></script>
+<script src="/js/dist/offline.min.js?v=15efa21a0b"></script>
+<script src="/js/dist/books.min.js?v=15efa21a0b"></script>
+<script src="/js/dist/lectures.min.js?v=15efa21a0b"></script>
+<script src="/js/dist/media.min.js?v=15efa21a0b"></script>
+<script src="/js/dist/news.min.js?v=15efa21a0b"></script>
+<script src="/js/dist/app.min.js?v=15efa21a0b"></script>
 
 <!-- PWA Install Modal -->
 <div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" onclick="closePwaModal()">
