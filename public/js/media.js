@@ -719,11 +719,9 @@ function _renderVideoItems(pairs) {
         const isFav = _isFav('video', v.id);
         const favBtn = `<button class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="video" data-fid="${v.id}" onclick="event.stopPropagation();toggleMediaFav('video','${v.id}')">${isFav ? '<i class="fas fa-heart text-red-500 text-sm"></i>' : '<i class="far fa-heart text-gray-300 text-sm"></i>'}</button>`;
         const dateStr = v.publish_date ? `<p class="text-[10px] text-gray-400 mt-0.5">${toFa(v.publish_date)}</p>` : '';
-        // ویدیوهای عمودی (استوری) با نسبت ۹:۱۶ نمایش داده می‌شوند
-        const aspR = (v.vertical == 1 || v.vertical === '1' || v.vertical === true) ? '9/16' : '16/9';
         if (_mediaViewMode === 'grid') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
-            <div onclick="playVideoItem(${v.id})" class="w-full bg-gray-900 overflow-hidden relative" style="aspect-ratio:${aspR}">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-gray-900 overflow-hidden relative">${thumbHtml}${playBtn}</div>
             <div class="px-2 py-2 flex flex-col gap-0.5">
                 <div class="flex items-start gap-1">
                     <h4 onclick="playVideoItem(${v.id})" class="font-bold text-[11px] text-gray-800 line-clamp-2 leading-snug flex-1">${v.title}</h4>
@@ -734,7 +732,7 @@ function _renderVideoItems(pairs) {
         </div>`;
         if (_mediaViewMode === 'large') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all active:scale-[0.98] flex flex-col">
-            <div onclick="playVideoItem(${v.id})" class="w-full bg-gray-900 overflow-hidden relative" style="aspect-ratio:${aspR}">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-gray-900 overflow-hidden relative">${thumbHtml}${playBtn}</div>
             <div class="p-3 flex items-start gap-2">
                 <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
                     <h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
@@ -746,7 +744,7 @@ function _renderVideoItems(pairs) {
         </div>`;
         return `
         <div class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
-            <div onclick="playVideoItem(${v.id})" style="${aspR === '9/16' ? 'width:74px;height:131px' : 'width:112px;height:63px'}" class="bg-gray-900 rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" class="w-28 h-[63px] bg-gray-900 rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
             <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
                 <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
                 ${v.description ? `<p class="text-[10px] text-gray-400 mt-0.5 line-clamp-1">${v.description}</p>` : ''}
