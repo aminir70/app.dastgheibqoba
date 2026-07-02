@@ -1,0 +1,16 @@
+{
+  "name": "attendance-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "اپ حضور و غیاب — Cloudflare Workers + D1",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create attendance-db",
+    "db:init": "wrangler d1 execute attendance-db --remote --file=schema.sql",
+    "db:init:local": "wrangler d1 execute attendance-db --local --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

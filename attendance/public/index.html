@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>حضور و غیاب</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<style>
+:root{
+  --primary:#0f766e; --primary-dark:#115e59; --primary-light:#ccfbf1;
+  --bg:#f1f5f9; --card:#ffffff; --text:#0f172a; --muted:#64748b;
+  --green:#16a34a; --green-bg:#dcfce7;
+  --red:#dc2626;   --red-bg:#fee2e2;
+  --amber:#d97706; --amber-bg:#fef3c7;
+  --blue:#2563eb;  --blue-bg:#dbeafe;
+  --border:#e2e8f0; --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:Vazirmatn,Tahoma,sans-serif;background:var(--bg);color:var(--text);
+  font-size:15px;line-height:1.7;min-height:100dvh;
+}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+
+/* ---------- چیدمان ---------- */
+#app{max-width:860px;margin:0 auto;padding:12px 12px calc(84px + env(safe-area-inset-bottom));}
+@media(min-width:768px){#app{padding-top:76px;padding-bottom:24px}}
+
+header.topbar{
+  position:fixed;inset:0 0 auto 0;z-index:40;display:none;
+  background:var(--primary);color:#fff;padding:14px 20px;
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+header.topbar .inner{max-width:860px;margin:0 auto;display:flex;align-items:center;gap:16px}
+header.topbar h1{font-size:17px;font-weight:800;flex:1}
+@media(min-width:768px){
+  header.topbar{display:block}
+  header.topbar nav{display:flex;gap:4px}
+  header.topbar nav button{
+    background:transparent;border:0;color:#fff;opacity:.75;cursor:pointer;
+    padding:6px 14px;border-radius:8px;font-weight:600;
+  }
+  header.topbar nav button.active{opacity:1;background:rgba(255,255,255,.18)}
+}
+
+#bottomnav{
+  position:fixed;inset:auto 0 0 0;z-index:40;display:flex;
+  background:var(--card);border-top:1px solid var(--border);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+#bottomnav button{
+  flex:1;background:none;border:0;padding:8px 2px 6px;cursor:pointer;
+  color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-size:11px;font-weight:600;
+}
+#bottomnav button svg{width:23px;height:23px}
+#bottomnav button.active{color:var(--primary)}
+@media(min-width:768px){#bottomnav{display:none !important}}
+
+.screen{display:none}
+.screen.active{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- اجزا ---------- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:12px}
+.page-title{font-size:19px;font-weight:800;margin:6px 2px 14px;display:flex;align-items:center;gap:10px}
+.page-title .back{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  width:38px;height:38px;cursor:pointer;font-size:18px;line-height:1}
+.sub{color:var(--muted);font-size:13px}
+
+.btn{background:var(--primary);color:#fff;border:0;border-radius:10px;
+  padding:10px 18px;font-weight:700;cursor:pointer;transition:.15s}
+.btn:hover{background:var(--primary-dark)}
+.btn.secondary{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.btn.danger{background:var(--red)}
+.btn.small{padding:6px 12px;font-size:13px;border-radius:8px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;cursor:default}
+
+.field{margin-bottom:12px}
+.field label{display:block;font-size:13px;font-weight:700;margin-bottom:5px;color:#334155}
+.field input,.field select,.field textarea{
+  width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;
+  background:#fff;outline:none;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+
+.list-item{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:13px 15px;margin-bottom:9px;display:flex;align-items:center;gap:12px;cursor:pointer;
+}
+.list-item:active{background:#f8fafc}
+.list-item .grow{flex:1;min-width:0}
+.list-item .title{font-weight:700}
+.badge{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 10px}
+.badge.sport{background:var(--amber-bg);color:var(--amber)}
+.badge.gray{background:var(--bg);color:var(--muted)}
+.badge.red{background:var(--red-bg);color:var(--red)}
+.badge.green{background:var(--green-bg);color:var(--green)}
+
+.icon-btn{background:none;border:1px solid var(--border);border-radius:9px;
+  width:34px;height:34px;cursor:pointer;color:var(--muted);flex-shrink:0;font-size:15px}
+.icon-btn:hover{color:var(--primary);border-color:var(--primary)}
+
+/* ---------- حضور و غیاب ---------- */
+.att-row{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:11px 13px;margin-bottom:8px;
+}
+.att-row.blocked{border-color:var(--red);background:#fff5f5}
+.att-row .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.att-row .name{font-weight:700;flex:1;min-width:0}
+.att-row .reasons{font-size:12px;color:var(--red);margin-top:6px;line-height:1.9}
+.status-btns{display:flex;gap:6px}
+.status-btns button{
+  flex:1;border:1.5px solid var(--border);background:#fff;border-radius:9px;
+  padding:7px 2px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--muted);
+}
+.status-btns button.on-present{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.status-btns button.on-absent{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+.status-btns button.on-late{background:var(--amber-bg);border-color:var(--amber);color:var(--amber)}
+.status-btns button.on-excused{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+
+/* ---------- آمار ---------- */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+@media(min-width:600px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px;text-align:center}
+.stat .num{font-size:24px;font-weight:800;color:var(--primary)}
+.stat .lbl{font-size:12px;color:var(--muted)}
+
+/* ---------- جدول گزارش ---------- */
+.table-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--border)}
+th{background:#f8fafc;font-weight:700;color:#334155;position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+.pct-good{color:var(--green);font-weight:700}
+.pct-mid{color:var(--amber);font-weight:700}
+.pct-bad{color:var(--red);font-weight:700}
+
+/* ---------- مودال ---------- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:60;display:none;
+  align-items:flex-end;justify-content:center;padding:0;
+}
+@media(min-width:600px){.modal-overlay{align-items:center;padding:24px}}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--card);width:100%;max-width:520px;max-height:92dvh;overflow-y:auto;
+  border-radius:20px 20px 0 0;padding:20px;
+}
+@media(min-width:600px){.modal{border-radius:18px}}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:14px}
+.check-list{max-height:210px;overflow-y:auto;border:1px solid var(--border);
+  border-radius:10px;padding:6px 10px}
+.check-list label{display:flex;align-items:center;gap:9px;padding:6px 0;cursor:pointer;
+  border-bottom:1px dashed var(--border);font-size:14px}
+.check-list label:last-child{border-bottom:0}
+.check-list input{width:17px;height:17px;accent-color:var(--primary)}
+
+/* ---------- ورود ---------- */
+#screen-login{min-height:88dvh;display:none;align-items:center;justify-content:center}
+#screen-login.active{display:flex}
+#screen-login .card{width:100%;max-width:380px;padding:28px}
+
+/* ---------- toast ---------- */
+#toast{
+  position:fixed;bottom:calc(74px + env(safe-area-inset-bottom));left:50%;
+  transform:translateX(-50%) translateY(20px);background:#0f172a;color:#fff;
+  padding:10px 20px;border-radius:12px;font-size:13.5px;opacity:0;pointer-events:none;
+  transition:.25s;z-index:80;max-width:90vw;text-align:center;
+}
+@media(min-width:768px){#toast{bottom:28px}}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.error{background:var(--red)}
+
+.empty{color:var(--muted);text-align:center;padding:34px 10px;font-size:14px}
+.chip-date{display:flex;gap:8px;align-items:center}
+.chip-date select{flex:1;padding:9px 6px;border:1px solid var(--border);border-radius:10px;background:#fff}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="inner">
+    <h1>📋 حضور و غیاب</h1>
+    <nav id="topnav"></nav>
+    <button class="btn small secondary" style="color:#fff;background:rgba(255,255,255,.15);border:0" onclick="logout()">خروج</button>
+  </div>
+</header>
+
+<div id="app">
+
+  <!-- ورود -->
+  <div class="screen" id="screen-login">
+    <div class="card">
+      <div style="text-align:center;font-size:40px;margin-bottom:6px">📋</div>
+      <h2 style="text-align:center;font-size:18px;font-weight:800;margin-bottom:4px">حضور و غیاب</h2>
+      <p class="sub" style="text-align:center;margin-bottom:18px">
+        اولین ورود، حساب مدیر را می‌سازد
+      </p>
+      <div class="field"><label>نام کاربری</label>
+        <input id="login-username" autocomplete="username"></div>
+      <div class="field"><label>رمز عبور</label>
+        <input id="login-password" type="password" autocomplete="current-password"></div>
+      <button class="btn block" onclick="doLogin()">ورود</button>
+    </div>
+  </div>
+
+  <!-- خانه -->
+  <div class="screen" id="screen-home">
+    <div class="page-title">🏠 خانه <span class="sub" id="home-user" style="font-weight:400"></span></div>
+    <div class="stats" id="home-stats"></div>
+    <div class="card">
+      <div style="font-weight:800;margin-bottom:10px">حضور و غیاب امروز</div>
+      <p class="sub" style="margin-bottom:10px">یک کلاس را انتخاب کنید تا جلسه امروز ساخته/باز شود:</p>
+      <div id="home-classes"></div>
+    </div>
+    <div class="card" id="home-admin" style="display:none">
+      <div style="font-weight:800;margin-bottom:10px">مدیریت کاربران</div>
+      <div id="users-list"></div>
+      <button class="btn small" style="margin-top:8px" onclick="openUserModal()">+ کاربر جدید</button>
+    </div>
+  </div>
+
+  <!-- حضور و غیاب: لیست کلاس‌ها -->
+  <div class="screen" id="screen-attendance">
+    <div class="page-title">✅ حضور و غیاب</div>
+    <p class="sub" style="margin:-6px 2px 12px">کلاس را انتخاب کنید</p>
+    <div id="att-classes"></div>
+  </div>
+
+  <!-- حضور و غیاب: جلسات یک کلاس -->
+  <div class="screen" id="screen-sessions">
+    <div class="page-title">
+      <button class="back" onclick="show('attendance')">→</button>
+      <span id="sessions-title"></span>
+    </div>
+    <div class="card">
+      <div style="font-weight:800;margin-bottom:8px">جلسه جدید</div>
+      <div class="chip-date" id="new-session-date"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="createSession()">ایجاد / باز کردن جلسه</button>
+        <button class="btn secondary" onclick="setDatePicker('new-session-date', todayJal())">امروز</button>
+      </div>
+    </div>
+    <div id="sessions-list"></div>
+  </div>
+
+  <!-- حضور و غیاب: ثبت -->
+  <div class="screen" id="screen-mark">
+    <div class="page-title">
+      <button class="back" onclick="openSessions(state.classId, state.className)">→</button>
+      <span id="mark-title"></span>
+    </div>
+    <div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="sub" id="mark-date"></span>
+      <span style="flex:1"></span>
+      <button class="btn small secondary" onclick="markAll('present')">همه حاضر ✓</button>
+      <button class="btn small danger" onclick="deleteSession()">حذف جلسه</button>
+    </div>
+    <div id="mark-list"></div>
+  </div>
+
+  <!-- کلاس‌ها -->
+  <div class="screen" id="screen-classes">
+    <div class="page-title">📚 کلاس‌ها
+      <span style="flex:1"></span>
+      <button class="btn small" onclick="openClassModal()">+ کلاس جدید</button>
+    </div>
+    <div id="classes-list"></div>
+  </div>
+
+  <!-- دانشجوها -->
+  <div class="screen" id="screen-students">
+    <div class="page-title">👥 دانشجوها
+      <span style="flex:1"></span>
+      <button class="btn small" onclick="openStudentModal()">+ دانشجوی جدید</button>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <input id="student-search" placeholder="🔍 جستجوی نام یا کد..." oninput="renderStudents()">
+    </div>
+    <div id="students-list"></div>
+  </div>
+
+  <!-- گزارش -->
+  <div class="screen" id="screen-reports">
+    <div class="page-title">📊 گزارش‌گیری</div>
+    <div class="card">
+      <div class="row">
+        <div class="field"><label>از تاریخ</label><div class="chip-date" id="rep-from"></div></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>تا تاریخ</label><div class="chip-date" id="rep-to"></div></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>کلاس</label><select id="rep-class"><option value="">همه کلاس‌ها</option></select></div>
+        <div class="field"><label>دانشجو</label><select id="rep-student"><option value="">همه دانشجوها</option></select></div>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="loadReport()">نمایش گزارش</button>
+        <button class="btn secondary" id="rep-csv" onclick="exportCSV()" disabled>خروجی CSV</button>
+      </div>
+    </div>
+    <div id="report-result"></div>
+  </div>
+
+</div>
+
+<!-- ناوبری پایین (موبایل) -->
+<nav id="bottomnav"></nav>
+
+<!-- مودال عمومی -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-body"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= ابزارها ================= */
+const $ = id => document.getElementById(id);
+const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const toFa = s => String(s ?? '').replace(/\d/g, d => FA_DIGITS[d]);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let toastTimer;
+function toast(msg, isErr) {
+  const t = $('toast');
+  t.textContent = msg; t.className = 'show' + (isErr ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 2600);
+}
+
+/* ---------- تقویم جلالی ---------- */
+const div_ = (a, b) => ~~(a / b);
+function g2j(gy, gm, gd) {
+  const gdm = [0,31,59,90,120,151,181,212,243,273,304,334];
+  let jy = (gy <= 1600) ? 0 : 979; gy -= (gy <= 1600) ? 621 : 1600;
+  const gy2 = (gm > 2) ? gy + 1 : gy;
+  let days = 365*gy + div_(gy2+3,4) - div_(gy2+99,100) + div_(gy2+399,400) - 80 + gd + gdm[gm-1];
+  jy += 33 * div_(days, 12053); days %= 12053;
+  jy += 4 * div_(days, 1461); days %= 1461;
+  jy += div_(days-1, 365); if (days > 365) days = (days-1) % 365;
+  const jm = (days < 186) ? 1 + div_(days, 31) : 7 + div_(days-186, 30);
+  const jd = 1 + ((days < 186) ? days % 31 : (days-186) % 30);
+  return [jy, jm, jd];
+}
+function j2g(jy, jm, jd) {
+  let gy = (jy <= 979) ? 621 : 1600; jy -= (jy <= 979) ? 0 : 979;
+  let days = 365*jy + div_(jy,33)*8 + div_((jy%33)+3,4) + 78 + jd
+           + ((jm < 7) ? (jm-1)*31 : (jm-7)*30 + 186);
+  gy += 400 * div_(days, 146097); days %= 146097;
+  if (days > 36524) { gy += 100 * div_(--days, 36524); days %= 36524; if (days >= 365) days++; }
+  gy += 4 * div_(days, 1461); days %= 1461;
+  if (days > 365) { gy += div_(days-1, 365); days = (days-1) % 365; }
+  let gd = days + 1;
+  const leap = (gy%4===0 && gy%100!==0) || gy%400===0;
+  const sal = [0,31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+  let gm; for (gm = 1; gm <= 12; gm++) { if (gd <= sal[gm]) break; gd -= sal[gm]; }
+  return [gy, gm, gd];
+}
+const JAL_MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور',
+                    'مهر','آبان','آذر','دی','بهمن','اسفند'];
+const WEEKDAYS = ['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه'];
+function jalDaysInMonth(jy, jm) {
+  if (jm <= 6) return 31;
+  if (jm <= 11) return 30;
+  const [gy, gm, gd] = j2g(jy, 12, 30);
+  const [ry, rm, rd] = g2j(gy, gm, gd);
+  return (ry === jy && rm === 12 && rd === 30) ? 30 : 29;
+}
+function todayJal() { const d = new Date(); return g2j(d.getFullYear(), d.getMonth()+1, d.getDate()); }
+function isoFromJal([jy, jm, jd]) {
+  const [gy, gm, gd] = j2g(jy, jm, jd);
+  return `${gy}-${String(gm).padStart(2,'0')}-${String(gd).padStart(2,'0')}`;
+}
+function jalFromIso(iso) {
+  const [gy, gm, gd] = iso.split('-').map(Number);
+  return g2j(gy, gm, gd);
+}
+function faDate(iso, withWeekday) {
+  const [jy, jm, jd] = jalFromIso(iso);
+  const d = new Date(iso + 'T12:00:00Z');
+  const wd = WEEKDAYS[(d.getUTCDay() + 1) % 7];
+  return (withWeekday ? wd + ' ' : '') + toFa(`${jd} ${JAL_MONTHS[jm-1]} ${jy}`);
+}
+
+/* ---------- انتخابگر تاریخ جلالی (۳ سلکت) ---------- */
+function buildDatePicker(containerId, jal) {
+  const c = $(containerId);
+  const [ty] = todayJal();
+  let opts = { d: '', m: '', y: '' };
+  for (let i = 1; i <= 31; i++) opts.d += `<option value="${i}">${toFa(i)}</option>`;
+  JAL_MONTHS.forEach((m, i) => opts.m += `<option value="${i+1}">${m}</option>`);
+  for (let y = ty + 1; y >= ty - 15; y--) opts.y += `<option value="${y}">${toFa(y)}</option>`;
+  c.innerHTML = `
+    <select data-part="d">${opts.d}</select>
+    <select data-part="m">${opts.m}</select>
+    <select data-part="y">${opts.y}</select>`;
+  c.querySelector('[data-part="m"]').onchange =
+  c.querySelector('[data-part="y"]').onchange = () => clampDays(c);
+  setDatePicker(containerId, jal || todayJal());
+}
+function clampDays(c) {
+  const y = +c.querySelector('[data-part="y"]').value;
+  const m = +c.querySelector('[data-part="m"]').value;
+  const dSel = c.querySelector('[data-part="d"]');
+  const max = jalDaysInMonth(y, m);
+  [...dSel.options].forEach(o => o.disabled = +o.value > max);
+  if (+dSel.value > max) dSel.value = max;
+}
+function setDatePicker(containerId, [jy, jm, jd]) {
+  const c = $(containerId);
+  c.querySelector('[data-part="y"]').value = jy;
+  c.querySelector('[data-part="m"]').value = jm;
+  clampDays(c);
+  c.querySelector('[data-part="d"]').value = jd;
+}
+function getDatePickerIso(containerId) {
+  const c = $(containerId);
+  return isoFromJal([
+    +c.querySelector('[data-part="y"]').value,
+    +c.querySelector('[data-part="m"]').value,
+    +c.querySelector('[data-part="d"]').value]);
+}
+
+/* ================= API ================= */
+let TOKEN = localStorage.getItem('att_token') || '';
+let ME = null;
+async function api(path, opts = {}) {
+  const res = await fetch('/api' + path, {
+    method: opts.method || 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(TOKEN ? { Authorization: 'Bearer ' + TOKEN } : {}),
+    },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (res.status === 401 && path !== '/auth/login') { showLogin(); throw new Error('unauthorized'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { toast(data.error || 'خطا در ارتباط با سرور', true); throw new Error(data.error || 'error'); }
+  return data;
+}
+
+/* ================= ناوبری ================= */
+const NAV = [
+  ['home', '🏠', 'خانه'],
+  ['attendance', '✅', 'حضورغیاب'],
+  ['classes', '📚', 'کلاس‌ها'],
+  ['students', '👥', 'دانشجوها'],
+  ['reports', '📊', 'گزارش'],
+];
+const state = { classId: null, className: '', sessionId: null, classes: [], students: [], report: null };
+
+function buildNav() {
+  $('bottomnav').innerHTML = NAV.map(([id, ic, lbl]) =>
+    `<button data-nav="${id}" onclick="show('${id}')"><span style="font-size:21px">${ic}</span>${lbl}</button>`).join('');
+  $('topnav').innerHTML = NAV.map(([id, ic, lbl]) =>
+    `<button data-nav="${id}" onclick="show('${id}')">${lbl}</button>`).join('');
+}
+
+function show(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $('screen-' + name).classList.add('active');
+  const navTarget = ['sessions', 'mark'].includes(name) ? 'attendance' : name;
+  document.querySelectorAll('[data-nav]').forEach(b =>
+    b.classList.toggle('active', b.dataset.nav === navTarget));
+  if (name === 'home') loadHome();
+  if (name === 'attendance') renderAttClasses();
+  if (name === 'classes') loadClasses().then(renderClasses);
+  if (name === 'students') loadStudents().then(renderStudents);
+  if (name === 'reports') initReports();
+  window.scrollTo(0, 0);
+}
+
+function showLogin() {
+  TOKEN = ''; localStorage.removeItem('att_token');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $('screen-login').classList.add('active');
+  document.querySelector('header.topbar').style.display = 'none';
+  $('bottomnav').style.display = 'none';
+}
+function showApp() {
+  document.querySelector('header.topbar').style.display = '';
+  $('bottomnav').style.display = '';
+  show('home');
+}
+
+/* ================= ورود ================= */
+async function doLogin() {
+  const username = $('login-username').value.trim();
+  const password = $('login-password').value;
+  if (!username || !password) return toast('نام کاربری و رمز را وارد کنید', true);
+  const data = await api('/auth/login', { method: 'POST', body: { username, password } });
+  TOKEN = data.token; localStorage.setItem('att_token', TOKEN);
+  ME = { id: data.id, username: data.username, role: data.role };
+  if (data.first_run) toast('حساب مدیر ساخته شد؛ خوش آمدید 🎉');
+  showApp();
+}
+$('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+function logout() { showLogin(); }
+
+/* ================= خانه ================= */
+async function loadHome() {
+  $('home-user').textContent = ME ? `(${ME.username})` : '';
+  const st = await api('/stats');
+  $('home-stats').innerHTML = `
+    <div class="stat"><div class="num">${toFa(st.students)}</div><div class="lbl">دانشجو</div></div>
+    <div class="stat"><div class="num">${toFa(st.classes)}</div><div class="lbl">کلاس</div></div>
+    <div class="stat"><div class="num">${toFa(st.weekSessions)}</div><div class="lbl">جلسه این هفته</div></div>
+    <div class="stat"><div class="num" style="color:var(--red)">${toFa(st.weekAbsents)}</div><div class="lbl">غیبت این هفته</div></div>`;
+  await loadClasses();
+  $('home-classes').innerHTML = state.classes.filter(c => c.active).map(c => `
+    <div class="list-item" onclick="quickToday(${c.id}, '${esc(c.name)}')">
+      <div class="grow"><span class="title">${esc(c.name)}</span>
+        ${c.is_sport ? '<span class="badge sport">ورزشی</span>' : ''}</div>
+      <span class="sub">${toFa(c.student_count)} نفر</span><span>◂</span>
+    </div>`).join('') || '<div class="empty">هنوز کلاسی تعریف نشده — از تب «کلاس‌ها» شروع کنید</div>';
+  if (ME && ME.role === 'admin') { $('home-admin').style.display = ''; loadUsers(); }
+  else $('home-admin').style.display = 'none';
+}
+
+async function quickToday(classId, className) {
+  const r = await api(`/classes/${classId}/sessions`, {
+    method: 'POST', body: { date: isoFromJal(todayJal()) } });
+  openMark(r.id, classId, className);
+}
+
+/* ----- کاربران (مدیر) ----- */
+async function loadUsers() {
+  const users = await api('/users');
+  $('users-list').innerHTML = users.map(u => `
+    <div class="list-item" style="cursor:default">
+      <div class="grow"><span class="title">${esc(u.username)}</span>
+        <span class="badge ${u.role === 'admin' ? 'green' : 'gray'}">${u.role === 'admin' ? 'مدیر' : 'مربی'}</span></div>
+      <button class="icon-btn" title="تغییر رمز" onclick="resetPassword(${u.id}, '${esc(u.username)}')">🔑</button>
+      ${u.id !== ME.id ? `<button class="icon-btn" title="حذف" onclick="deleteUser(${u.id}, '${esc(u.username)}')">🗑</button>` : ''}
+    </div>`).join('');
+}
+function openUserModal() {
+  openModal(`
+    <h3>کاربر جدید</h3>
+    <div class="field"><label>نام کاربری</label><input id="u-username"></div>
+    <div class="field"><label>رمز عبور (حداقل ۶ کاراکتر)</label><input id="u-password" type="text"></div>
+    <div class="field"><label>نقش</label>
+      <select id="u-role"><option value="teacher">مربی</option><option value="admin">مدیر</option></select></div>
+    <div class="row"><button class="btn" onclick="saveUser()">ذخیره</button>
+      <button class="btn secondary" onclick="closeModal()">انصراف</button></div>`);
+}
+async function saveUser() {
+  await api('/users', { method: 'POST', body: {
+    username: $('u-username').value.trim(), password: $('u-password').value,
+    role: $('u-role').value } });
+  closeModal(); toast('کاربر ساخته شد'); loadUsers();
+}
+async function resetPassword(id, username) {
+  const p = prompt(`رمز جدید برای «${username}» (حداقل ۶ کاراکتر):`);
+  if (!p) return;
+  await api('/users/' + id, { method: 'PUT', body: { password: p } });
+  toast('رمز تغییر کرد');
+}
+async function deleteUser(id, username) {
+  if (!confirm(`کاربر «${username}» حذف شود؟`)) return;
+  await api('/users/' + id, { method: 'DELETE' });
+  toast('حذف شد'); loadUsers();
+}
+
+/* ================= کلاس‌ها ================= */
+async function loadClasses() { state.classes = await api('/classes'); return state.classes; }
+
+function renderClasses() {
+  $('classes-list').innerHTML = state.classes.map(c => {
+    const reqNames = (c.required_class_ids || [])
+      .map(id => (state.classes.find(x => x.id === id) || {}).name).filter(Boolean);
+    return `
+    <div class="list-item" onclick="openClassModal(${c.id})" style="${c.active ? '' : 'opacity:.55'}">
+      <div class="grow">
+        <span class="title">${esc(c.name)}</span>
+        ${c.is_sport ? '<span class="badge sport">ورزشی</span>' : ''}
+        ${c.active ? '' : '<span class="badge gray">غیرفعال</span>'}
+        ${c.weekday !== null && c.weekday !== undefined ? `<span class="badge gray">${WEEKDAYS[c.weekday]}</span>` : ''}
+        <div class="sub">${toFa(c.student_count)} دانشجو · ${toFa(c.session_count)} جلسه${
+          reqNames.length ? ' · پیش‌نیاز: ' + esc(reqNames.join('، ')) : ''}</div>
+      </div>
+      <span>✎</span>
+    </div>`;
+  }).join('') || '<div class="empty">کلاسی تعریف نشده است</div>';
+}
+
+async function openClassModal(id) {
+  await loadStudents();
+  const c = id ? state.classes.find(x => x.id === id) : null;
+  const enrolled = id ? await api(`/classes/${id}/students`) : [];
+  const others = state.classes.filter(x => x.id !== id && !x.is_sport);
+  openModal(`
+    <h3>${c ? 'ویرایش کلاس' : 'کلاس جدید'}</h3>
+    <div class="field"><label>نام کلاس *</label><input id="c-name" value="${esc(c?.name || '')}"></div>
+    <div class="field"><label>توضیحات</label><input id="c-desc" value="${esc(c?.description || '')}"></div>
+    <div class="field"><label>روز هفته (اختیاری)</label>
+      <select id="c-weekday"><option value="">—</option>
+        ${WEEKDAYS.map((w, i) => `<option value="${i}" ${c?.weekday === i ? 'selected' : ''}>${w}</option>`).join('')}
+      </select></div>
+    <div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="c-sport" style="width:18px;height:18px;accent-color:var(--primary)"
+        ${c?.is_sport ? 'checked' : ''} onchange="$('c-reqs-box').style.display=this.checked?'':'none'">
+      کلاس ورزشی است (مشروط به حضور در کلاس‌های دیگر)</label></div>
+    <div class="field" id="c-reqs-box" style="display:${c?.is_sport ? '' : 'none'}">
+      <label>پیش‌نیازهای هفتگی — غیبت در این‌ها یعنی محرومیت از این کلاس در همان هفته:</label>
+      <div class="check-list">${others.map(o => `
+        <label><input type="checkbox" class="c-req" value="${o.id}"
+          ${(c?.required_class_ids || []).includes(o.id) ? 'checked' : ''}>${esc(o.name)}</label>`).join('')
+        || '<span class="sub">ابتدا کلاس‌های عادی را تعریف کنید</span>'}</div>
+    </div>
+    <div class="field"><label>دانشجوهای این کلاس:</label>
+      <div class="check-list">${state.students.map(s => `
+        <label><input type="checkbox" class="c-student" value="${s.id}"
+          ${enrolled.includes(s.id) ? 'checked' : ''}>${esc(s.name)}${s.code ? ` <span class="sub">(${toFa(s.code)})</span>` : ''}</label>`).join('')
+        || '<span class="sub">دانشجویی ثبت نشده است</span>'}</div>
+    </div>
+    ${c ? `<div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="c-active" style="width:18px;height:18px;accent-color:var(--primary)" ${c.active ? 'checked' : ''}>
+      فعال</label></div>` : ''}
+    <div class="row">
+      <button class="btn" onclick="saveClass(${id || 'null'})">ذخیره</button>
+      ${c ? `<button class="btn danger" onclick="deleteClass(${id})">حذف</button>` : ''}
+      <button class="btn secondary" onclick="closeModal()">انصراف</button>
+    </div>`);
+}
+
+async function saveClass(id) {
+  const name = $('c-name').value.trim();
+  if (!name) return toast('نام کلاس را وارد کنید', true);
+  const body = {
+    name, description: $('c-desc').value,
+    is_sport: $('c-sport').checked ? 1 : 0,
+    weekday: $('c-weekday').value === '' ? null : +$('c-weekday').value,
+    required_class_ids: [...document.querySelectorAll('.c-req:checked')].map(x => +x.value),
+    active: id ? ($('c-active').checked ? 1 : 0) : 1,
+  };
+  let classId = id;
+  if (id) await api('/classes/' + id, { method: 'PUT', body });
+  else classId = (await api('/classes', { method: 'POST', body })).id;
+  await api(`/classes/${classId}/students`, { method: 'PUT',
+    body: { student_ids: [...document.querySelectorAll('.c-student:checked')].map(x => +x.value) } });
+  closeModal(); toast('ذخیره شد');
+  await loadClasses(); renderClasses();
+}
+
+async function deleteClass(id) {
+  if (!confirm('کلاس و همه جلسات و سوابق حضور آن حذف می‌شود. مطمئنید؟')) return;
+  await api('/classes/' + id, { method: 'DELETE' });
+  closeModal(); toast('حذف شد');
+  await loadClasses(); renderClasses();
+}
+
+/* ================= دانشجوها ================= */
+async function loadStudents() {
+  state.students = await api('/students?all=1');
+  return state.students;
+}
+function renderStudents() {
+  const q = ($('student-search').value || '').trim();
+  const list = state.students.filter(s =>
+    !q || s.name.includes(q) || (s.code || '').includes(q));
+  $('students-list').innerHTML = list.map(s => `
+    <div class="list-item" onclick="openStudentModal(${s.id})" style="${s.active ? '' : 'opacity:.55'}">
+      <div class="grow">
+        <span class="title">${esc(s.name)}</span>
+        ${s.active ? '' : '<span class="badge gray">غیرفعال</span>'}
+        <div class="sub">${s.code ? 'کد: ' + toFa(s.code) + ' · ' : ''}${toFa(s.class_count)} کلاس</div>
+      </div>
+      <span>✎</span>
+    </div>`).join('') || '<div class="empty">دانشجویی پیدا نشد</div>';
+}
+
+async function openStudentModal(id) {
+  await loadClasses();
+  const s = id ? state.students.find(x => x.id === id) : null;
+  const enrolled = id ? await api(`/students/${id}/classes`) : [];
+  openModal(`
+    <h3>${s ? 'ویرایش دانشجو' : 'دانشجوی جدید'}</h3>
+    <div class="field"><label>نام و نام خانوادگی *</label><input id="s-name" value="${esc(s?.name || '')}"></div>
+    <div class="row">
+      <div class="field"><label>کد / شماره</label><input id="s-code" value="${esc(s?.code || '')}"></div>
+      <div class="field"><label>تلفن</label><input id="s-phone" value="${esc(s?.phone || '')}" dir="ltr"></div>
+    </div>
+    <div class="field"><label>یادداشت</label><input id="s-notes" value="${esc(s?.notes || '')}"></div>
+    <div class="field"><label>کلاس‌ها:</label>
+      <div class="check-list">${state.classes.filter(c => c.active).map(c => `
+        <label><input type="checkbox" class="s-class" value="${c.id}"
+          ${enrolled.includes(c.id) ? 'checked' : ''}>${esc(c.name)}${c.is_sport ? ' <span class="badge sport">ورزشی</span>' : ''}</label>`).join('')
+        || '<span class="sub">کلاسی تعریف نشده است</span>'}</div>
+    </div>
+    ${s ? `<div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="s-active" style="width:18px;height:18px;accent-color:var(--primary)" ${s.active ? 'checked' : ''}>
+      فعال (با برداشتن تیک، دانشجو آرشیو می‌شود و سوابقش می‌ماند)</label></div>` : ''}
+    <div class="row">
+      <button class="btn" onclick="saveStudent(${id || 'null'})">ذخیره</button>
+      ${s ? `<button class="btn danger" onclick="deleteStudent(${id})">حذف</button>` : ''}
+      <button class="btn secondary" onclick="closeModal()">انصراف</button>
+    </div>`);
+}
+
+async function saveStudent(id) {
+  const name = $('s-name').value.trim();
+  if (!name) return toast('نام دانشجو را وارد کنید', true);
+  const body = {
+    name, code: $('s-code').value, phone: $('s-phone').value, notes: $('s-notes').value,
+    active: id ? ($('s-active').checked ? 1 : 0) : 1,
+    class_ids: [...document.querySelectorAll('.s-class:checked')].map(x => +x.value),
+  };
+  if (id) await api('/students/' + id, { method: 'PUT', body });
+  else await api('/students', { method: 'POST', body });
+  closeModal(); toast('ذخیره شد');
+  await loadStudents(); renderStudents();
+}
+
+async function deleteStudent(id) {
+  if (!confirm('دانشجو و همه سوابق حضورش برای همیشه حذف می‌شود. مطمئنید؟\n(برای نگه‌داشتن سوابق، به‌جای حذف، تیک «فعال» را بردارید)')) return;
+  await api('/students/' + id, { method: 'DELETE' });
+  closeModal(); toast('حذف شد');
+  await loadStudents(); renderStudents();
+}
+
+/* ================= حضور و غیاب ================= */
+function renderAttClasses() {
+  loadClasses().then(() => {
+    $('att-classes').innerHTML = state.classes.filter(c => c.active).map(c => `
+      <div class="list-item" onclick="openSessions(${c.id}, '${esc(c.name)}')">
+        <div class="grow"><span class="title">${esc(c.name)}</span>
+          ${c.is_sport ? '<span class="badge sport">ورزشی</span>' : ''}
+          <div class="sub">${toFa(c.student_count)} دانشجو · ${toFa(c.session_count)} جلسه</div></div>
+        <span>◂</span>
+      </div>`).join('') || '<div class="empty">کلاسی تعریف نشده است</div>';
+  });
+}
+
+async function openSessions(classId, className) {
+  state.classId = classId; state.className = className;
+  $('sessions-title').textContent = className;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $('screen-sessions').classList.add('active');
+  $('sessions-list').innerHTML = '';
+  buildDatePicker('new-session-date');
+  const sessions = await api(`/classes/${classId}/sessions`);
+  $('sessions-list').innerHTML = sessions.map(s => `
+    <div class="list-item" onclick="openMark(${s.id}, ${classId}, '${esc(className)}')">
+      <div class="grow"><span class="title">${faDate(s.date, true)}</span>
+        <div class="sub">
+          <span style="color:var(--green)">حاضر ${toFa(s.present || 0)}</span> ·
+          <span style="color:var(--red)">غایب ${toFa(s.absent || 0)}</span> ·
+          <span style="color:var(--amber)">تأخیر ${toFa(s.late || 0)}</span> ·
+          <span style="color:var(--blue)">موجه ${toFa(s.excused || 0)}</span>
+        </div></div>
+      <span>◂</span>
+    </div>`).join('') || '<div class="empty">هنوز جلسه‌ای ثبت نشده است</div>';
+}
+
+async function createSession() {
+  const iso = getDatePickerIso('new-session-date');
+  const r = await api(`/classes/${state.classId}/sessions`, { method: 'POST', body: { date: iso } });
+  if (r.existed) toast('جلسه این تاریخ از قبل وجود داشت — باز شد');
+  openMark(r.id, state.classId, state.className);
+}
+
+const STATUSES = [
+  ['present', 'حاضر'], ['absent', 'غایب'], ['late', 'تأخیر'], ['excused', 'موجه']];
+
+async function openMark(sessionId, classId, className) {
+  state.sessionId = sessionId; state.classId = classId; state.className = className;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $('screen-mark').classList.add('active');
+  $('mark-list').innerHTML = ''; $('mark-date').textContent = '';
+  const { session, roster } = await api('/sessions/' + sessionId);
+  $('mark-title').textContent = session.class_name;
+  $('mark-date').textContent = '📅 ' + faDate(session.date, true);
+  $('mark-list').innerHTML = roster.map(r => `
+    <div class="att-row ${r.blocked ? 'blocked' : ''}" id="att-${r.id}">
+      <div class="top">
+        <span class="name">${esc(r.name)}${r.code ? ` <span class="sub">(${toFa(r.code)})</span>` : ''}</span>
+        ${r.blocked ? '<span class="badge red">⛔ محروم این هفته</span>' : ''}
+      </div>
+      <div class="status-btns">
+        ${STATUSES.map(([st, lbl]) => `
+          <button class="${r.status === st ? 'on-' + st : ''}"
+            onclick="setStatus(${r.id}, '${st}')">${lbl}</button>`).join('')}
+      </div>
+      ${r.blocked ? `<div class="reasons">${r.block_reasons.map(b =>
+        `⛔ غیبت در «${esc(b.class_name)}» — ${faDate(b.date)}`).join('<br>')}</div>` : ''}
+    </div>`).join('') || '<div class="empty">دانشجویی در این کلاس ثبت‌نام نشده — از تب «کلاس‌ها» اضافه کنید</div>';
+}
+
+async function setStatus(studentId, status) {
+  const row = $('att-' + studentId);
+  const btns = row.querySelectorAll('.status-btns button');
+  const idx = STATUSES.findIndex(([s]) => s === status);
+  const wasOn = btns[idx].className.startsWith('on-');
+  const newStatus = wasOn ? null : status; // لمس دوباره = پاک‌کردن
+  btns.forEach((b, i) => b.className =
+    (!wasOn && i === idx) ? 'on-' + status : '');
+  await api(`/sessions/${state.sessionId}/attendance`, {
+    method: 'POST', body: { records: [{ student_id: studentId, status: newStatus }] } });
+}
+
+async function markAll(status) {
+  const ids = [...document.querySelectorAll('[id^="att-"]')]
+    .map(el => +el.id.replace('att-', ''));
+  if (!ids.length) return;
+  await api(`/sessions/${state.sessionId}/attendance`, {
+    method: 'POST', body: { records: ids.map(id => ({ student_id: id, status })) } });
+  toast('برای همه ثبت شد');
+  openMark(state.sessionId, state.classId, state.className);
+}
+
+async function deleteSession() {
+  if (!confirm('این جلسه و همه رکوردهای حضور آن حذف شود؟')) return;
+  await api('/sessions/' + state.sessionId, { method: 'DELETE' });
+  toast('جلسه حذف شد');
+  openSessions(state.classId, state.className);
+}
+
+/* ================= گزارش ================= */
+const STATUS_FA = { present: 'حاضر', absent: 'غایب', late: 'تأخیر', excused: 'موجه' };
+
+async function initReports() {
+  const [jy, jm] = todayJal();
+  buildDatePicker('rep-from', [jy, jm, 1]);
+  buildDatePicker('rep-to', todayJal());
+  await Promise.all([loadClasses(), loadStudents()]);
+  $('rep-class').innerHTML = '<option value="">همه کلاس‌ها</option>' +
+    state.classes.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  $('rep-student').innerHTML = '<option value="">همه دانشجوها</option>' +
+    state.students.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+}
+
+async function loadReport() {
+  const params = new URLSearchParams({
+    from: getDatePickerIso('rep-from'), to: getDatePickerIso('rep-to') });
+  if ($('rep-class').value) params.set('class_id', $('rep-class').value);
+  if ($('rep-student').value) params.set('student_id', $('rep-student').value);
+  const data = await api('/reports?' + params);
+  state.report = data;
+  $('rep-csv').disabled = !data.summary.length;
+
+  const pctClass = p => p === null ? '' : p >= 80 ? 'pct-good' : p >= 50 ? 'pct-mid' : 'pct-bad';
+  let html = '';
+  if (!data.summary.length) html = '<div class="empty">در این بازه داده‌ای پیدا نشد</div>';
+  else {
+    html = `<div class="table-wrap"><table>
+      <tr><th>دانشجو</th><th>کلاس</th><th>جلسات</th><th>حاضر</th><th>غایب</th>
+          <th>تأخیر</th><th>موجه</th><th>ثبت‌نشده</th><th>درصد حضور</th></tr>
+      ${data.summary.map(r => `
+        <tr><td>${esc(r.student_name)}</td><td>${esc(r.class_name)}</td>
+          <td>${toFa(r.total)}</td><td>${toFa(r.present)}</td>
+          <td style="color:${r.absent ? 'var(--red)' : 'inherit'}">${toFa(r.absent)}</td>
+          <td>${toFa(r.late)}</td><td>${toFa(r.excused)}</td><td>${toFa(r.unmarked)}</td>
+          <td class="${pctClass(r.percent)}">${r.percent === null ? '—' : toFa(r.percent) + '٪'}</td></tr>`).join('')}
+    </table></div>`;
+  }
+  if (data.details && data.details.length) {
+    html += `<div style="font-weight:800;margin:16px 2px 10px">ریز جلسات</div>
+      <div class="table-wrap"><table>
+      <tr><th>تاریخ</th><th>کلاس</th><th>وضعیت</th></tr>
+      ${data.details.map(d => `
+        <tr><td>${faDate(d.date, true)}</td><td>${esc(d.class_name)}</td>
+          <td>${d.status ? STATUS_FA[d.status] : '<span class="sub">ثبت‌نشده</span>'}</td></tr>`).join('')}
+      </table></div>`;
+  }
+  $('report-result').innerHTML = html;
+}
+
+function exportCSV() {
+  if (!state.report || !state.report.summary.length) return;
+  const head = ['دانشجو','کد','کلاس','جلسات','حاضر','غایب','تاخیر','موجه','ثبت‌نشده','درصد حضور'];
+  const rows = state.report.summary.map(r => [
+    r.student_name, r.code || '', r.class_name, r.total, r.present, r.absent,
+    r.late, r.excused, r.unmarked, r.percent === null ? '' : r.percent]);
+  const csv = '﻿' + [head, ...rows]
+    .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'attendance-report.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ================= مودال ================= */
+function openModal(html) {
+  $('modal-body').innerHTML = html;
+  $('modal-overlay').classList.add('open');
+}
+function closeModal() { $('modal-overlay').classList.remove('open'); }
+
+/* ================= شروع ================= */
+buildNav();
+(async () => {
+  if (!TOKEN) return showLogin();
+  try {
+    const me = await api('/auth/me');
+    ME = me;
+    showApp();
+  } catch { /* showLogin توسط api صدا زده شد */ }
+})();
+</script>
+</body>
+</html>

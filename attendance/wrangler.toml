@@ -1,0 +1,19 @@
+name = "attendance-app"
+main = "src/worker.js"
+compatibility_date = "2025-06-01"
+
+# فایل‌های استاتیک (رابط کاربری)
+[assets]
+directory = "public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+# دیتابیس D1 — بعد از اجرای «wrangler d1 create attendance-db»
+# مقدار database_id را با شناسه‌ای که wrangler چاپ می‌کند جایگزین کنید.
+[[d1_databases]]
+binding = "DB"
+database_name = "attendance-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# رمز امضای توکن‌ها را با دستور زیر ست کنید (در wrangler.toml قرار ندهید):
+#   wrangler secret put JWT_SECRET

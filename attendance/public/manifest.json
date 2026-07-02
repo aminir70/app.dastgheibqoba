@@ -1,0 +1,14 @@
+{
+  "name": "حضور و غیاب",
+  "short_name": "حضورغیاب",
+  "description": "مدیریت کلاس‌ها، دانشجوها و حضور و غیاب",
+  "start_url": "/",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "fa",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0f766e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
