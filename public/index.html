@@ -18,8 +18,8 @@
     <link href="/vendor/fonts/shabnam/font-face-local.css" rel="stylesheet">
     <link rel="stylesheet" href="/vendor/fa/all.local.min.css">
 
-    <link rel="stylesheet" href="/css/tailwind.dist.css?v=45">
-    <link rel="stylesheet" href="/css/app.css?v=45">
+    <link rel="stylesheet" href="/css/tailwind.dist.css?v=d11022a350">
+    <link rel="stylesheet" href="/css/app.css?v=d11022a350">
 </head>
 <body class="font-vazir antialiased text-gray-800">
 
@@ -290,7 +290,15 @@
                         <h3 class="text-sm font-black text-gray-800">آخرین تصاویر</h3>
                         <button onclick="navToScreen('media');setTimeout(()=>switchMediaTab('photo'),80)" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">مشاهده همه</button>
                     </div>
-                    <div id="home-latest-images" class="grid grid-cols-4 gap-2 px-4"></div>
+                    <div id="home-latest-images" class="flex overflow-x-auto hide-scrollbar gap-2 px-4 pb-2 snap-x"></div>
+                </div>
+                <!-- STORY (ویدیوهای دسته کلیپ) -->
+                <div id="home-story-section" class="mb-4 hidden">
+                    <div class="flex items-center justify-between px-6 mb-3">
+                        <h3 class="text-sm font-black text-gray-800"><i class="fas fa-circle-play text-rose-500 ml-1"></i>استوری</h3>
+                        <button onclick="openHomeStoriesAll()" class="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full">مشاهده همه</button>
+                    </div>
+                    <div id="home-story-strip" class="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 snap-x"></div>
                 </div>
                 <!-- BANNERS position: after_images -->
                 <div id="home-banner-after_images" class="mb-4 flex flex-col gap-3"></div>
@@ -445,7 +453,7 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto relative p-6">
+            <div id="media-scroll" class="flex-1 overflow-y-auto relative p-6">
                 <!-- اسلایدر و بنر رسانه -->
                 <div id="media-slider-wrap" class="relative w-full overflow-hidden mb-4 rounded-2xl" style="display:none;">
                     <div id="media-slider-track" class="flex transition-transform duration-500 ease-out" style="height:100%;"></div>
@@ -468,6 +476,14 @@
                         <button id="video-cats-back-btn" onclick="backToVideoCategories()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                         <h2 id="video-cats-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری ویدیو</h2>
                       </div>
+                      <button id="video-reels-banner" onclick="openAllVideoReels()" class="hidden w-full mb-1 bg-gradient-to-l from-rose-500 to-pink-600 text-white rounded-2xl p-3.5 flex items-center gap-3 shadow-md active:scale-[0.98] transition">
+                        <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-film text-xl"></i></div>
+                        <div class="flex-1 text-right min-w-0">
+                          <h3 class="font-black text-sm">ریلز ویدیوها</h3>
+                          <p class="text-[11px] text-white/80 mt-0.5">همهٔ ویدیوها را مثل استوری ببینید</p>
+                        </div>
+                        <i class="fas fa-chevron-left text-white/70"></i>
+                      </button>
                       <div id="video-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
                     </div>
 
@@ -487,6 +503,7 @@
                                     </button>
                                 </div>
                             </div>
+                            <button onclick="openVideoReels()" id="video-reels-btn" class="text-[10px] bg-rose-50 text-rose-500 px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 shrink-0 hover:bg-rose-100 transition"><i class="fas fa-film text-[9px]"></i>ریلز</button>
                             <span id="video-count-badge" class="text-[10px] text-gray-400 font-medium shrink-0"></span>
                         </div>
                         <div id="video-items-list" class="flex flex-col gap-3 w-full"></div>
@@ -499,7 +516,7 @@
                             <h2 id="video-player-title" class="font-bold text-xs text-gray-800 line-clamp-2 flex-1 leading-snug">پخش ویدیو</h2>
                         </div>
                         <!-- پلیر آپارات -->
-                        <div class="relative w-full rounded-2xl overflow-hidden shadow-md bg-black" style="padding-top:56.25%">
+                        <div id="video-player-frame" class="relative w-full rounded-2xl overflow-hidden shadow-md bg-black" style="padding-top:56.25%">
                             <iframe id="video-aparat-iframe" src="" scrolling="no" allowfullscreen="true"
                                 webkitallowfullscreen="true" mozallowfullscreen="true"
                                 style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allow="autoplay">
@@ -636,6 +653,21 @@
                     <button id="qa-new-btn" onclick="showQAForm()" class="hidden bg-brand-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-sm"><i class="fas fa-plus ml-1"></i>سوال جدید</button>
                 </div>
             </header>
+
+            <!-- دستیار هوشمند (چت‌بات) — فقط برای کاربر واردشده -->
+            <div id="qa-ai-banner" class="hidden px-5 pt-4 shrink-0">
+                <button onclick="openAIChat()" class="w-full bg-gradient-to-l from-violet-600 to-indigo-600 text-white rounded-2xl p-4 flex items-center gap-3 shadow-md active:scale-[0.98] transition text-right">
+                    <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0 relative">
+                        <i class="fas fa-robot text-2xl"></i>
+                        <span class="absolute -top-1 -left-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-indigo-600"></span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="font-black text-sm">دستیار هوشمند</h3>
+                        <p class="text-[11px] text-white/80 mt-0.5">پاسخ فوری به سوالات شما بر اساس منابع معتبر</p>
+                    </div>
+                    <i class="fas fa-chevron-left text-white/70 shrink-0"></i>
+                </button>
+            </div>
 
             <!-- فرم ارسال تیکت -->
             <div id="qa-form" class="hidden flex-col gap-3 p-5 bg-white border-b border-gray-100 shadow-sm shrink-0">
@@ -1355,13 +1387,14 @@
 
 <script src="/vendor/pdfjs/pdf.min.js"></script>
 <script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.js';</script>
-<script src="/js/dist/utils.min.js?v=45"></script>
-<script src="/js/dist/offline.min.js?v=45"></script>
-<script src="/js/dist/books.min.js?v=45"></script>
-<script src="/js/dist/lectures.min.js?v=45"></script>
-<script src="/js/dist/media.min.js?v=45"></script>
-<script src="/js/dist/news.min.js?v=45"></script>
-<script src="/js/dist/app.min.js?v=45"></script>
+<script src="/js/dist/utils.min.js?v=d11022a350"></script>
+<script src="/js/dist/offline.min.js?v=d11022a350"></script>
+<script src="/js/dist/books.min.js?v=d11022a350"></script>
+<script src="/js/dist/lectures.min.js?v=d11022a350"></script>
+<script src="/js/dist/media.min.js?v=d11022a350"></script>
+<script src="/js/dist/news.min.js?v=d11022a350"></script>
+<script src="/js/dist/aichat.min.js?v=d11022a350"></script>
+<script src="/js/dist/app.min.js?v=d11022a350"></script>
 
 <!-- PWA Install Modal -->
 <div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" onclick="closePwaModal()">
@@ -1451,6 +1484,56 @@
 </div>
 
 <!-- ===== صفحه تقویم ===== -->
+<!-- صفحه‌ی دستیار هوشمند (چت‌بات RAG) -->
+<div id="ai-chat-screen" class="fixed inset-0 bg-gray-50 z-[330] flex-col hidden" dir="rtl">
+  <!-- هدر -->
+  <div class="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">
+    <button onclick="closeAIChat()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0"><i class="fas fa-arrow-right text-sm"></i></button>
+    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shrink-0"><i class="fas fa-robot text-white text-sm"></i></div>
+    <div class="flex-1 min-w-0">
+      <h2 class="font-black text-sm text-gray-800">دستیار هوشمند</h2>
+      <p id="aic-status" class="text-[10px] text-emerald-500 font-bold">آنلاین</p>
+    </div>
+    <button onclick="aicNewConversation()" title="گفتگوی جدید" class="w-9 h-9 flex items-center justify-center bg-violet-50 rounded-full text-violet-600 hover:bg-violet-100 transition shrink-0"><i class="fas fa-plus text-sm"></i></button>
+    <button onclick="aicToggleHistory()" title="تاریخچه" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0"><i class="fas fa-history text-sm"></i></button>
+  </div>
+  <!-- پیام‌ها -->
+  <div id="aic-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"></div>
+  <!-- ورودی -->
+  <div class="shrink-0 bg-white border-t border-gray-100 p-3 flex items-end gap-2">
+    <textarea id="aic-input" rows="1" placeholder="سوال خود را بنویسید…" class="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-violet-400 resize-none leading-relaxed" style="max-height:120px" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aicSend();}"></textarea>
+    <button id="aic-send-btn" onclick="aicSend()" class="w-11 h-11 bg-violet-600 hover:bg-violet-700 text-white rounded-full flex items-center justify-center shadow-md transition active:scale-95 shrink-0"><i class="fas fa-paper-plane text-sm"></i></button>
+  </div>
+  <!-- پنل تاریخچه -->
+  <div id="aic-history" class="hidden absolute inset-0 top-[61px] bg-white z-10 flex-col">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+      <h3 class="font-bold text-sm text-gray-800">گفتگوهای قبلی</h3>
+      <button onclick="aicToggleHistory()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 flex items-center justify-center"><i class="fas fa-times text-xs"></i></button>
+    </div>
+    <div id="aic-history-list" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
+  </div>
+</div>
+
+<!-- نمای ریلز ویدیو (اسکرول عمودی تمام‌صفحه) -->
+<style>
+  #reels-container{scrollbar-width:none;-ms-overflow-style:none;}
+  #reels-container::-webkit-scrollbar{display:none;}
+  .reels-mount{position:absolute;inset:0;overflow:hidden;}
+  .reels-mount iframe{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border:none;}
+  /* عمودی/استوری: پر کردن کامل صفحه بدون نوار سیاه */
+  .reels-mount.cover iframe{width:100vw;height:56.25vw;min-height:100%;min-width:177.78vh;}
+  /* افقی/واید: نمایش ۱۶:۹ وسط‌چین (نوار بالا و پایین) */
+  .reels-mount.contain iframe{width:100%;height:56.25vw;max-height:100%;}
+</style>
+<div id="video-reels-screen" class="fixed inset-0 bg-black z-[320] flex-col hidden" dir="rtl">
+  <div class="absolute top-0 inset-x-0 z-20 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
+    <button onclick="closeVideoReels()" class="pointer-events-auto w-9 h-9 flex items-center justify-center bg-white/15 backdrop-blur-sm rounded-full text-white shrink-0"><i class="fas fa-arrow-right text-sm"></i></button>
+    <h2 id="reels-title" class="font-bold text-sm text-white flex-1 text-center truncate" style="text-shadow:0 1px 3px rgba(0,0,0,.6)">ریلز</h2>
+    <div class="w-9 shrink-0"></div>
+  </div>
+  <div id="reels-container" class="flex-1 overflow-y-scroll snap-y snap-mandatory"></div>
+</div>
+
 <div id="calendar-screen" class="fixed inset-0 bg-gray-50 z-[300] flex-col hidden" dir="rtl">
   <!-- هدر -->
   <div class="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">

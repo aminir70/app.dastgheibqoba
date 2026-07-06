@@ -1,6 +1,21 @@
 // ====================================================
 // wrapper: هر pushNavHistory در این فایل section را می‌داند
 function _pnh(fn){ pushNavHistory(fn,'media'); }
+
+// ====================================================
+// حفظ موقعیت اسکرول هنگام رفت‌وبرگشت بین نماها
+// ====================================================
+const _mediaScrollMem = {};
+function _mediaScrollEl(){ return document.getElementById('media-scroll'); }
+function _saveMediaScroll(key){ const s=_mediaScrollEl(); if(s) _mediaScrollMem[key]=s.scrollTop; }
+function _restoreMediaScroll(key){
+    const s=_mediaScrollEl();
+    if(!s) return;
+    const v=_mediaScrollMem[key];
+    if(v==null) return;
+    // دو فریم صبر می‌کنیم تا layout بعد از رندر آماده شود
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ s.scrollTop=v; }));
+}
 // متغیرهای رسانه
 // ====================================================
 
@@ -520,7 +535,7 @@ async function initVideoGallery() {
     await loadVideoCategories(null, '');
 }
 
-async function loadVideoCategories(parentId, parentName) {
+async function loadVideoCategories(parentId, parentName, restoreScroll) {
     if (parentId === null && _videoNavStack.length === 0) {
         if (typeof _loadMediaTabBanner === 'function') _loadMediaTabBanner('video');
     } else {
@@ -541,6 +556,9 @@ async function loadVideoCategories(parentId, parentName) {
     if(backBtn) backBtn.style.display = _videoNavStack.length > 0 ? '' : 'none';
     if(titleEl) titleEl.textContent = parentName || 'گالری ویدیو';
     if(hdr) { if(_videoNavStack.length > 0 || parentName) { hdr.classList.remove('hidden'); hdr.classList.add('flex'); } else { hdr.classList.add('hidden'); hdr.classList.remove('flex'); } }
+    // بنر ریلز فقط در صفحهٔ اصلی ویدیو (سطح ریشه)
+    const _reelsBanner = document.getElementById('video-reels-banner');
+    if(_reelsBanner) _reelsBanner.classList.toggle('hidden', _videoNavStack.length > 0);
 
     try {
         const url = parentId != null ? `/api/videos/categories?parent_id=${parentId}` : '/api/videos/categories';
@@ -588,7 +606,7 @@ async function loadVideoCategories(parentId, parentName) {
         }
     } catch(e) {
         if(view) view.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-exclamation-circle text-3xl opacity-30 mb-3"></i><p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p><button onclick="_videoCatsLoaded=false;initVideoGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button></div>`;
-    } finally { setMediaLoading(false); }
+    } finally { setMediaLoading(false); if(restoreScroll) _restoreMediaScroll('video-cats'); }
 }
 
 function videoNavToSub(catId, catName) {
@@ -600,6 +618,7 @@ function videoNavToSub(catId, catName) {
 
 async function loadVideoList(categoryId, title, count) {
     if (typeof _clearMediaBanner === 'function') _clearMediaBanner();
+    _saveMediaScroll('video-cats');
     try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'video-list', id: categoryId }, '', '#media-v-list-' + categoryId); } catch(e) {}
     _currentVideoCatId = categoryId;
     setMediaLoading(true);
@@ -609,6 +628,8 @@ async function loadVideoList(categoryId, title, count) {
     const list = document.getElementById('video-items-list');
 
     if(catsView) catsView.classList.add('hidden');
+    const _reelsBanner = document.getElementById('video-reels-banner');
+    if(_reelsBanner) _reelsBanner.classList.add('hidden');
     if(playerView) playerView.classList.add('hidden');
     if(listView) { listView.classList.remove('hidden'); listView.classList.add('flex'); }
     const _vCatsHdr = document.getElementById('video-cats-header');
@@ -642,6 +663,7 @@ function playVideoItem(itemId) {
 
     try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'video-play', id: itemId }, '', '#media-v-play-' + itemId); } catch(e) {}
 
+    _saveMediaScroll('video-list');
     const listView = document.getElementById('video-list-view');
     const playerView = document.getElementById('video-player-view');
     if(listView) { listView.classList.add('hidden'); listView.classList.remove('flex'); }
@@ -649,6 +671,41 @@ function playVideoItem(itemId) {
 
     document.getElementById('video-player-title').textContent = item.title;
     document.getElementById('video-aparat-iframe').src = item.embed_url;
+
+    // ویدیوهای عمودی (استوری) را در پلیر هم عمودی و تمام‌قاب نشان بده
+    const _pframe = document.getElementById('video-player-frame');
+    const _ifr = document.getElementById('video-aparat-iframe');
+    if (_pframe) {
+        const isVert = (item.vertical == 1 || item.vertical === '1' || item.vertical === true);
+        _pframe.style.aspectRatio = '';
+        _pframe.style.maxHeight = '';
+        if (isVert) {
+            // قاب عمودی ۹:۱۶ وسط‌چین (ارتفاع از padding-top که مطمئن است)
+            _pframe.style.width = '44vh';
+            _pframe.style.maxWidth = '100%';
+            _pframe.style.margin = '0 auto';
+            _pframe.style.paddingTop = '177.78%';
+            _pframe.style.overflow = 'hidden';
+            // پلیر ۱۶:۹ آپارات را طوری بزرگ کن که قاب عمودی را پر کند (crop کناره‌ها)
+            if (_ifr) {
+                _ifr.style.top = '50%'; _ifr.style.left = '50%';
+                _ifr.style.transform = 'translate(-50%,-50%)';
+                _ifr.style.height = '100%'; _ifr.style.width = 'auto';
+                _ifr.style.aspectRatio = '16/9'; _ifr.style.minWidth = '100%';
+            }
+        } else {
+            _pframe.style.width = '';
+            _pframe.style.maxWidth = '';
+            _pframe.style.margin = '';
+            _pframe.style.overflow = '';
+            _pframe.style.paddingTop = '56.25%';
+            if (_ifr) {
+                _ifr.style.top = '0'; _ifr.style.left = '0';
+                _ifr.style.transform = ''; _ifr.style.width = '100%';
+                _ifr.style.height = '100%'; _ifr.style.aspectRatio = ''; _ifr.style.minWidth = '';
+            }
+        }
+    }
 
     const descEl = document.getElementById('video-player-desc');
     if(item.description && item.description.trim()) {
@@ -729,7 +786,7 @@ function backToVideoCategories() {
     // اگر از list/player برمی‌گردیم، در همان سطح فعلی بمانیم (پاپ نکنیم)
     if (listVisible || playerVisible) {
         const top = _videoNavStack[_videoNavStack.length - 1];
-        loadVideoCategories(top ? top.id : null, top ? top.name : '');
+        loadVideoCategories(top ? top.id : null, top ? top.name : '', true);
         return;
     }
     // از خود cats view: یک سطح بالا برو
@@ -747,6 +804,142 @@ function backToVideoList() {
     const playerView = document.getElementById('video-player-view');
     if(playerView) { playerView.classList.add('hidden'); playerView.classList.remove('flex'); document.getElementById('video-aparat-iframe').src = ''; }
     if(listView) { listView.classList.remove('hidden'); listView.classList.add('flex'); }
+    _restoreMediaScroll('video-list');
+}
+
+// ====================================================
+// نمای ریلز ویدیو — اسکرول عمودی تمام‌صفحه مثل اینستاگرام
+// ویدیوهای دستهٔ جاری (videoCachedItems) را زیر هم نشان می‌دهد
+// ====================================================
+let _reelsObserver = null;
+// جمع‌آوری همهٔ ویدیوها با پیمایش دسته‌ها و زیردسته‌ها
+async function _fetchAllVideos() {
+    const out = [], seen = new Set();
+    async function walk(parentId) {
+        const url = parentId != null ? `/api/videos/categories?parent_id=${parentId}` : '/api/videos/categories';
+        let cats = [];
+        try { cats = await fetch(url).then(r => r.json()); } catch(e) {}
+        if (!Array.isArray(cats)) return;
+        for (const c of cats) {
+            if (c.sub_count > 0) await walk(c.id);
+            try {
+                const items = await fetch(`/api/videos/categories/${c.id}/items`).then(r => r.json());
+                if (Array.isArray(items)) items.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); out.push(v); } });
+            } catch(e) {}
+        }
+    }
+    await walk(null);
+    return out;
+}
+// ریلز همهٔ ویدیوها (از ابتدای صفحهٔ ویدیو)
+let _reelsLoading = false;
+async function openAllVideoReels() {
+    if (_reelsLoading) return;
+    _reelsLoading = true;
+    if (typeof showToast === 'function') showToast('در حال بارگذاری ویدیوها…');
+    let items = [];
+    try { items = await _fetchAllVideos(); } catch(e) {}
+    _reelsLoading = false;
+    if (!Array.isArray(items) || !items.length) { if (typeof showToast === 'function') showToast('ویدیویی برای نمایش نیست', false); return; }
+    _renderReels(items, 'ریلز ویدیوها');
+}
+// ریلز ویدیوهای دستهٔ جاری
+function openVideoReels() {
+    const items = (typeof videoCachedItems !== 'undefined' && Array.isArray(videoCachedItems)) ? videoCachedItems : [];
+    if (!items.length) { if (typeof showToast === 'function') showToast('ویدیویی برای نمایش نیست', false); return; }
+    const catTitle = document.getElementById('video-cat-title');
+    _renderReels(items, catTitle ? catTitle.textContent : 'ریلز');
+}
+function _renderReels(items, title, startId) {
+    const screen = document.getElementById('video-reels-screen');
+    const container = document.getElementById('reels-container');
+    if (!screen || !container) return;
+    const titleEl = document.getElementById('reels-title');
+    if (titleEl) titleEl.textContent = title || 'ریلز';
+    items = items.slice();
+    if (startId != null) {
+        // شروع از ویدیوی انتخاب‌شده (بدون شافل)
+        const idx = items.findIndex(v => v.id === startId);
+        if (idx > 0) { const sel = items.splice(idx, 1)[0]; items.unshift(sel); }
+    } else {
+        // نمایش تصادفی (روی کپی تا ترتیب لیست عادی دست‌نخورده بماند)
+        for (let k = items.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); const t = items[k]; items[k] = items[j]; items[j] = t; }
+    }
+    container.innerHTML = items.map((v, i) => {
+        const thumb = v.thumbnail || v._catCover || '';
+        const poster = thumb ? `<img src="${thumb}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';
+        const embed = (v.embed_url || '').replace(/"/g, '&quot;');
+        const dateStr = v.publish_date ? `<p class="text-white/60 text-[11px] mt-1">${toFa(v.publish_date)}</p>` : '';
+        // عمودی → cover (پر صفحه)، افقی → contain (واید) — بر اساس فلگ ادمین
+        const mountCls = (v.vertical == 1 || v.vertical === '1' || v.vertical === true) ? 'cover' : 'contain';
+        return `<div class="reels-slide snap-start snap-always relative w-full bg-black overflow-hidden" style="height:100%" data-idx="${i}" data-embed="${embed}">
+            <div class="reels-mount ${mountCls} absolute inset-0 overflow-hidden"></div>
+            <div class="reels-poster absolute inset-0 flex items-center justify-center bg-black cursor-pointer">
+                ${poster}
+                <div class="relative w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/40 shadow-lg"><i class="fas fa-play text-white text-xl mr-[-2px]"></i></div>
+            </div>
+            <div class="absolute bottom-0 inset-x-0 p-4 pb-10 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
+                <h3 class="text-white font-bold text-sm leading-snug line-clamp-2">${v.title || ''}</h3>
+                ${dateStr}
+            </div>
+        </div>`;
+    }).join('');
+    screen.classList.remove('hidden'); screen.classList.add('flex');
+    container.scrollTop = 0;
+    container.querySelectorAll('.reels-slide').forEach(slide => {
+        slide.addEventListener('click', () => _reelsMount(slide, true));
+    });
+    _reelsSetupObserver(container);
+    const first = container.querySelector('.reels-slide');
+    if (first) _reelsMount(first, false);
+}
+
+function _reelsMount(slide, autoplay) {
+    if (!slide || slide.dataset.mounted === '1') return;
+    const embed = slide.dataset.embed;
+    if (!embed) return;
+    const mount = slide.querySelector('.reels-mount');
+    const poster = slide.querySelector('.reels-poster');
+    if (!mount) return;
+    let src = embed;
+    if (autoplay && /aparat\.com/.test(src) && !/[?&]autoplay/i.test(src)) {
+        src += (src.indexOf('?') >= 0 ? '&' : '?') + 'autoplay=true';
+    }
+    mount.innerHTML = `<iframe src="${src}" style="border:none" allow="autoplay; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen scrolling="no"></iframe>`;
+    if (poster) poster.style.display = 'none';
+    slide.dataset.mounted = '1';
+}
+
+function _reelsUnmount(slide) {
+    if (!slide || slide.dataset.mounted !== '1') return;
+    const mount = slide.querySelector('.reels-mount');
+    const poster = slide.querySelector('.reels-poster');
+    if (mount) mount.innerHTML = '';
+    if (poster) poster.style.display = '';
+    slide.dataset.mounted = '0';
+}
+
+function _reelsSetupObserver(container) {
+    if (_reelsObserver) { try { _reelsObserver.disconnect(); } catch(e) {} }
+    if (typeof IntersectionObserver === 'undefined') return;
+    _reelsObserver = new IntersectionObserver((entries) => {
+        entries.forEach(en => {
+            if (en.isIntersecting && en.intersectionRatio >= 0.6) {
+                _reelsMount(en.target, true);
+            } else if (en.intersectionRatio < 0.2) {
+                _reelsUnmount(en.target);
+            }
+        });
+    }, { root: container, threshold: [0, 0.2, 0.6, 0.9] });
+    container.querySelectorAll('.reels-slide').forEach(s => _reelsObserver.observe(s));
+}
+
+function closeVideoReels() {
+    const screen = document.getElementById('video-reels-screen');
+    const container = document.getElementById('reels-container');
+    if (_reelsObserver) { try { _reelsObserver.disconnect(); } catch(e) {} _reelsObserver = null; }
+    if (container) container.innerHTML = '';
+    if (screen) { screen.classList.add('hidden'); screen.classList.remove('flex'); }
 }
 
 // ====================================================
@@ -790,7 +983,7 @@ function _renderGalleryCatGrid(cats, view, onClickFn) {
     }).join('');
 }
 
-async function loadGalleryCategories(parentId, parentName) {
+async function loadGalleryCategories(parentId, parentName, restoreScroll) {
     if (parentId === null && _galleryNavStack.length === 0) {
         if (typeof _loadMediaTabBanner === 'function') _loadMediaTabBanner('photo');
     } else {
@@ -867,7 +1060,7 @@ async function loadGalleryCategories(parentId, parentName) {
             <p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p>
             <button onclick="_galleryCatsLoaded=false;initGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button>
         </div>`;
-    } finally { setMediaLoading(false); }
+    } finally { setMediaLoading(false); if(restoreScroll) _restoreMediaScroll('gallery-cats'); }
 }
 
 function galleryNavToSub(catId, catName) {
@@ -878,6 +1071,7 @@ function galleryNavToSub(catId, catName) {
 }
 
 async function loadGalleryPhotos(categoryId, title, count) {
+    _saveMediaScroll('gallery-cats');
     try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'photo-list', id: categoryId }, '', '#media-p-list-' + categoryId); } catch(e) {}
     setMediaLoading(true);
     const catsView = document.getElementById('gallery-categories-view');
@@ -918,7 +1112,7 @@ function backToGalleryCategories() {
     // اگر از photos برمی‌گردیم، در همان سطح فعلی بمانیم (پاپ نکنیم)
     if (photosVisible) {
         const top = _galleryNavStack[_galleryNavStack.length - 1];
-        loadGalleryCategories(top ? top.id : null, top ? top.name : '');
+        loadGalleryCategories(top ? top.id : null, top ? top.name : '', true);
         return;
     }
     if(_galleryNavStack.length > 0) {
@@ -1099,7 +1293,7 @@ async function initAudioGallery() {
     await loadAudioCategories(null, '');
 }
 
-async function loadAudioCategories(parentId, parentName) {
+async function loadAudioCategories(parentId, parentName, restoreScroll) {
     if (parentId === null && _audioNavStack.length === 0) {
         if (typeof _loadMediaTabBanner === 'function') _loadMediaTabBanner('audio');
     } else {
@@ -1162,7 +1356,7 @@ async function loadAudioCategories(parentId, parentName) {
         }
     } catch(e) {
         if(view) view.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-exclamation-circle text-3xl opacity-30 mb-3"></i><p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p><button onclick="_audioCatsLoaded=false;initAudioGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button></div>`;
-    } finally { setMediaLoading(false); }
+    } finally { setMediaLoading(false); if(restoreScroll) _restoreMediaScroll('audio-cats'); }
 }
 
 function audioNavToSub(catId, catName) {
@@ -1527,6 +1721,7 @@ async function setVideoSort(sort) {
 
 async function loadAudioPlaylist(categoryId, title, count) {
     if (typeof _clearMediaBanner === 'function') _clearMediaBanner();
+    _saveMediaScroll('audio-cats');
     try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'audio-list', id: categoryId }, '', '#media-a-list-' + categoryId); } catch(e) {}
     _currentAudioCatId = categoryId;
     if (_mediaViewMode !== 'list') {
@@ -1740,7 +1935,7 @@ function backToAudioCategories() {
     // اگر از playlist برمی‌گردیم، در همان سطح فعلی بمانیم (پاپ نکنیم)
     if (plVisible) {
         const top = _audioNavStack[_audioNavStack.length - 1];
-        loadAudioCategories(top ? top.id : null, top ? top.name : '');
+        loadAudioCategories(top ? top.id : null, top ? top.name : '', true);
         return;
     }
     if(_audioNavStack.length > 0) {

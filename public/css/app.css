@@ -215,8 +215,7 @@ body.global-dark .sdi:hover i { color: #2dd4bf; }
 body.global-dark .nav-item.sdi.active { background: rgba(13,148,136,0.14); color: #2dd4bf; }
 body.global-dark .nav-item.sdi.active i { color: #2dd4bf; }
 
-/* موبایل: آخرین تصاویر فقط ۴ تا */
-#home-latest-images > *:nth-child(n+5) { display: none; }
+/* آخرین تصاویر: همه نمایش داده می‌شوند (اسکرول افقی، بدون محدودیت تعداد) */
 
 /* Desktop Full-Width Layout */
 @media (min-width: 640px) {
@@ -321,14 +320,9 @@ body.global-dark .nav-item.sdi.active i { color: #2dd4bf; }
     #home-books-container img { height: 100% !important; object-fit: cover !important; }
     #home-books-container .book-title { font-size: 9px !important; line-height: 1.3 !important; }
 
-    /* ── آخرین تصاویر: ۸ تا در ۸ ستون (مربعی کوچک) ── */
-    #home-latest-images > *:nth-child(n+5) { display: block !important; }
-    #home-latest-images {
-        grid-template-columns: repeat(8, 1fr) !important;
-        gap: 6px !important;
-        padding: 0 20px !important;
-    }
-    #home-latest-images > *:nth-child(n+9) { display: none !important; }
+    /* ── آخرین تصاویر: ردیف افقی (همه نمایش داده می‌شوند) ── */
+    #home-latest-images > * { display: block !important; }
+    #home-latest-images { padding: 0 20px !important; }
     #home-media-images-section > div:first-child { padding: 0 20px 10px !important; }
 
     /* ── سه ستون دسکتاپ: مطالب | صوت | ویدیو ── */
