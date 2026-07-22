@@ -358,6 +358,7 @@ function initDb() {
         mainDb.run(`ALTER TABLE ticket_messages ADD COLUMN attachment TEXT DEFAULT NULL`, () => {});
         mainDb.run(`ALTER TABLE ticket_messages ADD COLUMN attachment_type TEXT DEFAULT NULL`, () => {});
         mainDb.run(`ALTER TABLE ticket_messages ADD COLUMN edited_at DATETIME DEFAULT NULL`, () => {});
+        mainDb.run(`ALTER TABLE ticket_messages ADD COLUMN reply_to INTEGER DEFAULT NULL`, () => {});
         mainDb.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tickets_tracking ON tickets(tracking_code)`, () => {});
         // Migration: add notifications tables if not exists (already created above)
 
@@ -1071,6 +1072,19 @@ function _detectAttachmentType(file){
     if(mime.startsWith('audio/')) return 'audio';
     return 'file';
 }
+// تبدیل مقدار reply_to ورودی به عدد معتبر یا null
+function _parseReplyTo(v){
+    if(v===undefined||v===null||v===''||v==='null') return null;
+    const n=parseInt(v,10);
+    return isNaN(n)||n<=0 ? null : n;
+}
+// اطمینان از اینکه پیام مرجع در همان تیکت است؛ در غیر این صورت null برمی‌گرداند
+function _validateReplyTo(replyTo,ticketId,cb){
+    if(!replyTo) return cb(null);
+    mainDb.get('SELECT id FROM ticket_messages WHERE id=? AND ticket_id=?',[replyTo,ticketId],(err,row)=>{
+        cb(row?replyTo:null);
+    });
+}
 // ویرایش تیکت توسط کاربر (فقط اگه ادمین هنوز جواب نداده)
 app.put('/api/tickets/:id',userAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
@@ -1106,6 +1120,7 @@ app.post('/api/tickets/:id/messages',userAuth,uploadTicketFile.single('ticket_fi
     const t=san(req.body.text)||'';
     const att=req.file?('/ticket-files/'+req.file.filename):null;
     const attType=req.file?_detectAttachmentType(req.file):null;
+    let replyTo=_parseReplyTo(req.body.reply_to);
     if(!t.trim()&&!att) return res.status(400).json({error:'پیام یا فایل الزامی است'});
     mainDb.get('SELECT id,status FROM tickets WHERE id=? AND user_id=?',[id,req.userId],(err,ticket)=>{
         if(err||!ticket) return res.status(404).json({error:'تیکت یافت نشد'});
@@ -1114,18 +1129,38 @@ app.post('/api/tickets/:id/messages',userAuth,uploadTicketFile.single('ticket_fi
             let consecutiveUser=0;
             for(const m of (msgs||[])){ if(m.sender_type==='user') consecutiveUser++; else break; }
             if(consecutiveUser>=2) return res.status(400).json({error:'لطفاً صبر کنید تا ادمین جواب دهد. حداکثر ۲ پیام متوالی مجاز است.'});
-            mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,attachment,attachment_type) VALUES (?,?,"user",?,?)',[id,t.trim(),att,attType],function(err3){
-                if(err3) return res.status(500).json({error:err3.message});
-                mainDb.run('UPDATE tickets SET updated_at=CURRENT_TIMESTAMP WHERE id=?',[id]);
-                res.json({success:true,id:this.lastID});
+            // reply_to باید به پیامی در همین تیکت اشاره کند، وگرنه نادیده گرفته می‌شود
+            _validateReplyTo(replyTo,id,(validReplyTo)=>{
+                mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,attachment,attachment_type,reply_to) VALUES (?,?,"user",?,?,?)',[id,t.trim(),att,attType,validReplyTo],function(err3){
+                    if(err3) return res.status(500).json({error:err3.message});
+                    mainDb.run('UPDATE tickets SET updated_at=CURRENT_TIMESTAMP WHERE id=?',[id]);
+                    res.json({success:true,id:this.lastID});
+                });
             });
+        });
+    });
+});
+// ویرایش پیام کاربر توسط خودش (فقط پیام‌های خودِ کاربر و تیکت بازِ متعلق به او)
+app.put('/api/tickets/messages/:msgId',userAuth,(req,res)=>{
+    const msgId=+req.params.msgId;if(isNaN(msgId)) return res.status(400).json({error:'شناسه نامعتبر'});
+    const t=san(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن الزامی است'});
+    mainDb.get(`SELECT tm.id FROM ticket_messages tm JOIN tickets t ON t.id=tm.ticket_id
+                WHERE tm.id=? AND tm.sender_type='user' AND t.user_id=? AND t.status!='closed'`,[msgId,req.userId],(err,row)=>{
+        if(err) return res.status(500).json({error:err.message});
+        if(!row) return res.status(404).json({error:'پیام یافت نشد یا قابل ویرایش نیست'});
+        mainDb.run('UPDATE ticket_messages SET text=?,edited_at=CURRENT_TIMESTAMP WHERE id=?',[t.trim(),msgId],function(e){
+            if(e) return res.status(500).json({error:e.message});
+            res.json({success:true});
         });
     });
 });
 // دریافت پیام‌های یک تیکت (عمومی - برای کاربر)
 app.get('/api/tickets/:id/messages',(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    mainDb.all('SELECT id,text,sender_type,created_at,attachment,attachment_type,edited_at FROM ticket_messages WHERE ticket_id=? ORDER BY created_at ASC',[id],(err,rows)=>{
+    mainDb.all(`SELECT m.id,m.text,m.sender_type,m.created_at,m.attachment,m.attachment_type,m.edited_at,m.reply_to,
+                r.text as reply_text, r.sender_type as reply_sender, r.attachment_type as reply_attachment_type
+                FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
+                WHERE m.ticket_id=? ORDER BY m.created_at ASC`,[id],(err,rows)=>{
         if(err) return res.status(500).json({error:err.message});
         res.json(rows||[]);
     });
@@ -1850,12 +1885,16 @@ app.get('/api/admin/tickets',adminAuth,(req,res)=>{
 });
 app.get('/api/admin/tickets/:id/messages',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    mainDb.all('SELECT * FROM ticket_messages WHERE ticket_id=? ORDER BY created_at ASC',[id],(err,rows)=>res.json(rows||[]));
+    mainDb.all(`SELECT m.*, r.text as reply_text, r.sender_type as reply_sender, r.attachment_type as reply_attachment_type
+                FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
+                WHERE m.ticket_id=? ORDER BY m.created_at ASC`,[id],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/tickets/:id/reply',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     const t=san(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن خالی است'});
-    mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type) VALUES (?,?,"admin")',[id,t],function(err){
+    const replyTo=_parseReplyTo(req.body.reply_to);
+    _validateReplyTo(replyTo,id,(validReplyTo)=>{
+    mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,reply_to) VALUES (?,?,"admin",?)',[id,t,validReplyTo],function(err){
         if(err) return res.status(500).json({error:err.message});
         mainDb.run('UPDATE tickets SET status="answered",updated_at=CURRENT_TIMESTAMP WHERE id=?',[id]);
         mainDb.get('SELECT user_id,subject FROM tickets WHERE id=?',[id],(err2,ticket)=>{
@@ -1870,6 +1909,7 @@ app.post('/api/admin/tickets/:id/reply',adminAuth,(req,res)=>{
             }
         });
         res.json({success:true});
+    });
     });
 });
 // ویرایش پیام ادمین

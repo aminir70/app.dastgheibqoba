@@ -1168,6 +1168,7 @@ let activeQATicketId = null;
 
 async function openQAConversation(ticketId, subject) {
     activeQATicketId = ticketId;
+    qaCancelReply();
     document.getElementById('qa-conv-title').textContent = subject;
     document.getElementById('qa-conv-status').textContent = '';
     const conv = document.getElementById('qa-conversation');
@@ -1188,8 +1189,10 @@ async function sendQAConvMessage() {
     if (t) fd.append('text', t);
     if (file) fd.append('ticket_file', file);
     else if (_qaConvRecordedBlob) fd.append('ticket_file', _qaConvRecordedBlob, 'voice.webm');
+    if (_qaReplyTo) fd.append('reply_to', _qaReplyTo);
     if (inp) inp.value = '';
     if (fileInput) fileInput.value = '';
+    qaCancelReply();
     qaConvCancelVoice();
     const nm = document.getElementById('qa-conv-file-name');
     if (nm) nm.textContent = '';
@@ -1212,6 +1215,7 @@ async function sendQAConvMessage() {
 
 function closeQAConversation() {
     activeQATicketId = null;
+    qaCancelReply();
     const conv = document.getElementById('qa-conversation');
     conv.classList.add('hidden');
     conv.classList.remove('flex');
@@ -1220,6 +1224,30 @@ function closeQAConversation() {
 
 async function refreshQAConversation() {
     if (activeQATicketId) await loadQAConversationMessages(activeQATicketId);
+}
+
+function _escHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// خلاصه‌ی پیوست برای نمایش در نقل‌قول پاسخ
+function _attachmentLabel(type) {
+    return type === 'image' ? '🖼 تصویر'
+         : type === 'audio' ? '🎤 پیام صوتی'
+         : type === 'pdf' ? '📄 فایل PDF'
+         : type ? '📎 پیوست' : '';
+}
+// نقل‌قولِ پیامی که به آن پاسخ داده شده (داخل حباب پیام)
+function _renderReplyQuote(msg) {
+    if (!msg.reply_to) return '';
+    const who = msg.reply_sender === 'admin' ? 'ادمین' : 'شما';
+    let preview = (msg.reply_text || '').trim() || _attachmentLabel(msg.reply_attachment_type) || '(پیام حذف شده)';
+    if (preview.length > 90) preview = preview.slice(0, 90) + '…';
+    return `<div class="border-r-2 border-brand-300 bg-gray-50 rounded-lg px-2.5 py-1.5 mb-2">
+        <div class="text-[10px] font-bold text-brand-500 mb-0.5"><i class="fas fa-reply text-[8px] ml-1"></i>${who}</div>
+        <div class="text-[11px] text-gray-500 leading-snug whitespace-pre-wrap">${_escHtml(preview)}</div>
+    </div>`;
 }
 
 function renderMsgBubble(msg) {
@@ -1236,30 +1264,67 @@ function renderMsgBubble(msg) {
             attachHtml = `<audio controls class="mt-2 w-full h-8" src="${msg.attachment}"></audio>`;
         }
     }
-    const editBtn = isAdmin && msg.id ? `<button onclick="adminEditMsgInline(${msg.id}, this)" class="text-[9px] text-gray-400 hover:text-brand-600 ml-2"><i class="fas fa-pen"></i></button>` : '';
+    // دکمه پاسخ روی همه پیام‌ها؛ دکمه ویرایش فقط روی پیام‌های متنیِ خودِ کاربر
+    const replyBtn = msg.id ? `<button onclick="qaReplyToMsg(${msg.id})" class="text-[11px] text-gray-400 hover:text-brand-600 px-1" title="پاسخ"><i class="fas fa-reply"></i></button>` : '';
+    const editBtn = (!isAdmin && msg.id && msg.text) ? `<button onclick="editQAConvMsg(${msg.id}, this)" class="text-[11px] text-gray-400 hover:text-brand-600 px-1" title="ویرایش"><i class="fas fa-pen"></i></button>` : '';
     return `<div class="flex ${isAdmin ? 'justify-start' : 'justify-end'}" style="width:100%">
         <div style="max-width:82%;word-break:break-word;overflow-wrap:break-word;" class="${isAdmin ? 'bg-brand-50 border border-brand-100 text-brand-900' : 'bg-white border border-gray-200 text-gray-800'} px-4 py-3 rounded-2xl shadow-sm">
             ${isAdmin ? `<div class="text-[10px] font-black text-brand-600 mb-1.5"><i class="fas fa-user-shield ml-1"></i>پاسخ ادمین</div>` : ''}
+            ${_renderReplyQuote(msg)}
             ${msg.text ? `<p class="text-sm leading-relaxed whitespace-pre-wrap">${msg.text}</p>` : ''}
             ${attachHtml}
-            <div class="flex items-center mt-1.5">
+            <div class="flex items-center gap-0.5 mt-1.5">
                 ${timeStr ? `<span class="text-[9px] text-gray-400">${timeStr}${editedStr}</span>` : ''}
+                <span class="flex-1"></span>
+                ${replyBtn}
                 ${editBtn}
             </div>
         </div>
     </div>`;
 }
-function adminEditMsgInline(msgId, btnEl) {
+
+// وضعیت پاسخ (نقل‌قول) و کش پیام‌های مکالمه فعال
+let _qaConvMsgs = [];
+let _qaReplyTo = null;
+
+function editQAConvMsg(msgId, btnEl) {
     const bubble = btnEl.closest('[style]');
     const p = bubble ? bubble.querySelector('p') : null;
-    if (!p) return;
-    const cur = p.textContent;
+    const cur = p ? p.textContent : '';
     const newText = prompt('ویرایش پیام:', cur);
-    if (!newText || newText.trim() === cur) return;
-    fetch('/api/admin/ticket-messages/' + msgId, {
-        method:'PUT', headers: userAuthHeaders({'Content-Type':'application/json'}),
-        body: JSON.stringify({text: newText.trim()})
-    }).then(r=>r.json()).then(d=>{ if(d.success) p.textContent = newText.trim(); else showToast(d.error||'خطا'); });
+    if (newText === null) return;
+    const trimmed = newText.trim();
+    if (!trimmed || trimmed === cur) return;
+    fetch('/api/tickets/messages/' + msgId, {
+        method: 'PUT', headers: userAuthHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ text: trimmed })
+    }).then(r => r.json()).then(d => {
+        if (d.success) { if (activeQATicketId) loadQAConversationMessages(activeQATicketId); }
+        else showToast(d.error || 'خطا در ویرایش');
+    }).catch(() => showToast('خطا در اتصال'));
+}
+
+function qaReplyToMsg(msgId) {
+    const msg = (_qaConvMsgs || []).find(m => m.id == msgId);
+    if (!msg) return;
+    _qaReplyTo = msgId;
+    const who = msg.sender_type === 'admin' ? 'ادمین' : 'شما';
+    let preview = (msg.text || '').trim() || _attachmentLabel(msg.attachment_type) || 'پیوست';
+    if (preview.length > 70) preview = preview.slice(0, 70) + '…';
+    const bar = document.getElementById('qa-conv-reply-quote');
+    const whoEl = document.getElementById('qa-conv-reply-quote-who');
+    const txtEl = document.getElementById('qa-conv-reply-quote-text');
+    if (whoEl) whoEl.textContent = 'پاسخ به ' + who;
+    if (txtEl) txtEl.textContent = preview;
+    if (bar) bar.classList.remove('hidden');
+    const inp = document.getElementById('qa-conv-input');
+    if (inp) inp.focus();
+}
+
+function qaCancelReply() {
+    _qaReplyTo = null;
+    const bar = document.getElementById('qa-conv-reply-quote');
+    if (bar) bar.classList.add('hidden');
 }
 
 async function loadQAConversationMessages(ticketId) {
@@ -1283,6 +1348,10 @@ async function loadQAConversationMessages(ticketId) {
             const statusMap = { open: 'در انتظار پاسخ', answered: 'پاسخ داده شد', closed: 'بسته شد' };
             document.getElementById('qa-conv-status').textContent = statusMap[ticket.status] || '';
         }
+
+        _qaConvMsgs = Array.isArray(msgs) ? msgs : [];
+        // اگر پیامی که در حال پاسخ به آن بودیم دیگر وجود ندارد، نقل‌قول را ببند
+        if (_qaReplyTo && !_qaConvMsgs.some(m => m.id == _qaReplyTo)) qaCancelReply();
 
         if (Array.isArray(msgs) && msgs.length > 0) {
             c.innerHTML = msgs.map(m => renderMsgBubble(m)).join('');

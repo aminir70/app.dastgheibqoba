@@ -780,6 +780,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
         <div class="text-center text-gray-400 mt-16 text-sm">یک مکالمه انتخاب کنید</div>
       </div>
       <div class="bg-white border-t border-gray-100">
+        <!-- نوار نقل‌قول پاسخ -->
+        <div id="support-reply-quote" class="hidden mx-3 mt-2 flex items-center gap-2 bg-teal-50 border-r-2 border-teal-400 rounded-lg px-3 py-1.5">
+          <div class="flex-1 min-w-0">
+            <div id="support-reply-quote-who" class="text-[10px] font-bold text-teal-600"></div>
+            <div id="support-reply-quote-text" class="text-[11px] text-gray-500 truncate"></div>
+          </div>
+          <button onclick="adminCancelReply()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="لغو پاسخ"><i class="fas fa-times text-xs"></i></button>
+        </div>
         <!-- پاسخ آماده -->
         <div id="canned-picker" class="hidden max-h-48 overflow-y-auto border-b border-gray-100 p-2 flex flex-col gap-1 bg-gray-50"></div>
         <div class="p-3 flex gap-2 items-center">
@@ -2249,6 +2257,7 @@ async function loadTickets(){
   }catch(e){}
 }
 async function selectTicket(id,subject,status){
+  if(id!==activeTicketId) adminCancelReply();
   activeTicketId=id; activeUserId=null;
   status=status.trim();
   openSupportChat();
@@ -2265,6 +2274,8 @@ async function selectTicket(id,subject,status){
     const msgs=await r.json();
     const c=document.getElementById('support-messages');
     if(!Array.isArray(msgs)||!msgs.length){c.innerHTML='<p class="text-center text-xs text-gray-400 mt-8">پیامی وجود ندارد</p>';return;}
+    adminSupportMsgs=msgs;
+    if(adminReplyTo&&!msgs.some(m=>m.id==adminReplyTo)) adminCancelReply();
     c.innerHTML=msgs.map(m=>{
       const isAdmin=m.sender_type==='admin';
       let attachHtml='';
@@ -2273,19 +2284,59 @@ async function selectTicket(id,subject,status){
         else if(m.attachment_type==='pdf') attachHtml=`<a href="${m.attachment}" target="_blank" class="inline-flex items-center gap-1 mt-2 bg-red-50 border border-red-100 px-2 py-1 rounded-lg text-[10px] text-red-600 font-bold hover:bg-red-100"><i class="fas fa-file-pdf"></i>مشاهده PDF</a>`;
         else if(m.attachment_type==='audio') attachHtml=`<audio controls class="mt-2 w-full" style="min-height:40px;" src="${m.attachment}"></audio>`;
       }
-      const editBtn=isAdmin?`<button onclick="adminEditMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600 mt-1 block"><i class="fas fa-pen ml-1"></i>ویرایش</button>`:'';
+      const editBtn=isAdmin?`<button onclick="adminEditMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="ویرایش"><i class="fas fa-pen"></i></button>`:'';
+      const replyBtn=m.id?`<button onclick="adminReplyToMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="پاسخ"><i class="fas fa-reply"></i></button>`:'';
       return `<div class="flex ${isAdmin?'justify-start':'justify-end'}">
         <div class="${isAdmin?'bg-teal-50 border border-teal-100':'bg-white border border-gray-100'} max-w-[75%] px-4 py-2.5 rounded-2xl text-xs font-medium shadow-sm">
+          ${adminReplyQuote(m)}
           ${m.text?`<p>${m.text}</p>`:''}
           ${attachHtml}
-          <span class="text-[9px] text-gray-400 mt-1 block">${new Date(m.created_at).toLocaleString('fa-IR')}${m.edited_at?' (ویرایش شده)':''}</span>
-          ${editBtn}
+          <div class="flex items-center gap-1.5 mt-1">
+            <span class="text-[9px] text-gray-400">${new Date(m.created_at).toLocaleString('fa-IR')}${m.edited_at?' (ویرایش شده)':''}</span>
+            <span class="flex-1"></span>
+            ${replyBtn}
+            ${editBtn}
+          </div>
         </div>
       </div>`;
     }).join('');
     c.scrollTop=c.scrollHeight;
     loadTickets();
   }catch(e){}
+}
+let adminSupportMsgs=[], adminReplyTo=null;
+function adminEscHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function adminAttachLabel(t){return t==='image'?'🖼 تصویر':t==='audio'?'🎤 پیام صوتی':t==='pdf'?'📄 فایل PDF':t?'📎 پیوست':'';}
+function adminReplyQuote(m){
+  if(!m.reply_to) return '';
+  const who=m.reply_sender==='admin'?'ادمین':'کاربر';
+  let p=(m.reply_text||'').trim()||adminAttachLabel(m.reply_attachment_type)||'(پیام حذف شده)';
+  if(p.length>90) p=p.slice(0,90)+'…';
+  return `<div class="border-r-2 border-teal-300 bg-gray-50 rounded-lg px-2 py-1 mb-1.5">
+    <div class="text-[9px] font-bold text-teal-600 mb-0.5"><i class="fas fa-reply ml-1"></i>${who}</div>
+    <div class="text-[10px] text-gray-500 leading-snug">${adminEscHtml(p)}</div>
+  </div>`;
+}
+function adminReplyToMsg(msgId){
+  const m=(adminSupportMsgs||[]).find(x=>x.id==msgId);
+  if(!m) return;
+  adminReplyTo=msgId;
+  const who=m.sender_type==='admin'?'ادمین':'کاربر';
+  let p=(m.text||'').trim()||adminAttachLabel(m.attachment_type)||'پیوست';
+  if(p.length>70) p=p.slice(0,70)+'…';
+  const bar=document.getElementById('support-reply-quote');
+  const whoEl=document.getElementById('support-reply-quote-who');
+  const txtEl=document.getElementById('support-reply-quote-text');
+  if(whoEl) whoEl.textContent='پاسخ به '+who;
+  if(txtEl) txtEl.textContent=p;
+  if(bar) bar.classList.remove('hidden');
+  const inp=document.getElementById('support-reply-input');
+  if(inp&&!inp.disabled) inp.focus();
+}
+function adminCancelReply(){
+  adminReplyTo=null;
+  const bar=document.getElementById('support-reply-quote');
+  if(bar) bar.classList.add('hidden');
 }
 async function adminEditMsg(msgId){
   const cur=prompt('متن جدید:');
@@ -2302,7 +2353,10 @@ async function sendSupportReply(){
   if(!t) return;
   inp.value='';
   if(currentSupportMode==='tickets'&&activeTicketId){
-    const r=await adminFetch('/api/admin/tickets/'+activeTicketId+'/reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t})});
+    const body={text:t};
+    if(adminReplyTo) body.reply_to=adminReplyTo;
+    adminCancelReply();
+    const r=await adminFetch('/api/admin/tickets/'+activeTicketId+'/reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(r.ok) selectTicket(activeTicketId,document.getElementById('active-support-title').textContent,'answered');
     else showToast('خطا در ارسال',false);
   } else if(currentSupportMode==='qa'&&activeUserId){

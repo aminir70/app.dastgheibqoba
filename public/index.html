@@ -683,6 +683,14 @@
                 </header>
                 <div id="qa-conv-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3" style="-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0;"></div>
                 <div id="qa-conv-reply" class="shrink-0 bg-white border-t border-gray-100 hidden safe-bottom">
+                    <!-- نوار نقل‌قول پاسخ -->
+                    <div id="qa-conv-reply-quote" class="hidden mx-3 mt-2 flex items-center gap-2 bg-brand-50 border-r-2 border-brand-400 rounded-lg px-3 py-1.5">
+                        <div class="flex-1 min-w-0">
+                            <div id="qa-conv-reply-quote-who" class="text-[10px] font-bold text-brand-600"></div>
+                            <div id="qa-conv-reply-quote-text" class="text-[11px] text-gray-500 truncate"></div>
+                        </div>
+                        <button onclick="qaCancelReply()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="لغو پاسخ"><i class="fas fa-times text-xs"></i></button>
+                    </div>
                     <!-- ردیف پیوست/ویس -->
                     <div id="qa-conv-attach-row" class="px-3 pt-2 flex items-center gap-2">
                         <label class="flex items-center gap-1 bg-gray-100 px-2.5 py-1.5 rounded-lg cursor-pointer text-xs text-gray-500 hover:bg-gray-200 transition">
