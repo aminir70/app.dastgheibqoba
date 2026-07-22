@@ -1651,7 +1651,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         if (!getHighlightContainer(s.anchorNode)) return;
         const r = s.getRangeAt(0).getBoundingClientRect();
         if (r.width === 0 && r.height === 0) return;
-        if (typeof saveAndClearSelection === 'function') saveAndClearSelection();
+        if (typeof _capturePendingSelection === 'function') _capturePendingSelection();
+        else if (typeof saveAndClearSelection === 'function') saveAndClearSelection();
         _selInContainer = false;
         showHighlightToolbar(window.innerWidth / 2, window.innerHeight * 0.35, true);
     }
@@ -1665,7 +1666,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         if (!container) return;
         const r = sel.getRangeAt(0).getBoundingClientRect();
         if (r.width === 0 && r.height === 0) return;
-        if (typeof saveAndClearSelection === 'function') saveAndClearSelection();
+        if (typeof _capturePendingSelection === 'function') _capturePendingSelection();
+        else if (typeof saveAndClearSelection === 'function') saveAndClearSelection();
         _selInContainer = false;
         showHighlightToolbar(r.left + r.width / 2, r.top, _isMobile);
     }
@@ -1701,15 +1703,21 @@ document.addEventListener('DOMContentLoaded',()=>{
         }
     });
 
-    // بستن toolbar با کلیک/تاچ بیرون از آن
-    document.addEventListener('mousedown', (e) => {
+    // بستن toolbar با کلیک/تاچ بیرون از آن.
+    // اگه کاربر داخل محتوای خواندنی کلیک کنه و تکه‌های موقت داشته باشیم،
+    // یعنی داره تکه‌ی دیگه‌ای اضافه می‌کنه — نه toolbar رو ببند نه انتخاب‌ها رو لغو کن.
+    const _dismissSelectionUI = (e) => {
         const tb = document.getElementById('highlight-toolbar');
-        if (tb && !tb.contains(e.target)) hideHighlightToolbar();
-    });
-    document.addEventListener('touchstart', (e) => {
-        const tb = document.getElementById('highlight-toolbar');
-        if (tb && !tb.classList.contains('hidden') && !tb.contains(e.target)) hideHighlightToolbar();
-    }, { passive: true });
+        if (!tb || tb.classList.contains('hidden')) return;
+        if (tb.contains(e.target)) return;
+        const inContainer = typeof getHighlightContainer === 'function' && !!getHighlightContainer(e.target);
+        const hasPending = typeof _hasPendingSelection === 'function' && _hasPendingSelection();
+        if (inContainer && hasPending) return;
+        if (!inContainer && typeof _clearPendingSelections === 'function') _clearPendingSelections();
+        hideHighlightToolbar();
+    };
+    document.addEventListener('mousedown', _dismissSelectionUI);
+    document.addEventListener('touchstart', _dismissSelectionUI, { passive: true });
 });
 
 // ====================================================

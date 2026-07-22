@@ -425,12 +425,10 @@ function closeNoteModal(){document.getElementById('note-modal').classList.add('h
 function saveNote(){const v=document.getElementById('note-textarea').value.trim();if(v)notes[currentIndex]=v;else delete notes[currentIndex];saveBookUserData();closeNoteModal();goToPage(currentIndex);showToast('یادداشت ذخیره شد');}
 
 function saveSelectionToNote() {
-    restoreSelectionIfNeeded();
-    const sel = window.getSelection();
-    const text = sel && !sel.isCollapsed ? sel.toString().trim() : (_savedRange ? _savedRange.toString().trim() : '');
+    const text = _getSelectedActionText();
     if (!text) { hideHighlightToolbar(); showToast('متنی انتخاب نشده'); return; }
     hideHighlightToolbar();
-    sel && sel.removeAllRanges();
+    _finishSelectionAction();
     const existing = notes[currentIndex] || '';
     const separator = existing ? '\n---\n' : '';
     notes[currentIndex] = existing + separator + text;
@@ -766,7 +764,113 @@ function getHighlightContainer(node) {
     return null;
 }
 
+// ──────────────────────────────────────────────────────────
+// انتخاب چندتکه‌ای (multi-piece selection)
+// هر تکه‌ای که کاربر انتخاب می‌کند با <mark class="pending-sel"> نشانه‌گذاری
+// می‌شود تا به‌صورت بصری باقی بماند و کاربر بتواند چند قسمت مجزا را قبل از
+// اعمال هایلایت/کپی/اشتراک انتخاب کند. state از روی DOM خوانده می‌شود
+// (نه یک آرایه) تا با رندر مجدد صفحه stale نشود.
+// ──────────────────────────────────────────────────────────
+function _pendingMarks() { return Array.from(document.querySelectorAll('mark.pending-sel')); }
+function _hasPendingSelection() { return !!document.querySelector('mark.pending-sel'); }
+
+// تکه انتخاب فعلی مرورگر را در یک mark موقت بپیچ
+function _wrapPendingSelection() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false;
+    const range = sel.getRangeAt(0);
+    const tc = getHighlightContainer(range.commonAncestorContainer);
+    if (!tc) return false;
+    const text = range.toString().trim();
+    if (!text) return false;
+    // از پیچیدن دوباره روی یک تکه موقتِ موجود جلوگیری کن
+    let startEl = range.startContainer;
+    if (startEl && startEl.nodeType === Node.TEXT_NODE) startEl = startEl.parentElement;
+    if (startEl && startEl.closest && startEl.closest('mark.pending-sel')) return false;
+
+    const mark = document.createElement('mark');
+    mark.className = 'pending-sel';
+    try {
+        range.surroundContents(mark);
+    } catch (e) {
+        try {
+            const frag = range.extractContents();
+            mark.appendChild(frag);
+            range.insertNode(mark);
+        } catch (e2) { return false; }
+    }
+    return true;
+}
+
+// تکه فعلی را ثبت کن و selection مرورگر را پاک کن (حذف منوی native)
+function _capturePendingSelection() {
+    const ok = _wrapPendingSelection();
+    const sel = window.getSelection();
+    if (sel) sel.removeAllRanges();
+    return ok || _hasPendingSelection();
+}
+
+// متن همه‌ی تکه‌های انتخاب‌شده، به ترتیب ظاهر در DOM
+function _getPendingText() {
+    return _pendingMarks().map(m => m.textContent.trim()).filter(Boolean).join('\n\n');
+}
+
+// یک mark موقت را باز کن و متن اصلی را برگردان
+function _unwrapPendingMark(mark) {
+    const parent = mark.parentNode;
+    if (!parent) return;
+    while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+    parent.removeChild(mark);
+    if (parent.normalize) parent.normalize();
+}
+
+// لغو همه‌ی تکه‌های موقت
+function _clearPendingSelections() {
+    _pendingMarks().forEach(_unwrapPendingMark);
+}
+
+// متن مؤثرِ عمل: اول تکه‌های موقت، بعد selection زنده، بعد range ذخیره‌شده
+function _getSelectedActionText() {
+    const pending = _getPendingText();
+    if (pending) return pending;
+    restoreSelectionIfNeeded();
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return sel.toString().trim();
+    return _savedRange ? _savedRange.toString().trim() : '';
+}
+
+// پاک‌سازی بعد از اتمام عمل
+function _finishSelectionAction() {
+    _clearPendingSelections();
+    const sel = window.getSelection();
+    if (sel) sel.removeAllRanges();
+}
+
 function applyHighlight(color) {
+    // حالت چندتکه‌ای: همه‌ی تکه‌های موقت را به هایلایت واقعی تبدیل کن
+    const pending = _pendingMarks();
+    if (pending.length) {
+        pending.forEach(mark => {
+            const tc = getHighlightContainer(mark);
+            const selectedText = mark.textContent.trim();
+            mark.className = '';
+            mark.style.backgroundColor = color;
+            mark.style.borderRadius = '3px';
+            mark.style.padding = '0 2px';
+            mark.dataset.hlId = (Date.now().toString() + Math.floor(Math.random() * 1000));
+            if (tc && tc.id === 'text-content' && selectedText) {
+                const k = getHighlightKey();
+                if (!highlightData[k]) highlightData[k] = [];
+                highlightData[k].push({ text: selectedText, color, id: mark.dataset.hlId });
+            }
+        });
+        saveHighlights();
+        hideHighlightToolbar();
+        const s = window.getSelection(); if (s) s.removeAllRanges();
+        showToast('هایلایت اعمال شد');
+        return;
+    }
+
     restoreSelectionIfNeeded();
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
@@ -802,7 +906,38 @@ function applyHighlight(color) {
     showToast('هایلایت اعمال شد');
 }
 
+// حذف یک هایلایت واقعی از DOM و localStorage
+function _removeRealHighlight(markEl) {
+    if (!markEl || markEl.tagName !== 'MARK') return;
+    const hlId = markEl.dataset.hlId;
+    const txt = markEl.textContent;
+    const parent = markEl.parentNode;
+    if (!parent) return;
+    while (markEl.firstChild) parent.insertBefore(markEl.firstChild, markEl);
+    parent.removeChild(markEl);
+    if (parent.normalize) parent.normalize();
+    const k = getHighlightKey();
+    const data = JSON.parse(localStorage.getItem(k) || '[]');
+    const updated = data.filter(h => h.id !== hlId && h.text !== txt);
+    localStorage.setItem(k, JSON.stringify(updated));
+    if (highlightData[k]) highlightData[k] = updated;
+}
+
 function removeHighlight() {
+    // حالت چندتکه‌ای: تکه‌های موقت را لغو کن؛ اگر روی هایلایت واقعی بودند آن را هم حذف کن
+    const pending = _pendingMarks();
+    if (pending.length) {
+        pending.forEach(pm => {
+            const real = (pm.closest && pm.closest('mark[data-hl-id]')) ||
+                         (pm.querySelector && pm.querySelector('mark[data-hl-id]'));
+            if (real) _removeRealHighlight(real);
+            _unwrapPendingMark(pm);
+        });
+        hideHighlightToolbar();
+        const s = window.getSelection(); if (s) s.removeAllRanges();
+        return;
+    }
+
     restoreSelectionIfNeeded();
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
@@ -811,19 +946,7 @@ function removeHighlight() {
         let markEl = range.commonAncestorContainer;
         if (markEl.nodeType === Node.TEXT_NODE) markEl = markEl.parentElement;
         while (markEl && markEl.tagName !== 'MARK') markEl = markEl.parentElement;
-
-        if (markEl && markEl.tagName === 'MARK') {
-            const hlId = markEl.dataset.hlId;
-            const parent = markEl.parentNode;
-            while (markEl.firstChild) parent.insertBefore(markEl.firstChild, markEl);
-            parent.removeChild(markEl);
-            // حذف از localStorage
-            const k = getHighlightKey();
-            const data = JSON.parse(localStorage.getItem(k) || '[]');
-            const updated = data.filter(h => h.id !== hlId && h.text !== markEl.textContent);
-            localStorage.setItem(k, JSON.stringify(updated));
-            if (highlightData[k]) highlightData[k] = updated;
-        }
+        if (markEl && markEl.tagName === 'MARK') _removeRealHighlight(markEl);
         sel.removeAllRanges();
     }
     hideHighlightToolbar();
@@ -901,13 +1024,10 @@ function _restoreHighlight(tc, text, color) {
 }
 
 function copySelectedText() {
-    restoreSelectionIfNeeded();
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) { hideHighlightToolbar(); return; }
-    const text = sel.toString().trim();
+    const text = _getSelectedActionText();
     if (!text) { hideHighlightToolbar(); return; }
     hideHighlightToolbar();
-    sel.removeAllRanges();
+    _finishSelectionAction();
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => showToast('متن کپی شد')).catch(() => {
             const ta = document.createElement('textarea');
@@ -924,13 +1044,10 @@ function copySelectedText() {
 }
 
 async function shareSelectedText() {
-    restoreSelectionIfNeeded();
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) { hideHighlightToolbar(); return; }
-    const text = sel.toString().trim();
+    const text = _getSelectedActionText();
     if (!text) { hideHighlightToolbar(); return; }
     hideHighlightToolbar();
-    sel.removeAllRanges();
+    _finishSelectionAction();
 
     let title = document.title;
     const headerTitle = document.getElementById('lectures-header-title') ||
@@ -987,14 +1104,12 @@ function onShareHueChange(val) {
 }
 
 function shareSelectedTextAsImage() {
-    restoreSelectionIfNeeded();
-    const sel = window.getSelection();
-    const text = sel ? sel.toString().trim() : '';
+    const text = _getSelectedActionText();
     if (!text) { hideHighlightToolbar(); return; }
     _shareImageText = text;
     _shareImageSubtitle = '';
     hideHighlightToolbar();
-    if (sel) sel.removeAllRanges();
+    _finishSelectionAction();
 
     _shareHue = 220;
     _shareStoryMode = false;

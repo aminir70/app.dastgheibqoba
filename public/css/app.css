@@ -399,3 +399,17 @@ body.global-dark .nav-item.sdi.active i { color: #2dd4bf; }
     #home-latest-audio > *:nth-child(n+6),
     #home-lectures-container > *:nth-child(n+6) { display: none !important; }
 }
+
+/* ====================================================
+   انتخاب چندتکه‌ای متن (pending multi-selection)
+   نشانه‌گذاری موقتِ تکه‌های انتخاب‌شده قبل از اعمال هایلایت/کپی/اشتراک
+   ==================================================== */
+mark.pending-sel {
+    background: rgba(96, 165, 250, 0.45);
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 1px;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.55);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
