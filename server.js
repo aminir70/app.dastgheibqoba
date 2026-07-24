@@ -2393,6 +2393,12 @@ app.put('/api/admin/video/sort',adminAuth,express.json(),(req,res)=>{
     ids.forEach((id,i)=>stmt.run([i,id]));
     stmt.finalize(()=>res.json({success:true}));
 });
+app.put('/api/admin/gallery/sort',adminAuth,express.json(),(req,res)=>{
+    const ids=req.body.ids;if(!Array.isArray(ids)) return res.status(400).json({error:'ids required'});
+    const stmt=mainDb.prepare('UPDATE gallery_categories SET sort_order=? WHERE id=?');
+    ids.forEach((id,i)=>stmt.run([i,id]));
+    stmt.finalize(()=>res.json({success:true}));
+});
 app.put('/api/admin/video/items/sort',adminAuth,express.json(),(req,res)=>{
     const ids=req.body.ids;if(!Array.isArray(ids)) return res.status(400).json({error:'ids required'});
     const stmt=mainDb.prepare('UPDATE video_items SET sort_order=? WHERE id=?');

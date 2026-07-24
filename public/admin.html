@@ -2985,11 +2985,27 @@ async function uploadHeaderLogo(){
 // ====================================================
 // GALLERY ADMIN
 // ====================================================
+// راه‌اندازی DnD برای زیردسته‌ها (هر گروهِ زیردسته یک Sortable مستقل است)
+function initSubcatSortables(rootEl, endpoint){
+  if(!rootEl || typeof Sortable==='undefined') return;
+  rootEl.querySelectorAll('.subcats-sortable').forEach(sub=>{
+    Sortable.create(sub,{animation:150,handle:'.subcat-drag-handle',ghostClass:'opacity-40',onEnd:async()=>{
+      const ids=Array.from(sub.children).map(el=>+el.dataset.catId).filter(Boolean);
+      if(ids.length) await adminFetch(endpoint,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});
+      showToast('ترتیب زیردسته‌ها ذخیره شد');
+    }});
+  });
+}
+// نشانه‌ی کشیدن برای زیردسته
+function subcatHandle(){
+  return `<div class="subcat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines-vertical text-sm"></i></div>`;
+}
+
 function renderGalleryAdminCat(cat, isChild=false){
   return `
-    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100 mr-4':'border-gray-100'} overflow-hidden" id="gcat-${cat.id}">
+    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100 mr-4':'border-gray-100'} overflow-hidden" id="gcat-${cat.id}" data-cat-id="${cat.id}">
       <div class="flex items-center gap-3 p-3 border-b ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}">
-        ${isChild?'<i class="fas fa-level-down-alt text-teal-400 text-xs mr-1 rotate-90 transform scale-x-[-1]" style="transform:scaleX(-1) rotate(180deg)"></i>':''}
+        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none"><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
         <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">
           ${cat.cover?`<img src="${cat.cover}" class="w-full h-full object-cover">`:`<div class="w-full h-full flex items-center justify-center text-gray-300"><i class="fas fa-images text-xl"></i></div>`}
         </div>
@@ -3038,10 +3054,10 @@ async function loadGalleryAdmin(){
     allCats.filter(x=>x.parent_id).forEach(x=>{if(!childMap[x.parent_id])childMap[x.parent_id]=[];childMap[x.parent_id].push(x);});
     let html='';
     parents.forEach(cat=>{
-      html+=`<div class="flex flex-col gap-2">`;
+      html+=`<div class="flex flex-col gap-2" data-cat-id="${cat.id}">`;
       html+=renderGalleryAdminCat(cat,false);
       if(childMap[cat.id]){
-        html+=`<div class="flex flex-col gap-2 pr-4">`;
+        html+=`<div class="flex flex-col gap-2 pr-4 subcats-sortable" data-parent-id="${cat.id}">`;
         childMap[cat.id].forEach(child=>html+=renderGalleryAdminCat(child,true));
         html+=`</div>`;
       }
@@ -3049,8 +3065,12 @@ async function loadGalleryAdmin(){
     });
     // Orphan children (parent deleted)
     const orphans=allCats.filter(x=>x.parent_id&&!parents.find(p=>p.id===x.parent_id));
-    orphans.forEach(cat=>html+=renderGalleryAdminCat(cat,false));
-    c.innerHTML=html;
+    orphans.forEach(cat=>html+=`<div class="flex flex-col gap-2" data-cat-id="${cat.id}">${renderGalleryAdminCat(cat,false)}</div>`);
+    c.innerHTML=`<div id="gallery-cats-sortable" class="flex flex-col gap-2">${html}</div>`;
+    // DnD برای ترتیب دسته‌ها و زیردسته‌ها
+    const sortableEl=document.getElementById('gallery-cats-sortable');
+    if(sortableEl&&typeof Sortable!=='undefined'){Sortable.create(sortableEl,{animation:150,handle:'.cat-drag-handle',ghostClass:'opacity-40',onEnd:async()=>{const ids=Array.from(sortableEl.children).map(el=>+el.dataset.catId).filter(Boolean);if(ids.length)await adminFetch('/api/admin/gallery/sort',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});showToast('ترتیب ذخیره شد');}});}
+    initSubcatSortables(sortableEl,'/api/admin/gallery/sort');
     // Load photos for each category
     allCats.filter(c=>c.photo_count>0).forEach(cat=>loadCategoryPhotosAdmin(cat.id));
   }catch(e){}
@@ -3250,9 +3270,9 @@ async function saveGalleryCategoryEdit(){
 // ====================================================
 function renderAudioAdminCat(cat, isChild=false){
   return `
-    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100':'border-gray-100'} overflow-hidden" id="acat-${cat.id}">
+    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100':'border-gray-100'} overflow-hidden" id="acat-${cat.id}" data-cat-id="${cat.id}">
       <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}" onclick="toggleAudioCat(${cat.id})">
-        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:'<div class="w-4 shrink-0"></div>'}
+        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
         <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
           ${cat.cover?`<img src="${cat.cover}" class="w-full h-full object-cover">`:`<div class="w-full h-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center"><i class="fas fa-headphones text-white text-xl"></i></div>`}
         </div>
@@ -3315,7 +3335,7 @@ async function loadAudioGalleryAdmin(){
       html+=`<div class="flex flex-col gap-2" data-cat-id="${cat.id}">`;
       html+=renderAudioAdminCat(cat,false);
       if(childMap[cat.id]){
-        html+=`<div class="flex flex-col gap-2 pr-4">`;
+        html+=`<div class="flex flex-col gap-2 pr-4 subcats-sortable" data-parent-id="${cat.id}">`;
         childMap[cat.id].forEach(child=>html+=renderAudioAdminCat(child,true));
         html+=`</div>`;
       }
@@ -3327,6 +3347,8 @@ async function loadAudioGalleryAdmin(){
     // DnD برای ترتیب دسته‌بندی‌ها
     const sortableEl=document.getElementById('audio-cats-sortable');
     if(sortableEl&&typeof Sortable!=='undefined'){Sortable.create(sortableEl,{animation:150,handle:'.cat-drag-handle',onEnd:async()=>{const ids=Array.from(sortableEl.children).map(el=>+el.dataset.catId).filter(Boolean);if(ids.length)await adminFetch('/api/admin/audio/sort',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});showToast('ترتیب ذخیره شد');}});}
+    // DnD برای ترتیب زیردسته‌ها
+    initSubcatSortables(sortableEl,'/api/admin/audio/sort');
   }catch(e){}
 }
 
@@ -3556,9 +3578,9 @@ async function saveEditAudioTrack(e){
 // ====================================================
 function renderVideoAdminCat(cat, isChild=false){
   return `
-    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-rose-100':'border-gray-100'} overflow-hidden" id="vcat-${cat.id}">
+    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-rose-100':'border-gray-100'} overflow-hidden" id="vcat-${cat.id}" data-cat-id="${cat.id}">
       <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-rose-50 bg-rose-50/20':'border-gray-100'}" onclick="toggleVideoCat(${cat.id})">
-        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:'<div class="w-4 shrink-0"></div>'}
+        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
         <div class="w-20 h-[45px] rounded-xl overflow-hidden shrink-0 bg-gray-900 flex items-center justify-center">
           ${cat.cover?`<img src="${cat.cover}" class="w-full h-full object-cover">`:`<i class="fas fa-film text-gray-600 text-xl"></i>`}
         </div>
@@ -3621,7 +3643,7 @@ async function loadVideoGalleryAdmin(){
       html+=`<div class="flex flex-col gap-2" data-cat-id="${cat.id}">`;
       html+=renderVideoAdminCat(cat,false);
       if(childMap[cat.id]){
-        html+=`<div class="flex flex-col gap-2 pr-4">`;
+        html+=`<div class="flex flex-col gap-2 pr-4 subcats-sortable" data-parent-id="${cat.id}">`;
         childMap[cat.id].forEach(child=>html+=renderVideoAdminCat(child,true));
         html+=`</div>`;
       }
@@ -3632,6 +3654,7 @@ async function loadVideoGalleryAdmin(){
     c.innerHTML=`<div id="video-cats-sortable" class="flex flex-col gap-2">${html}</div>`;
     const sortableEl=document.getElementById('video-cats-sortable');
     if(sortableEl&&typeof Sortable!=='undefined'){Sortable.create(sortableEl,{animation:150,handle:'.cat-drag-handle',onEnd:async()=>{const ids=Array.from(sortableEl.children).map(el=>+el.dataset.catId).filter(Boolean);if(ids.length)await adminFetch('/api/admin/video/sort',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})});showToast('ترتیب ذخیره شد');}});}
+    initSubcatSortables(sortableEl,'/api/admin/video/sort');
   }catch(e){}
 }
 
