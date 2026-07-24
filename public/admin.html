@@ -525,10 +525,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">عنوان بنر</label>
           <input type="text" id="s-live_banner_title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-red-500" placeholder="پخش زنده">
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[11px] text-gray-400">موارد ذخیره‌شده:</span>
+            <button type="button" onclick="addLivePreset('live_banner_title')" class="text-[11px] text-red-600 font-bold hover:text-red-700"><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
+          </div>
+          <div id="presets-live_banner_title" class="flex flex-wrap gap-1.5 mt-2"></div>
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">زیرنویس بنر</label>
           <input type="text" id="s-live_banner_subtitle" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-red-500" placeholder="برای مشاهده کلیک کنید">
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[11px] text-gray-400">موارد ذخیره‌شده:</span>
+            <button type="button" onclick="addLivePreset('live_banner_subtitle')" class="text-[11px] text-red-600 font-bold hover:text-red-700"><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
+          </div>
+          <div id="presets-live_banner_subtitle" class="flex flex-wrap gap-1.5 mt-2"></div>
         </div>
       </div>
     </div>
@@ -562,11 +572,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">عنوان (بالای ویدیو)</label>
           <input type="text" id="s-live_page_title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-red-500" placeholder="مثلاً: سخنرانی ویژه شب قدر">
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[11px] text-gray-400">موارد ذخیره‌شده:</span>
+            <button type="button" onclick="addLivePreset('live_page_title')" class="text-[11px] text-red-600 font-bold hover:text-red-700"><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
+          </div>
+          <div id="presets-live_page_title" class="flex flex-wrap gap-1.5 mt-2"></div>
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">متن (زیر ویدیو)</label>
           <textarea id="s-live_page_description" rows="5" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-red-500 resize-y" placeholder="توضیحات یا متن مرتبط با پخش زنده — می‌توانید چند خط بنویسید"></textarea>
           <p class="text-xs text-gray-400 mt-1">خطوط جدید (Enter) به صورت پاراگراف نمایش داده می‌شوند.</p>
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[11px] text-gray-400">موارد ذخیره‌شده:</span>
+            <button type="button" onclick="addLivePreset('live_page_description')" class="text-[11px] text-red-600 font-bold hover:text-red-700"><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
+          </div>
+          <div id="presets-live_page_description" class="flex flex-wrap gap-1.5 mt-2"></div>
         </div>
       </div>
     </div>
@@ -2712,7 +2732,67 @@ async function loadLiveSettings(){
     const pd=document.getElementById('s-live_page_description'); if(pd) pd.value=s.live_page_description||'';
     const cen=document.getElementById('s-live_countdown_enabled'); if(cen) cen.checked=s.live_countdown_enabled==='1';
     const cst=document.getElementById('s-live_countdown_start'); if(cst) cst.value=_toLocalDatetimeInputValue(s.live_countdown_start);
+    // بارگذاری موارد ذخیره‌شده (presets) هر فیلد
+    LIVE_PRESET_FIELDS.forEach(f=>{
+      let arr=[];
+      try{ const raw=s[f+'_presets']; if(raw) arr=JSON.parse(raw); }catch(e){}
+      _livePresets[f]=Array.isArray(arr)?arr.filter(v=>typeof v==='string'):[];
+      renderLivePresets(f);
+    });
   }catch(e){}
+}
+
+// ==== موارد ذخیره‌شده برای فیلدهای پخش زنده (presets) ====
+const LIVE_PRESET_FIELDS=['live_banner_title','live_banner_subtitle','live_page_title','live_page_description'];
+const _livePresets={live_banner_title:[],live_banner_subtitle:[],live_page_title:[],live_page_description:[]};
+
+function renderLivePresets(field){
+  const c=document.getElementById('presets-'+field);
+  if(!c) return;
+  const arr=_livePresets[field]||[];
+  if(!arr.length){ c.innerHTML='<span class="text-[11px] text-gray-300">موردی ذخیره نشده است</span>'; return; }
+  c.innerHTML=arr.map((val,i)=>{
+    const short=val.length>40?val.slice(0,40)+'…':val;
+    return `<span class="inline-flex items-center gap-1.5 bg-gray-100 hover:bg-red-50 border border-gray-200 rounded-full pr-3 pl-1 py-1 text-xs text-gray-700 transition group">
+      <button type="button" onclick="selectLivePreset('${field}',${i})" class="truncate font-medium" style="max-width:220px" title="${adminEscHtml(val)}">${adminEscHtml(short)}</button>
+      <button type="button" onclick="removeLivePreset('${field}',${i})" class="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 shrink-0" title="حذف"><i class="fas fa-times text-[10px]"></i></button>
+    </span>`;
+  }).join('');
+}
+async function persistLivePresets(field){
+  try{
+    const body={}; body[field+'_presets']=JSON.stringify(_livePresets[field]||[]);
+    const r=await adminFetch('/api/admin/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    return r.ok;
+  }catch(e){ return false; }
+}
+async function addLivePreset(field){
+  const el=document.getElementById('s-'+field);
+  if(!el) return;
+  const val=(el.value||'').trim();
+  if(!val){ showToast('ابتدا مقداری وارد کنید',false); return; }
+  if(!_livePresets[field]) _livePresets[field]=[];
+  if(_livePresets[field].includes(val)){ showToast('این مورد قبلاً ذخیره شده',false); return; }
+  _livePresets[field].push(val);
+  renderLivePresets(field);
+  const ok=await persistLivePresets(field);
+  showToast(ok?'به لیست اضافه شد':'خطا در ذخیره',ok);
+}
+function selectLivePreset(field,i){
+  const el=document.getElementById('s-'+field);
+  const arr=_livePresets[field]||[];
+  if(!el||i<0||i>=arr.length) return;
+  el.value=arr[i];
+  el.focus();
+  showToast('انتخاب شد — برای اعمال، «ذخیره تنظیمات» را بزنید');
+}
+async function removeLivePreset(field,i){
+  const arr=_livePresets[field]||[];
+  if(i<0||i>=arr.length) return;
+  arr.splice(i,1);
+  renderLivePresets(field);
+  const ok=await persistLivePresets(field);
+  showToast(ok?'حذف شد':'خطا در حذف',ok);
 }
 async function saveLiveSettings(){
   const startInput=document.getElementById('s-live_countdown_start').value;
