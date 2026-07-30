@@ -10,7 +10,7 @@ const ROOT = __dirname;
 const PUB = path.join(ROOT, 'public');
 const watch = process.argv.includes('--watch');
 
-const JS_ENTRIES = ['app','books','lectures','media','news','utils','offline'];
+const JS_ENTRIES = ['app','books','lectures','media','news','utils','offline','aichat'];
 
 async function buildCss() {
     const watchFlag = watch ? '--watch' : '';

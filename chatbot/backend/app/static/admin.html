@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پنل مدیریت ربات</title>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<style>
+  :root{
+    --ink:#10221f; --paper:#f4f1ea; --card:#ffffff;
+    --accent:#0f766e; --accent-soft:#d7ede9; --amber:#c2703d;
+    --line:#e4ded2; --muted:#6b7b76; --danger:#b3261e; --ok:#0f766e;
+    --shadow:0 1px 2px rgba(16,34,31,.06),0 8px 24px rgba(16,34,31,.06);
+    font-family:"Vazirmatn",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Vazirmatn",sans-serif;line-height:1.7}
+  button{font-family:inherit;cursor:pointer}
+  input,textarea,select{font-family:inherit}
+  .hidden{display:none!important}
+
+  /* ---- login ---- */
+  #login{min-height:100vh;display:grid;place-items:center;padding:20px}
+  .login-card{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:40px 36px;width:100%;max-width:380px;box-shadow:var(--shadow);text-align:center}
+  .login-card h1{font-size:22px;margin:0 0 4px}
+  .login-card p{color:var(--muted);font-size:14px;margin:0 0 26px}
+  .brand-dot{width:46px;height:46px;border-radius:13px;background:var(--accent);
+    display:grid;place-items:center;margin:0 auto 18px;color:#fff;font-size:22px;font-weight:700}
+
+  input,textarea,select{width:100%;padding:11px 13px;border:1px solid var(--line);
+    border-radius:11px;background:#fff;font-size:14px;color:var(--ink);outline:none;transition:.15s}
+  input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .btn{background:var(--accent);color:#fff;border:none;border-radius:11px;padding:11px 18px;
+    font-size:14px;font-weight:600;transition:.15s}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn-ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--line);padding:6px 12px;font-size:13px;border-radius:9px}
+  .btn-block{width:100%;margin-top:14px}
+
+  /* ---- layout ---- */
+  #app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  aside{background:var(--ink);color:#cfe0db;padding:24px 16px;display:flex;flex-direction:column;gap:6px}
+  .logo{display:flex;align-items:center;gap:10px;padding:0 8px 22px;color:#fff;font-weight:700;font-size:17px}
+  .logo .brand-dot{width:34px;height:34px;border-radius:10px;font-size:17px;margin:0}
+  nav a{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:11px;
+    color:#aec5bf;text-decoration:none;font-size:14px;font-weight:500;transition:.12s}
+  nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+  nav a.active{background:var(--accent);color:#fff}
+  aside .spacer{flex:1}
+  .logout{color:#9fb4ae;font-size:13px;background:none;border:none;text-align:right;padding:11px 14px}
+
+  main{padding:34px 38px;overflow:auto}
+  .page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+  .page-head h2{margin:0;font-size:24px}
+  .page-head .sub{color:var(--muted);font-size:14px;margin-top:2px}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px 20px;box-shadow:var(--shadow)}
+  .stat .label{color:var(--muted);font-size:13px}
+  .stat .value{font-size:26px;font-weight:700;margin-top:6px}
+  .stat .value small{font-size:14px;color:var(--muted);font-weight:500}
+  .stat.budget .bar{height:7px;background:var(--line);border-radius:99px;margin-top:12px;overflow:hidden}
+  .stat.budget .bar span{display:block;height:100%;background:var(--accent);border-radius:99px}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow);overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:right;padding:13px 18px;border-bottom:1px solid var(--line)}
+  th{background:#faf8f3;color:var(--muted);font-weight:600;font-size:13px}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600}
+  .tag.ready{background:var(--accent-soft);color:var(--accent)}
+  .tag.error{background:#fbe3e1;color:var(--danger)}
+  .tag.queued,.tag.processing{background:#fbeede;color:var(--amber)}
+
+  .drop{border:2px dashed var(--line);border-radius:15px;padding:34px;text-align:center;
+    color:var(--muted);background:var(--card);transition:.15s;cursor:pointer}
+  .drop.drag{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .drop strong{color:var(--ink)}
+
+  .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px 22px;padding:24px}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+  .field .hint{font-size:12px;color:var(--muted);margin-top:5px}
+  .field.full{grid-column:1/-1}
+  textarea{min-height:120px;resize:vertical;line-height:1.8}
+  .switch{display:flex;align-items:center;gap:10px;font-size:14px}
+  .switch input{width:auto}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);
+    color:#fff;padding:12px 22px;border-radius:12px;font-size:14px;box-shadow:var(--shadow);
+    opacity:0;transition:.25s;z-index:99;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+  .toast.err{background:var(--danger)}
+  .row-actions{display:flex;gap:8px;justify-content:flex-start}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  @media(max-width:760px){#app{grid-template-columns:1fr}aside{display:none}.form-grid{grid-template-columns:1fr}main{padding:20px}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="login-card">
+    <div class="brand-dot">چ</div>
+    <h1>پنل مدیریت</h1>
+    <p>ربات پاسخگوی فارسی</p>
+    <input id="adminPass" type="password" placeholder="رمز عبور مدیر" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-block" onclick="doLogin()">ورود</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <aside>
+    <div class="logo"><span class="brand-dot">چ</span> ربات فارسی</div>
+    <nav>
+      <a data-page="dashboard" class="active" onclick="go('dashboard')">داشبورد</a>
+      <a data-page="files" onclick="go('files')">فایل‌ها</a>
+      <a data-page="settings" onclick="go('settings')">تنظیمات</a>
+      <a data-page="users" onclick="go('users')">کاربران</a>
+    </nav>
+    <div class="spacer"></div>
+    <a href="/demo" target="_blank" style="color:#aec5bf;text-decoration:none;padding:11px 14px;font-size:13px">مشاهده‌ی ویجت چت ↗</a>
+    <button class="logout" onclick="logout()">خروج</button>
+  </aside>
+
+  <main>
+    <!-- DASHBOARD -->
+    <section id="page-dashboard">
+      <div class="page-head"><div><h2>داشبورد</h2><div class="sub">نمای کلی مصرف و وضعیت سرویس</div></div>
+        <button class="btn btn-ghost" onclick="loadStats()">به‌روزرسانی</button></div>
+      <div class="cards" id="statCards"></div>
+    </section>
+
+    <!-- FILES -->
+    <section id="page-files" class="hidden">
+      <div class="page-head"><div><h2>فایل‌ها</h2><div class="sub">PDF، Word و عکس — فقط از این فایل‌ها پاسخ داده می‌شود</div></div>
+        <button class="btn btn-ghost" onclick="loadFiles()">به‌روزرسانی</button></div>
+      <div class="drop" id="drop" onclick="document.getElementById('fileInput').click()">
+        <strong>فایل را اینجا بکشید</strong> یا کلیک کنید<br>
+        <span style="font-size:13px">pdf · docx · png · jpg — حداکثر چند صد صفحه</span>
+      </div>
+      <input type="file" id="fileInput" class="hidden" multiple
+        accept=".pdf,.docx,.png,.jpg,.jpeg,.webp,.tiff,.bmp" onchange="uploadFiles(this.files)">
+      <div id="uploadStatus" style="margin:14px 0;color:var(--muted);font-size:14px"></div>
+      <div class="panel" style="margin-top:6px">
+        <table><thead><tr><th>نام فایل</th><th>وضعیت</th><th>صفحات</th><th>قطعات</th><th>OCR</th><th></th></tr></thead>
+        <tbody id="filesBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="page-settings" class="hidden">
+      <div class="page-head"><div><h2>تنظیمات</h2><div class="sub">مدل‌ها، محدودیت‌ها و رفتار ربات</div></div>
+        <button class="btn" onclick="saveSettings()">ذخیره‌ی تغییرات</button></div>
+      <div class="panel"><div class="form-grid" id="settingsForm"></div></div>
+    </section>
+
+    <!-- USERS -->
+    <section id="page-users" class="hidden">
+      <div class="page-head"><div><h2>کاربران</h2><div class="sub">کاربرانی که با شماره موبایل وارد شده‌اند</div></div>
+        <button class="btn btn-ghost" onclick="loadUsers()">به‌روزرسانی</button></div>
+      <div class="panel"><table><thead><tr><th>نام کاربری</th><th>تعداد پیام</th><th>تاریخ عضویت</th><th>وضعیت</th><th></th></tr></thead>
+        <tbody id="usersBody"></tbody></table></div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// وقتی پشت پروکسی اپ اصلی (مسیر /chatbot/admin) سرو می‌شود، prefix خودکار تشخیص داده می‌شود
+const API = location.pathname.replace(/\/admin\/?$/, "");
+let token = localStorage.getItem("cb_admin_token") || "";
+
+function toast(msg, err=false){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast show"+(err?" err":"");
+  setTimeout(()=>t.className="toast",2600);
+}
+async function api(path, opts={}){
+  opts.headers = Object.assign({"Authorization":"Bearer "+token}, opts.headers||{});
+  const r = await fetch(API+path, opts);
+  if(r.status===401||r.status===403){ logout(); throw new Error("نشست منقضی شد"); }
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(data.detail||"خطا");
+  return data;
+}
+
+async function doLogin(){
+  const password=document.getElementById("adminPass").value;
+  try{
+    const r=await fetch(API+"/api/admin/login",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify({password})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail||"خطا");
+    token=d.token; localStorage.setItem("cb_admin_token",token); enterApp();
+  }catch(e){ toast(e.message,true); }
+}
+function logout(){ token=""; localStorage.removeItem("cb_admin_token");
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("login").classList.remove("hidden"); }
+function enterApp(){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  go("dashboard");
+}
+function go(page){
+  document.querySelectorAll("[data-page]").forEach(a=>a.classList.toggle("active",a.dataset.page===page));
+  ["dashboard","files","settings","users"].forEach(p=>
+    document.getElementById("page-"+p).classList.toggle("hidden",p!==page));
+  if(page==="dashboard")loadStats();
+  if(page==="files")loadFiles();
+  if(page==="settings")loadSettings();
+  if(page==="users")loadUsers();
+}
+
+/* ---- dashboard ---- */
+async function loadStats(){
+  try{
+    const s=await api("/api/admin/stats");
+    const settings=await api("/api/admin/settings");
+    const budget=settings.global_daily_budget_usd||0;
+    const pct=budget?Math.min(100,(s.spent_today_usd/budget)*100):0;
+    const c=document.getElementById("statCards");
+    c.innerHTML=`
+      <div class="stat budget"><div class="label">هزینه‌ی امروز</div>
+        <div class="value">$${s.spent_today_usd} <small>/ $${budget}</small></div>
+        <div class="bar"><span style="width:${pct}%"></span></div></div>
+      <div class="stat"><div class="label">هزینه‌ی این ماه</div><div class="value">$${s.spent_month_usd}</div></div>
+      <div class="stat"><div class="label">پیام‌های امروز</div><div class="value">${s.messages_today}</div></div>
+      <div class="stat"><div class="label">کاربران</div><div class="value">${s.total_users}</div></div>
+      <div class="stat"><div class="label">اسناد آماده</div><div class="value">${s.ready_documents}</div></div>
+      <div class="stat"><div class="label">قطعات متنی</div><div class="value">${s.total_chunks}</div></div>
+      <div class="stat"><div class="label">سؤالات بی‌پاسخ (ماه)</div><div class="value">${s.unanswered_this_month}</div></div>`;
+  }catch(e){ toast(e.message,true); }
+}
+
+/* ---- files ---- */
+async function loadFiles(){
+  try{
+    const files=await api("/api/admin/files");
+    const b=document.getElementById("filesBody");
+    if(!files.length){ b.innerHTML=`<tr><td colspan="6" class="empty">هنوز فایلی آپلود نشده است.</td></tr>`; return; }
+    b.innerHTML=files.map(f=>`<tr>
+      <td>${f.filename}${f.error?`<div style="color:var(--danger);font-size:12px">${f.error}</div>`:""}</td>
+      <td><span class="tag ${f.status}">${statusFa(f.status)}</span></td>
+      <td>${f.pages||"—"}</td><td>${f.chunks||"—"}</td>
+      <td>${f.used_ocr?"بله":"خیر"}</td>
+      <td class="row-actions"><button class="btn-danger" onclick="delFile(${f.id})">حذف</button></td></tr>`).join("");
+  }catch(e){ toast(e.message,true); }
+}
+function statusFa(s){return {queued:"در صف",processing:"در حال پردازش",ready:"آماده",error:"خطا"}[s]||s;}
+async function delFile(id){
+  if(!confirm("این فایل و تمام قطعات آن حذف شود؟"))return;
+  try{ await api("/api/admin/files/"+id,{method:"DELETE"}); toast("حذف شد"); loadFiles(); }
+  catch(e){ toast(e.message,true); }
+}
+async function uploadFiles(list){
+  const status=document.getElementById("uploadStatus");
+  for(const file of list){
+    status.textContent=`در حال آپلود ${file.name} ...`;
+    const fd=new FormData(); fd.append("file",file);
+    try{ await api("/api/admin/files",{method:"POST",body:fd});
+      status.textContent=`${file.name} آپلود شد و در صف پردازش است.`; }
+    catch(e){ status.textContent=""; toast(file.name+": "+e.message,true); }
+  }
+  document.getElementById("fileInput").value="";
+  loadFiles();
+}
+const drop=document.getElementById("drop");
+;["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
+;["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
+drop.addEventListener("drop",e=>uploadFiles(e.dataTransfer.files));
+
+/* ---- settings ---- */
+const SETTING_FIELDS=[
+  {k:"answer_model",label:"مدل پاسخ‌دهی",type:"text",hint:"مثلاً gpt-5.4-mini یا gpt-5.5"},
+  {k:"embedding_model",label:"مدل امبدینگ",type:"text",hint:"تغییر این مورد نیاز به پردازش مجدد فایل‌ها دارد"},
+  {k:"top_k",label:"تعداد قطعات بازیابی‌شده",type:"number"},
+  {k:"neighbor_radius",label:"گسترش همسایه‌ها",type:"number",hint:"چند قطعه قبل و بعدِ هر نتیجه هم بیاید (برای متن‌های ادامه‌دار مثل لیست‌ها). ۰ = خاموش"},
+  {k:"max_context_chunks",label:"حداکثر قطعات ارسالی به مدل",type:"number",hint:"سقف کل قطعات (شامل همسایه‌ها)؛ بیشتر = جواب کامل‌تر ولی گران‌تر"},
+  {k:"max_distance",label:"حد آستانه‌ی شباهت (۰ تا ۲)",type:"number",hint:"بیشتر = بازیابی منعطف‌تر (پاسخ‌های بیشتر). پیشنهاد: حدود ۰٫۸۵. اگه می‌گه «پیدا نشد»، کمی زیادش کن"},
+  {k:"temperature",label:"خلاقیت مدل (temperature)",type:"number"},
+  {k:"per_user_daily_messages",label:"سقف پیام روزانه‌ی هر کاربر",type:"number"},
+  {k:"per_user_monthly_tokens",label:"سقف توکن ماهانه‌ی هر کاربر",type:"number"},
+  {k:"global_daily_budget_usd",label:"سقف بودجه‌ی روزانه (دلار)",type:"number",hint:"محافظ کیف پول: با عبور از این مقدار سرویس تا فردا قطع می‌شود"},
+  {k:"require_auth",label:"اجبار ورود کاربر",type:"bool",hint:"اگر خاموش شود، هر کسی بدون شماره موبایل می‌تواند چت کند"},
+  {k:"system_prompt",label:"دستور سیستمی ربات",type:"textarea",full:true,hint:"قوانین پاسخ‌دهی ربات؛ تأکید بر «فقط از منابع پاسخ بده»"},
+  {k:"smalltalk_enabled",label:"پاسخ به احوال‌پرسی و گپ ساده",type:"bool",hint:"وقتی چیزی در فایل‌ها پیدا نشد، به سلام/تشکر/خداحافظی جواب گرم بده (ولی به سؤال واقعیِ خارج از منابع نه)"},
+  {k:"bot_persona",label:"معرفی ربات (برای احوال‌پرسی)",type:"text",hint:"مثلاً: دستیار پشتیبانی فروشگاه X"},
+  {k:"smalltalk_prompt",label:"دستور احوال‌پرسی",type:"textarea",full:true,hint:"عبارت {persona} با معرفی بالا جایگزین می‌شود"},
+];
+let currentSettings={};
+async function loadSettings(){
+  try{
+    currentSettings=await api("/api/admin/settings");
+    const f=document.getElementById("settingsForm");
+    f.innerHTML=SETTING_FIELDS.map(fd=>{
+      const v=currentSettings[fd.k];
+      const cls="field"+(fd.full?" full":"");
+      if(fd.type==="bool")return `<div class="${cls}"><label>${fd.label}</label>
+        <div class="switch"><input type="checkbox" id="s_${fd.k}" ${v?"checked":""}><span>فعال</span></div>
+        ${fd.hint?`<div class="hint">${fd.hint}</div>`:""}</div>`;
+      if(fd.type==="textarea")return `<div class="${cls}"><label>${fd.label}</label>
+        <textarea id="s_${fd.k}">${v??""}</textarea>${fd.hint?`<div class="hint">${fd.hint}</div>`:""}</div>`;
+      return `<div class="${cls}"><label>${fd.label}</label>
+        <input type="${fd.type}" id="s_${fd.k}" value="${v??""}" ${fd.type==="number"?'step="any"':""}>
+        ${fd.hint?`<div class="hint">${fd.hint}</div>`:""}</div>`;
+    }).join("");
+  }catch(e){ toast(e.message,true); }
+}
+async function saveSettings(){
+  const values={};
+  for(const fd of SETTING_FIELDS){
+    const el=document.getElementById("s_"+fd.k);
+    if(fd.type==="bool")values[fd.k]=el.checked;
+    else if(fd.type==="number")values[fd.k]=parseFloat(el.value);
+    else values[fd.k]=el.value;
+  }
+  try{ await api("/api/admin/settings",{method:"PUT",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({values})});
+    toast("تنظیمات ذخیره شد"); }
+  catch(e){ toast(e.message,true); }
+}
+
+/* ---- users ---- */
+async function loadUsers(){
+  try{
+    const users=await api("/api/admin/users");
+    const b=document.getElementById("usersBody");
+    if(!users.length){ b.innerHTML=`<tr><td colspan="5" class="empty">هنوز کاربری وارد نشده است.</td></tr>`; return; }
+    b.innerHTML=users.map(u=>`<tr>
+      <td>${u.username}</td><td>${u.total_messages}</td>
+      <td>${new Date(u.created_at).toLocaleDateString("fa-IR")}</td>
+      <td><span class="tag ${u.blocked?"error":"ready"}">${u.blocked?"مسدود":"فعال"}</span></td>
+      <td><button class="btn-danger" onclick="toggleBlock(${u.id})">${u.blocked?"رفع مسدودی":"مسدود کردن"}</button></td>
+    </tr>`).join("");
+  }catch(e){ toast(e.message,true); }
+}
+async function toggleBlock(id){
+  try{ await api("/api/admin/users/"+id+"/toggle-block",{method:"POST"}); loadUsers(); }
+  catch(e){ toast(e.message,true); }
+}
+
+/* ---- init ---- */
+if(token) enterApp();
+</script>
+</body>
+</html>
