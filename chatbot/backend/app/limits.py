@@ -32,23 +32,33 @@ def check_global_budget(db: Session):
         )
 
 
+def _daily_max_for(db: Session, user: EndUser) -> int:
+    """Per-user override wins over the global default.
+    NULL -> global default; -1 (or any negative) -> unlimited."""
+    override = getattr(user, "daily_message_limit", None)
+    if override is not None:
+        return int(override)
+    return int(get_setting(db, "per_user_daily_messages", 20))
+
+
 def check_user_limits(db: Session, user: EndUser):
     if user.blocked:
         raise HTTPException(status_code=403, detail="حساب شما مسدود شده است.")
 
-    daily_max = int(get_setting(db, "per_user_daily_messages", 20))
+    daily_max = _daily_max_for(db, user)
     monthly_token_max = int(get_setting(db, "per_user_monthly_tokens", 100000))
 
-    msgs_today = (
-        db.query(func.count(UsageLog.id))
-        .filter(UsageLog.user_id == user.id, UsageLog.created_at >= _start_of_day())
-        .scalar()
-    )
-    if msgs_today >= daily_max:
-        raise HTTPException(
-            status_code=429,
-            detail=f"به سقف روزانه ({daily_max} پیام) رسیدید. فردا دوباره امتحان کنید.",
+    if daily_max >= 0:  # negative = unlimited
+        msgs_today = (
+            db.query(func.count(UsageLog.id))
+            .filter(UsageLog.user_id == user.id, UsageLog.created_at >= _start_of_day())
+            .scalar()
         )
+        if msgs_today >= daily_max:
+            raise HTTPException(
+                status_code=429,
+                detail=f"به سقف روزانه ({daily_max} پیام) رسیدید. فردا دوباره امتحان کنید.",
+            )
 
     tokens_month = (
         db.query(
@@ -67,7 +77,7 @@ def check_user_limits(db: Session, user: EndUser):
 
 
 def user_quota(db: Session, user: EndUser) -> dict:
-    daily_max = int(get_setting(db, "per_user_daily_messages", 20))
+    daily_max = _daily_max_for(db, user)
     monthly_token_max = int(get_setting(db, "per_user_monthly_tokens", 100000))
     msgs_today = (
         db.query(func.count(UsageLog.id))

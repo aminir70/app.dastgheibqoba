@@ -19,6 +19,13 @@ from ..settings_store import get_setting
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
+
+@router.get("/config")
+def public_config(db: Session = Depends(get_db)):
+    """Public: lets the app know whether to show the assistant at all."""
+    return {"enabled": bool(get_setting(db, "assistant_enabled", True))}
+
+
 MIN_USERNAME = 3
 MIN_PASSWORD = 6
 HISTORY_TURNS = 6          # recent messages passed to the model as context
@@ -128,6 +135,9 @@ def chat_endpoint(
     question = payload.question.strip()
     if not question:
         raise HTTPException(status_code=400, detail="سؤال خالی است.")
+
+    if not bool(get_setting(db, "assistant_enabled", True)):
+        raise HTTPException(status_code=403, detail="دستیار هوشمند در حال حاضر غیرفعال است.")
 
     require_auth = bool(get_setting(db, "require_auth", True))
     if require_auth and not user:

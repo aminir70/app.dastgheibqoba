@@ -6,6 +6,7 @@ const AIC_BASE = '/chatbot/api';
 let _aicConvId = null;        // گفتگوی جاری
 let _aicBusy = false;         // در حال دریافت پاسخ
 let _aicOpened = false;
+let _aicEnabled = true;       // کلید فعال/غیرفعال سراسری (از سرور)
 
 function _aicToken() {
     return (typeof qaUser !== 'undefined' && qaUser && qaUser.token) ? qaUser.token : null;
@@ -22,6 +23,10 @@ function _aicHeaders(json) {
 function openAIChat() {
     if (!_aicToken()) {
         if (typeof showToast === 'function') showToast('برای استفاده از دستیار هوشمند ابتدا وارد شوید', false);
+        return;
+    }
+    if (!_aicEnabled) {
+        if (typeof showToast === 'function') showToast('دستیار هوشمند در حال حاضر غیرفعال است', false);
         return;
     }
     const s = document.getElementById('ai-chat-screen');
@@ -230,7 +235,14 @@ async function aicDeleteConversation(cid) {
 }
 
 // نمایش/مخفی‌سازی بنر دستیار بر اساس وضعیت ورود (از updateQAUserUI صدا زده می‌شود)
-function aicUpdateBanner() {
+async function aicUpdateBanner() {
     const b = document.getElementById('qa-ai-banner');
-    if (b) b.classList.toggle('hidden', !_aicToken());
+    if (!b) return;
+    if (!_aicToken()) { b.classList.add('hidden'); return; }
+    // آیا مدیر دستیار را غیرفعال کرده؟
+    try {
+        const r = await fetch(AIC_BASE + '/config');
+        if (r.ok) { const d = await r.json(); _aicEnabled = (d && d.enabled !== false); }
+    } catch (e) {}
+    b.classList.toggle('hidden', !_aicEnabled);
 }

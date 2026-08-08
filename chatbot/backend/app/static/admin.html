@@ -171,7 +171,7 @@
     <section id="page-users" class="hidden">
       <div class="page-head"><div><h2>کاربران</h2><div class="sub">کاربرانی که با شماره موبایل وارد شده‌اند</div></div>
         <button class="btn btn-ghost" onclick="loadUsers()">به‌روزرسانی</button></div>
-      <div class="panel"><table><thead><tr><th>نام کاربری</th><th>تعداد پیام</th><th>تاریخ عضویت</th><th>وضعیت</th><th></th></tr></thead>
+      <div class="panel"><table><thead><tr><th>نام کاربری</th><th>تعداد پیام</th><th>سقف روزانه</th><th>تاریخ عضویت</th><th>وضعیت</th><th></th></tr></thead>
         <tbody id="usersBody"></tbody></table></div>
     </section>
   </main>
@@ -286,6 +286,7 @@ drop.addEventListener("drop",e=>uploadFiles(e.dataTransfer.files));
 
 /* ---- settings ---- */
 const SETTING_FIELDS=[
+  {k:"assistant_enabled",label:"فعال بودن دستیار هوشمند",type:"bool",hint:"اگر خاموش شود، بخش «دستیار هوشمند» در برنامه‌ی کاربران کاملاً پنهان و غیرفعال می‌شود"},
   {k:"answer_model",label:"مدل پاسخ‌دهی",type:"text",hint:"مثلاً gpt-4o-mini (ارزان) یا gpt-4o (دقیق‌تر برای متن تخصصی/فقهی)"},
   {k:"embedding_model",label:"مدل امبدینگ",type:"text",hint:"تغییر این مورد نیاز به پردازش مجدد فایل‌ها دارد"},
   {k:"top_k",label:"تعداد قطعات بازیابی‌شده",type:"number"},
@@ -342,18 +343,33 @@ async function loadUsers(){
   try{
     const users=await api("/api/admin/users");
     const b=document.getElementById("usersBody");
-    if(!users.length){ b.innerHTML=`<tr><td colspan="5" class="empty">هنوز کاربری وارد نشده است.</td></tr>`; return; }
-    b.innerHTML=users.map(u=>`<tr>
+    if(!users.length){ b.innerHTML=`<tr><td colspan="6" class="empty">هنوز کاربری وارد نشده است.</td></tr>`; return; }
+    b.innerHTML=users.map(u=>{
+      const lim = u.daily_message_limit==null ? "پیش‌فرض"
+                : (u.daily_message_limit<0 ? "نامحدود" : u.daily_message_limit);
+      return `<tr>
       <td>${u.username}</td><td>${u.total_messages}</td>
+      <td><button class="btn-ghost" style="padding:4px 10px;font-size:12px" onclick="setUserLimit(${u.id},${u.daily_message_limit==null?'null':u.daily_message_limit})">${lim} ✎</button></td>
       <td>${new Date(u.created_at).toLocaleDateString("fa-IR")}</td>
       <td><span class="tag ${u.blocked?"error":"ready"}">${u.blocked?"مسدود":"فعال"}</span></td>
       <td><button class="btn-danger" onclick="toggleBlock(${u.id})">${u.blocked?"رفع مسدودی":"مسدود کردن"}</button></td>
-    </tr>`).join("");
+    </tr>`;}).join("");
   }catch(e){ toast(e.message,true); }
 }
 async function toggleBlock(id){
   try{ await api("/api/admin/users/"+id+"/toggle-block",{method:"POST"}); loadUsers(); }
   catch(e){ toast(e.message,true); }
+}
+async function setUserLimit(id, cur){
+  const v = prompt("سقف پیام روزانه برای این کاربر:\n• خالی = استفاده از سقف پیش‌فرض عمومی\n• یک عدد = سقف دلخواه (مثلاً 100)\n• -1 = نامحدود", cur==null?"":String(cur));
+  if(v===null) return;
+  const t=v.trim();
+  let val = t==="" ? null : parseInt(t,10);
+  if(t!=="" && isNaN(val)){ toast("عدد نامعتبر است",true); return; }
+  try{
+    await api("/api/admin/users/"+id+"/limit",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({daily_message_limit:val})});
+    toast("سقف کاربر به‌روزرسانی شد"); loadUsers();
+  }catch(e){ toast(e.message,true); }
 }
 
 /* ---- init ---- */

@@ -53,6 +53,9 @@ class EndUser(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     blocked = Column(Boolean, default=False)
+    # per-user daily message cap override: NULL = use global default,
+    # -1 = unlimited, N = custom cap
+    daily_message_limit = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

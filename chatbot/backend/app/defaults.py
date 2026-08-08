@@ -43,6 +43,9 @@ DEFAULT_SETTINGS = {
         "هرگز از دانش عمومی خودت برای پاسخ به سؤالات واقعی استفاده نکن."
     ),
 
+    # master on/off switch for the whole assistant (app card + chat)
+    "assistant_enabled": True,
+
     # limits
     "require_auth": True,
     "per_user_daily_messages": 20,

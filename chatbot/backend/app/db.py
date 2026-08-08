@@ -36,6 +36,11 @@ def init_db():
             "ALTER TABLE conversation_messages "
             "ADD COLUMN IF NOT EXISTS conversation_id INTEGER"
         ))
+        # Migration: per-user daily message cap override.
+        conn.execute(text(
+            "ALTER TABLE end_users "
+            "ADD COLUMN IF NOT EXISTS daily_message_limit INTEGER"
+        ))
         conn.commit()
 
     _backfill_conversations()
