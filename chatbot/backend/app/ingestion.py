@@ -1,5 +1,6 @@
 import io
 import logging
+import re
 
 import fitz  # PyMuPDF
 import pytesseract
@@ -94,18 +95,41 @@ def extract(path: str, mime: str):
 
 
 # ---------- chunking ----------
-def chunk_text(text: str, page, max_tokens: int, overlap: int):
-    """Split text into ~max_tokens windows with overlap, respecting token counts."""
-    tokens = _enc.encode(text)
-    chunks = []
+# split just before a structural heading like "مساله 1168" / "ماده 5"
+# (text is already normalized, so 'مسأله' has become 'مساله'). The digit
+# lookahead avoids splitting on phrases like "در این مساله".
+_STRUCT_SPLIT = re.compile(r"(?=(?:مساله|ماده)\s*[0-9]{1,5})")
+
+
+def _window(tokens, page, max_tokens, step, out):
     start = 0
-    step = max(1, max_tokens - overlap)
     while start < len(tokens):
         window = tokens[start:start + max_tokens]
-        chunk_str = _enc.decode(window).strip()
-        if chunk_str:
-            chunks.append((chunk_str, page, len(window)))
+        s = _enc.decode(window).strip()
+        if s:
+            out.append((s, page, len(window)))
         start += step
+
+
+def chunk_text(text: str, page, max_tokens: int, overlap: int):
+    """Structure-aware chunking: split on 'مساله N' / 'ماده N' headings so each
+    ruling stays whole (heading + all its clauses in one chunk), then window any
+    oversized segment. Falls back to plain token windows for text that has no
+    such headings (intros, tables of contents, etc.)."""
+    step = max(1, max_tokens - overlap)
+    segments = [s for s in _STRUCT_SPLIT.split(text) if s.strip()]
+    if len(segments) <= 1:
+        segments = [text]
+    chunks = []
+    for seg in segments:
+        seg = seg.strip()
+        if not seg:
+            continue
+        toks = _enc.encode(seg)
+        if len(toks) <= max_tokens:
+            chunks.append((seg, page, len(toks)))
+        else:
+            _window(toks, page, max_tokens, step, chunks)
     return chunks
 
 
