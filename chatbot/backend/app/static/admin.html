@@ -286,13 +286,15 @@ drop.addEventListener("drop",e=>uploadFiles(e.dataTransfer.files));
 
 /* ---- settings ---- */
 const SETTING_FIELDS=[
-  {k:"answer_model",label:"مدل پاسخ‌دهی",type:"text",hint:"مثلاً gpt-5.4-mini یا gpt-5.5"},
+  {k:"answer_model",label:"مدل پاسخ‌دهی",type:"text",hint:"مثلاً gpt-4o-mini (ارزان) یا gpt-4o (دقیق‌تر برای متن تخصصی/فقهی)"},
   {k:"embedding_model",label:"مدل امبدینگ",type:"text",hint:"تغییر این مورد نیاز به پردازش مجدد فایل‌ها دارد"},
   {k:"top_k",label:"تعداد قطعات بازیابی‌شده",type:"number"},
   {k:"neighbor_radius",label:"گسترش همسایه‌ها",type:"number",hint:"چند قطعه قبل و بعدِ هر نتیجه هم بیاید (برای متن‌های ادامه‌دار مثل لیست‌ها). ۰ = خاموش"},
   {k:"max_context_chunks",label:"حداکثر قطعات ارسالی به مدل",type:"number",hint:"سقف کل قطعات (شامل همسایه‌ها)؛ بیشتر = جواب کامل‌تر ولی گران‌تر"},
   {k:"max_distance",label:"حد آستانه‌ی شباهت (۰ تا ۲)",type:"number",hint:"بیشتر = بازیابی منعطف‌تر (پاسخ‌های بیشتر). پیشنهاد: حدود ۰٫۸۵. اگه می‌گه «پیدا نشد»، کمی زیادش کن"},
   {k:"temperature",label:"خلاقیت مدل (temperature)",type:"number"},
+  {k:"chunk_tokens",label:"اندازه‌ی هر قطعه (توکن)",type:"number",hint:"کوچک‌تر = هر قطعه متمرکزتر و بازیابیِ دقیق‌تر برای متن‌های شماره‌دار (مثل رساله). پیشنهاد: ۳۰۰ تا ۴۰۰. ⚠️ بعد از تغییر باید فایل‌ها را حذف و دوباره آپلود کنی"},
+  {k:"chunk_overlap",label:"همپوشانی قطعات (توکن)",type:"number",hint:"چند توکن از انتهای هر قطعه در ابتدای قطعه‌ی بعد تکرار شود. پیشنهاد: ۶۰ تا ۸۰. ⚠️ نیاز به پردازش مجدد فایل‌ها"},
   {k:"per_user_daily_messages",label:"سقف پیام روزانه‌ی هر کاربر",type:"number"},
   {k:"per_user_monthly_tokens",label:"سقف توکن ماهانه‌ی هر کاربر",type:"number"},
   {k:"global_daily_budget_usd",label:"سقف بودجه‌ی روزانه (دلار)",type:"number",hint:"محافظ کیف پول: با عبور از این مقدار سرویس تا فردا قطع می‌شود"},
