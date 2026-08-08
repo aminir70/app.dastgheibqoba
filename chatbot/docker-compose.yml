@@ -29,7 +29,9 @@ services:
         condition: service_started
     volumes:
       - uploads:/data/uploads
-      - ./backend/app/static:/app/app/static
+      # bind-mount the app code so code changes need only a restart (no rebuild
+      # / no slow apt download). Rebuild only when requirements.txt changes.
+      - ./backend/app:/app/app
     ports:
       # فقط روی لوکال سرور — دسترسی بیرونی از طریق پروکسی اپ اصلی (/chatbot)
       - "127.0.0.1:8000:8000"
@@ -46,6 +48,7 @@ services:
         condition: service_started
     volumes:
       - uploads:/data/uploads
+      - ./backend/app:/app/app
     command: python -m app.worker
 
 volumes:
