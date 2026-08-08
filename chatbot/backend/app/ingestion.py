@@ -11,6 +11,7 @@ from .db import SessionLocal
 from .models import Chunk, Document
 from .openai_client import embed_texts
 from .settings_store import get_setting
+from .text_norm import normalize_fa
 
 log = logging.getLogger("ingestion")
 
@@ -125,6 +126,9 @@ def ingest_document(document_id: int):
         emb_dims = int(get_setting(db, "embedding_dims", 1536))
 
         pages, used_ocr = extract(doc.stored_path, doc.mime)
+        # canonicalize to Persian forms so stored chunks + embeddings match
+        # Persian-typed queries (ك→ک, ي/ى→ی, ة→ه, strip harakat, digits)
+        pages = [(pg, normalize_fa(txt)) for pg, txt in pages]
 
         all_chunks = []
         for page_no, text in pages:

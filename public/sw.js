@@ -1,7 +1,7 @@
 // Service Worker - مرکز نشر آثار
-const CACHE_NAME = 'nashr-asar-v47';
-const STATIC_CACHE = 'nashr-static-v47';
-const DYNAMIC_CACHE = 'nashr-dynamic-v47';
+const CACHE_NAME = 'nashr-asar-v48';
+const STATIC_CACHE = 'nashr-static-v48';
+const DYNAMIC_CACHE = 'nashr-dynamic-v48';
 
 // صفحه اصلی و فونت‌ها را pre-cache می‌کنیم
 // فایل‌های JS/CSS با استراتژی network-first بارگذاری می‌شوند (همیشه به‌روز)

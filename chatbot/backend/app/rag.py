@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .models import Chunk, Document
 from .openai_client import embed_texts
 from .settings_store import get_setting
+from .text_norm import normalize_fa
 
 log = logging.getLogger("rag")
 
@@ -64,11 +65,17 @@ def keyword_search(db: Session, query: str, per_term: int = 2):
     """Literal keyword/number lookup — complements semantic search for things
     like exact numbers ('مسأله ۱۳') or distinctive words. Uses whole-word
     matching so 'کر' doesn't match 'فکر'/'شکر'."""
-    q = _norm_digits(query)
+    q = normalize_fa(query)
     terms = re.findall(r"[0-9]{1,6}|[^\W\d_]{2,}", q, flags=re.UNICODE)
     terms = [t for t in terms if t not in _STOP][:6]
     hits, seen = [], set()
-    norm_content = func.translate(Chunk.content, "۰۱۲۳۴۵۶۷۸۹", "0123456789")
+    # normalize stored content the same way as the query so Arabic-script
+    # source text matches Persian-typed terms (ك→ک, ي/ى→ی, ة→ه, strip harakat)
+    norm_content = func.translate(
+        Chunk.content,
+        "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩كيىةأإآٱؤئًٌٍَُِّْٰـ",
+        "01234567890123456789کییهااااوی",
+    )
     for term in terms:
         pattern = r"\m" + term + r"\M"   # whole-word match
         rows = (
@@ -112,6 +119,8 @@ def retrieve(db: Session, query: str):
     max_chunks = int(get_setting(db, "max_context_chunks", 16))
     radius = int(get_setting(db, "neighbor_radius", 1))
 
+    # canonicalize the query (Arabic->Persian letters, strip harakat, digits)
+    query = normalize_fa(query)
     vec_rows, emb_tokens = vector_search(db, query, top_k)
     best = vec_rows[0][2] if vec_rows else None
     kw_hits = keyword_search(db, query)
