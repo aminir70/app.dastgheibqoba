@@ -1231,6 +1231,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
     </div>
   </div>
 
+  <!-- CHATBOT TAB — پنل کامل چت‌بات (سرویس مستقل، از طریق پروکسی /chatbot) -->
+  <div id="tab-chatbot" class="hidden flex-1 overflow-hidden relative">
+    <iframe id="chatbot-admin-frame" data-src="/chatbot/admin" class="absolute inset-0 w-full h-full border-0" style="display:block"></iframe>
+  </div>
+
 </main>
 
 <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-bold transition-all duration-300 opacity-0 pointer-events-none z-[9999]">پیام</div>
@@ -4468,11 +4473,6 @@ async function saveNavItemsAdmin() {
 </script>
 
 <!-- NAV ITEMS TAB -->
-<!-- CHATBOT TAB — پنل کامل چت‌بات (سرویس مستقل، از طریق پروکسی /chatbot) -->
-<div id="tab-chatbot" class="hidden flex-1 overflow-hidden relative">
-  <iframe id="chatbot-admin-frame" data-src="/chatbot/admin" class="absolute inset-0 w-full h-full border-0" style="display:block"></iframe>
-</div>
-
 <div id="tab-navitems" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
   <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
     <h2 class="text-lg font-black mb-1"><i class="fas fa-bars text-teal-600 ml-2"></i>نوار پایین</h2>
