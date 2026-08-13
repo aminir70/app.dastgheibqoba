@@ -61,21 +61,72 @@ def vector_search(db: Session, query: str, top_k: int):
     return rows, emb_tokens
 
 
-def keyword_search(db: Session, query: str, per_term: int = 2):
-    """Literal keyword/number lookup — complements semantic search for things
-    like exact numbers ('مسأله ۱۳') or distinctive words. Uses whole-word
-    matching so 'کر' doesn't match 'فکر'/'شکر'."""
-    q = normalize_fa(query)
-    terms = re.findall(r"[0-9]{1,6}|[^\W\d_]{2,}", q, flags=re.UNICODE)
-    terms = [t for t in terms if t not in _STOP][:6]
-    hits, seen = [], set()
-    # normalize stored content the same way as the query so Arabic-script
-    # source text matches Persian-typed terms (ك→ک, ي/ى→ی, ة→ه, strip harakat)
-    norm_content = func.translate(
+# small numbers digit->word: users type "نماز ۳ رکعتی" while the source text
+# writes "نماز سه رکعتی" — expand digits so both keyword and vector search match
+_NUM_WORDS = {
+    "1": "یک", "2": "دو", "3": "سه", "4": "چهار", "5": "پنج", "6": "شش",
+    "7": "هفت", "8": "هشت", "9": "نه", "10": "ده", "11": "یازده", "12": "دوازده",
+}
+
+# an explicit reference the user asks for directly: "مساله 7", "ماده 12"
+_REF_RE = re.compile(r"(مساله|ماده)\s*[:\-ـ]?\s*([0-9]{1,5})")
+
+
+def _number_word_terms(q_norm: str):
+    """Persian word forms for standalone small numbers in the query."""
+    out = []
+    for m in re.finditer(r"(?<![0-9])([0-9]{1,2})(?![0-9])", q_norm):
+        w = _NUM_WORDS.get(m.group(1))
+        if w and w not in out:
+            out.append(w)
+    return out
+
+
+def _norm_content_expr():
+    """SQL expression: chunk content normalized the same way as queries, so
+    Arabic-script source text matches Persian-typed terms."""
+    return func.translate(
         Chunk.content,
         "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩كيىةأإآٱؤئًٌٍَُِّْٰـ",
         "01234567890123456789کییهااااوی",
     )
+
+
+def reference_search(db: Session, q_norm: str, limit: int = 3):
+    """Direct lookup when the user names a ruling explicitly ('مساله 7'):
+    fetch the chunk(s) that contain that exact heading. These hits are
+    authoritative and are placed at the very top of the context."""
+    hits, seen = [], set()
+    norm_content = _norm_content_expr()
+    for m in _REF_RE.finditer(q_norm):
+        kind, num = m.group(1), m.group(2)
+        pattern = r"\m" + kind + r"\s*[:\-ـ]?\s*" + num + r"\M"
+        rows = (
+            db.query(Chunk, Document.filename)
+            .join(Document, Document.id == Chunk.document_id)
+            .filter(Document.status == "ready")
+            .filter(norm_content.op("~")(pattern))
+            .order_by(Chunk.id.asc())
+            .limit(limit)
+            .all()
+        )
+        for c, f in rows:
+            if c.id not in seen:
+                seen.add(c.id)
+                hits.append((c, f))
+    return hits
+
+
+def keyword_search(db: Session, query: str, per_term: int = 2):
+    """Literal keyword/number lookup — complements semantic search for things
+    like exact numbers ('مسأله ۱۳') or distinctive words. Uses whole-word
+    matching so 'کر' doesn't match 'فکر'/'شکر'. Deterministic (ordered by id)."""
+    q = normalize_fa(query)
+    terms = re.findall(r"[0-9]{1,6}|[^\W\d_]{2,}", q, flags=re.UNICODE)
+    terms = [t for t in terms if t not in _STOP][:6]
+    terms += [w for w in _number_word_terms(q) if w not in terms]
+    hits, seen = [], set()
+    norm_content = _norm_content_expr()
     for term in terms:
         pattern = r"\m" + term + r"\M"   # whole-word match
         rows = (
@@ -83,6 +134,7 @@ def keyword_search(db: Session, query: str, per_term: int = 2):
             .join(Document, Document.id == Chunk.document_id)
             .filter(Document.status == "ready")
             .filter(norm_content.op("~")(pattern))
+            .order_by(Chunk.id.asc())
             .limit(per_term)
             .all()
         )
@@ -121,16 +173,28 @@ def retrieve(db: Session, query: str):
 
     # canonicalize the query (Arabic->Persian letters, strip harakat, digits)
     query = normalize_fa(query)
-    vec_rows, emb_tokens = vector_search(db, query, top_k)
+
+    # append word forms of digits so "نماز 3 رکعتی" also matches "سه رکعتی"
+    num_words = _number_word_terms(query)
+    emb_query = query + (" " + " ".join(num_words) if num_words else "")
+
+    vec_rows, emb_tokens = vector_search(db, emb_query, top_k)
     best = vec_rows[0][2] if vec_rows else None
+    ref_hits = reference_search(db, query)   # explicit "مساله N" lookups
     kw_hits = keyword_search(db, query)
 
-    is_relevant = (best is not None and best <= max_distance) or bool(kw_hits)
+    is_relevant = bool(ref_hits) or bool(kw_hits) or \
+        (best is not None and best <= max_distance)
     if not is_relevant:
         return [], set(), emb_tokens
 
-    # primary chunks (vector first, then keyword), relevance-ordered
+    # primary chunks: explicit references first (authoritative), then vector
+    # results by relevance, then keyword hits
     primary, seen = [], set()
+    for c, f in ref_hits:
+        if c.id not in seen:
+            seen.add(c.id)
+            primary.append((c, f))
     for c, f, _dist in vec_rows:
         if c.id not in seen:
             seen.add(c.id)

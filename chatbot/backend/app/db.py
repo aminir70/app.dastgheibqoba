@@ -46,13 +46,19 @@ def init_db():
     _backfill_conversations()
 
     from .models import AppSetting
-    from .defaults import DEFAULT_SETTINGS
+    from .defaults import (DEFAULT_SETTINGS, DEFAULT_SYSTEM_PROMPT,
+                           LEGACY_SYSTEM_PROMPTS)
 
     db = SessionLocal()
     try:
         for key, value in DEFAULT_SETTINGS.items():
             if not db.query(AppSetting).filter_by(key=key).first():
                 db.add(AppSetting(key=key, value=value))
+        # upgrade the system prompt in place ONLY if the admin never
+        # customized it (it still equals an old shipped default)
+        row = db.query(AppSetting).filter_by(key="system_prompt").first()
+        if row and row.value in LEGACY_SYSTEM_PROMPTS:
+            row.value = DEFAULT_SYSTEM_PROMPT
         db.commit()
     finally:
         db.close()
