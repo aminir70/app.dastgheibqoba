@@ -12,8 +12,8 @@ from ..db import SessionLocal, get_db
 from ..limits import (check_global_budget, check_user_limits, record_usage,
                       user_quota)
 from ..models import Conversation, ConversationMessage, EndUser
-from ..rag import (NOT_FOUND, build_messages, format_sources, retrieve,
-                   select_cited_sources)
+from ..rag import (NOT_FOUND, build_messages, find_ruling, format_sources,
+                   retrieve, select_cited_sources)
 from ..openai_client import chat_stream
 from ..schemas import ChatRequest, TokenResponse, UserCredentials
 from ..settings_store import get_setting
@@ -25,6 +25,25 @@ router = APIRouter(prefix="/api", tags=["chat"])
 def public_config(db: Session = Depends(get_db)):
     """Public: lets the app know whether to show the assistant at all."""
     return {"enabled": bool(get_setting(db, "assistant_enabled", True))}
+
+
+@router.get("/ruling/{number}")
+def get_ruling(number: int, user: EndUser = Depends(get_current_user),
+               db: Session = Depends(get_db)):
+    """Full text of a single ruling, so a citation in an answer can be opened
+    and read in context. Gated exactly like chat."""
+    if not bool(get_setting(db, "assistant_enabled", True)):
+        raise HTTPException(status_code=403, detail="دستیار هوشمند در حال حاضر غیرفعال است.")
+    if bool(get_setting(db, "require_auth", True)) and not user:
+        raise HTTPException(status_code=401, detail="برای مشاهده ابتدا وارد شوید.")
+    if number <= 0:
+        raise HTTPException(status_code=400, detail="شماره نامعتبر است.")
+    chunk = find_ruling(db, number)
+    if not chunk:
+        raise HTTPException(status_code=404, detail="متن این مسأله پیدا نشد.")
+    body = chunk.content
+    head, _, rest = body.partition("\n")
+    return {"number": number, "title": head.strip(), "text": (rest or body).strip()}
 
 
 MIN_USERNAME = 3

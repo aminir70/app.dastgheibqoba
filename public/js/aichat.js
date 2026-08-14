@@ -87,6 +87,49 @@ function _aicSetBotText(wrap, text) {
     const box = document.getElementById('aic-messages');
     if (box) box.scrollTop = box.scrollHeight;
 }
+// متن نهایی: ارجاع‌های «(مسأله ۱۵۸۷)» را قابل کلیک می‌کند.
+// متن مدل حتماً escape می‌شود و فقط همین الگو به لینک تبدیل می‌گردد.
+function _aicSetBotHtml(wrap, text) {
+    const body = wrap.querySelector('.aic-body');
+    if (!body) return;
+    body.innerHTML = _aicEsc(text).replace(
+        /\((مسأله|مساله)\s*([0-9۰-۹٠-٩]{1,5})\)/g,
+        (m, kind, num) => `<button type="button" onclick="aicOpenRuling('${_aicToLatinDigits(num)}')" class="text-violet-600 font-bold underline decoration-dotted underline-offset-2">(${kind} ${num})</button>`
+    );
+    const box = document.getElementById('aic-messages');
+    if (box) box.scrollTop = box.scrollHeight;
+}
+function _aicToLatinDigits(d) {
+    return String(d)
+        .replace(/[۰-۹]/g, c => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(c)))
+        .replace(/[٠-٩]/g, c => String('٠١٢٣٤٥٦٧٨٩'.indexOf(c)));
+}
+
+// ---------------- نمایش متن کامل یک مسأله ----------------
+async function aicOpenRuling(number) {
+    const box = document.getElementById('aic-ruling');
+    const title = document.getElementById('aic-ruling-title');
+    const body = document.getElementById('aic-ruling-body');
+    if (!box || !body) return;
+    const faNum = (typeof toFa === 'function') ? toFa(String(number)) : String(number);
+    if (title) title.textContent = 'مسأله ' + faNum;
+    body.textContent = 'در حال بارگذاری…';
+    box.classList.remove('hidden');
+    try {
+        const r = await fetch(`${AIC_BASE}/ruling/${encodeURIComponent(number)}`, { headers: _aicHeaders() });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { body.textContent = d.detail || 'متن این مسأله در دسترس نیست.'; return; }
+        if (title && d.title) title.textContent = (typeof toFa === 'function') ? toFa(d.title.replace('مساله', 'مسأله')) : d.title;
+        body.textContent = (typeof toFa === 'function') ? toFa(d.text || '') : (d.text || '');
+    } catch (e) {
+        body.textContent = 'خطا در دریافت متن مسأله.';
+    }
+}
+function aicCloseRuling(ev) {
+    if (ev && ev.target && ev.target.id !== 'aic-ruling') return;
+    const box = document.getElementById('aic-ruling');
+    if (box) box.classList.add('hidden');
+}
 function _aicPrettyLabel(raw) {
     const s = String(raw || '').replace('مساله', 'مسأله').trim();
     return (typeof toFa === 'function') ? toFa(s) : s;
@@ -126,7 +169,12 @@ function _aicAddSources(wrap, sources) {
     const el = document.createElement('div');
     el.className = 'text-[10px] text-gray-400 px-2 mt-1 flex flex-wrap gap-1 items-center';
     el.innerHTML = '<i class="fas fa-book-open text-[9px]"></i>' +
-        labels.map(l => `<span class="bg-violet-50 text-violet-500 rounded-full px-2 py-0.5">${_aicEsc(l)}</span>`).join('');
+        labels.map(l => {
+            const n = _aicToLatinDigits((String(l).match(/[0-9۰-۹٠-٩]{1,5}/) || [''])[0]);
+            const cls = 'bg-violet-50 text-violet-500 rounded-full px-2 py-0.5';
+            return n ? `<button type="button" onclick="aicOpenRuling('${n}')" class="${cls} hover:bg-violet-100">${_aicEsc(l)}</button>`
+                     : `<span class="${cls}">${_aicEsc(l)}</span>`;
+        }).join('');
     wrap.appendChild(el);
 }
 function _aicError(wrap, msg) {
@@ -187,13 +235,13 @@ async function aicSend() {
                 else if (ev.type === 'sources') {
                     gotSources = true;
                     full = _aicApplyCitations(full, ev.sources);
-                    _aicSetBotText(wrap, full);
+                    _aicSetBotHtml(wrap, full);
                     _aicAddSources(wrap, ev.sources);
                 }
                 else if (ev.type === 'error') { _aicError(wrap, ev.detail || 'خطا در پردازش پاسخ'); }
             }
         }
-        if (full && !gotSources) { full = _aicApplyCitations(full, []); _aicSetBotText(wrap, full); }
+        if (full && !gotSources) { full = _aicApplyCitations(full, []); _aicSetBotHtml(wrap, full); }
         if (!full && !wrap.querySelector('.text-rose-600')) _aicSetBotText(wrap, 'پاسخی دریافت نشد.');
     } catch(e) {
         _aicError(wrap, 'ارتباط با دستیار برقرار نشد. لطفاً دوباره تلاش کنید.');
@@ -254,7 +302,7 @@ async function aicOpenConversation(cid) {
             if (m.role === 'user') _aicAddUserMsg(m.content);
             else {
                 const w = _aicAddBotMsg();
-                _aicSetBotText(w, _aicApplyCitations(m.content, m.sources));
+                _aicSetBotHtml(w, _aicApplyCitations(m.content, m.sources));
                 if (m.sources) _aicAddSources(w, m.sources);
             }
         });

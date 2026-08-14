@@ -1843,6 +1843,7 @@ function _resetBackCounter() {
 
 // لیست modal/overlay هایی که back آنها رو می‌بنده
 function _closeAnyTransientModal() {
+    if (_isVisible('aic-ruling'))           { aicCloseRuling();     return true; }
     if (_isVisible('ai-chat-screen'))       { closeAIChat();        return true; }
     if (_isVisible('exit-confirm-modal'))   { closeExitDialog();    return true; }
     if (_isVisible('pwa-install-modal'))    { closePwaModal(false); return true; }

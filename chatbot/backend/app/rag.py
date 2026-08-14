@@ -117,6 +117,21 @@ def reference_search(db: Session, q_norm: str, limit: int = 3):
     return hits
 
 
+def find_ruling(db: Session, number: int):
+    """The chunk that *starts* a given ruling ('مساله 1587 ...'), for showing
+    its full text when a citation is opened."""
+    norm_content = _norm_content_expr()
+    pattern = r"^مساله\s*" + str(int(number)) + r"\M"
+    return (
+        db.query(Chunk)
+        .join(Document, Document.id == Chunk.document_id)
+        .filter(Document.status == "ready")
+        .filter(norm_content.op("~")(pattern))
+        .order_by(Chunk.id.asc())
+        .first()
+    )
+
+
 def keyword_search(db: Session, query: str, per_term: int = 2):
     """Literal keyword/number lookup — complements semantic search for things
     like exact numbers ('مسأله ۱۳') or distinctive words. Uses whole-word
