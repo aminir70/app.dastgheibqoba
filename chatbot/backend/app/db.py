@@ -41,6 +41,10 @@ def init_db():
             "ALTER TABLE end_users "
             "ADD COLUMN IF NOT EXISTS daily_message_limit INTEGER"
         ))
+        conn.execute(text(
+            "ALTER TABLE end_users "
+            "ADD COLUMN IF NOT EXISTS monthly_token_limit INTEGER"
+        ))
         conn.commit()
 
     _backfill_conversations()

@@ -56,6 +56,8 @@ class EndUser(Base):
     # per-user daily message cap override: NULL = use global default,
     # -1 = unlimited, N = custom cap
     daily_message_limit = Column(Integer, nullable=True)
+    # per-user monthly token cap override: NULL = global default, -1 = unlimited
+    monthly_token_limit = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

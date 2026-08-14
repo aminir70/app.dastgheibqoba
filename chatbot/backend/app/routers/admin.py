@@ -114,6 +114,7 @@ def list_users(_: bool = Depends(require_admin), db: Session = Depends(get_db)):
             "id": u.id, "username": u.username, "blocked": u.blocked,
             "total_messages": int(msgs), "created_at": u.created_at.isoformat(),
             "daily_message_limit": u.daily_message_limit,
+            "monthly_token_limit": u.monthly_token_limit,
         })
     return out
 
@@ -129,17 +130,21 @@ def toggle_block(user_id: int, _: bool = Depends(require_admin), db: Session = D
 
 
 @router.put("/users/{user_id}/limit")
-def set_user_limit(user_id: int,
-                   daily_message_limit: int | None = Body(None, embed=True),
+def set_user_limit(user_id: int, payload: dict = Body(...),
                    _: bool = Depends(require_admin), db: Session = Depends(get_db)):
-    """Set a per-user daily message cap. null = use global default,
-    -1 = unlimited, N = custom cap."""
+    """Set per-user caps. For each field: null = use the global default,
+    -1 = unlimited, N = custom cap. Only the fields present are changed."""
     u = db.query(EndUser).get(user_id)
     if not u:
         raise HTTPException(status_code=404, detail="کاربر یافت نشد.")
-    u.daily_message_limit = daily_message_limit
+    for field in ("daily_message_limit", "monthly_token_limit"):
+        if field in payload:
+            v = payload[field]
+            setattr(u, field, None if v is None else int(v))
     db.commit()
-    return {"id": u.id, "daily_message_limit": u.daily_message_limit}
+    return {"id": u.id,
+            "daily_message_limit": u.daily_message_limit,
+            "monthly_token_limit": u.monthly_token_limit}
 
 
 # ---------- usage / stats ----------

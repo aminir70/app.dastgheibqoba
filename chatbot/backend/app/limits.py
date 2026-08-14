@@ -41,12 +41,21 @@ def _daily_max_for(db: Session, user: EndUser) -> int:
     return int(get_setting(db, "per_user_daily_messages", 20))
 
 
+def _monthly_tokens_for(db: Session, user: EndUser) -> int:
+    """Same override rule for the monthly token cap. Without this a generous
+    per-user message cap was still cut short by the shared token cap."""
+    override = getattr(user, "monthly_token_limit", None)
+    if override is not None:
+        return int(override)
+    return int(get_setting(db, "per_user_monthly_tokens", 100000))
+
+
 def check_user_limits(db: Session, user: EndUser):
     if user.blocked:
         raise HTTPException(status_code=403, detail="حساب شما مسدود شده است.")
 
     daily_max = _daily_max_for(db, user)
-    monthly_token_max = int(get_setting(db, "per_user_monthly_tokens", 100000))
+    monthly_token_max = _monthly_tokens_for(db, user)
 
     if daily_max >= 0:  # negative = unlimited
         msgs_today = (
@@ -60,25 +69,28 @@ def check_user_limits(db: Session, user: EndUser):
                 detail=f"به سقف روزانه ({daily_max} پیام) رسیدید. فردا دوباره امتحان کنید.",
             )
 
-    tokens_month = (
-        db.query(
-            func.coalesce(
-                func.sum(UsageLog.prompt_tokens + UsageLog.completion_tokens), 0
+    if monthly_token_max >= 0:   # negative = unlimited
+        tokens_month = (
+            db.query(
+                func.coalesce(
+                    func.sum(UsageLog.prompt_tokens + UsageLog.completion_tokens), 0
+                )
             )
+            .filter(UsageLog.user_id == user.id,
+                    UsageLog.created_at >= _start_of_month())
+            .scalar()
         )
-        .filter(UsageLog.user_id == user.id, UsageLog.created_at >= _start_of_month())
-        .scalar()
-    )
-    if tokens_month >= monthly_token_max:
-        raise HTTPException(
-            status_code=429,
-            detail="به سقف توکن ماهانه رسیدید.",
-        )
+        if tokens_month >= monthly_token_max:
+            raise HTTPException(
+                status_code=429,
+                detail=("به سقف مصرف ماهانه رسیدید. این سقف بر اساس «توکن» است، "
+                        "نه تعداد پیام؛ برای افزایش آن با مدیر تماس بگیرید."),
+            )
 
 
 def user_quota(db: Session, user: EndUser) -> dict:
     daily_max = _daily_max_for(db, user)
-    monthly_token_max = int(get_setting(db, "per_user_monthly_tokens", 100000))
+    monthly_token_max = _monthly_tokens_for(db, user)
     msgs_today = (
         db.query(func.count(UsageLog.id))
         .filter(UsageLog.user_id == user.id, UsageLog.created_at >= _start_of_day())

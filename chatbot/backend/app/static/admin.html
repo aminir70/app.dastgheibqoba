@@ -171,7 +171,7 @@
     <section id="page-users" class="hidden">
       <div class="page-head"><div><h2>کاربران</h2><div class="sub">کاربرانی که با شماره موبایل وارد شده‌اند</div></div>
         <button class="btn btn-ghost" onclick="loadUsers()">به‌روزرسانی</button></div>
-      <div class="panel"><table><thead><tr><th>نام کاربری</th><th>تعداد پیام</th><th>سقف روزانه</th><th>تاریخ عضویت</th><th>وضعیت</th><th></th></tr></thead>
+      <div class="panel"><table><thead><tr><th>نام کاربری</th><th>تعداد پیام</th><th>سقف پیام روزانه</th><th>سقف توکن ماهانه</th><th>تاریخ عضویت</th><th>وضعیت</th><th></th></tr></thead>
         <tbody id="usersBody"></tbody></table></div>
     </section>
   </main>
@@ -296,8 +296,8 @@ const SETTING_FIELDS=[
   {k:"temperature",label:"خلاقیت مدل (temperature)",type:"number"},
   {k:"chunk_tokens",label:"حداکثر اندازه‌ی هر قطعه (توکن)",type:"number",hint:"هر مسأله/پرسش خودکار یک قطعه‌ی جداست؛ این فقط سقف اندازه است. پیشنهاد: ۱۰۰۰ تا ۱۴۰۰ تا مسأله‌های بلند تکه‌تکه نشوند. ⚠️ بعد از تغییر، فایل‌ها را حذف و دوباره آپلود کن"},
   {k:"chunk_overlap",label:"همپوشانی قطعات (توکن)",type:"number",hint:"فقط برای قطعه‌های خیلی بلند که ناچار تقسیم می‌شوند. پیشنهاد: حدود ۱۲۰. ⚠️ نیاز به پردازش مجدد فایل‌ها"},
-  {k:"per_user_daily_messages",label:"سقف پیام روزانه‌ی هر کاربر",type:"number"},
-  {k:"per_user_monthly_tokens",label:"سقف توکن ماهانه‌ی هر کاربر",type:"number"},
+  {k:"per_user_daily_messages",label:"سقف پیام روزانه‌ی هر کاربر",type:"number",hint:"تعداد سؤال در شبانه‌روز. -1 = نامحدود"},
+  {k:"per_user_monthly_tokens",label:"سقف توکن ماهانه‌ی هر کاربر",type:"number",hint:"⚠️ این سقف بر اساس توکن است نه تعداد پیام و معمولاً زودتر از سقف پیام پر می‌شود. هر سؤال حدود ۵٬۰۰۰ تا ۸٬۰۰۰ توکن مصرف می‌کند، پس ۱۰۰٬۰۰۰ یعنی تقریباً ۱۵ سؤال در ماه. -1 = نامحدود"},
   {k:"global_daily_budget_usd",label:"سقف بودجه‌ی روزانه (دلار)",type:"number",hint:"محافظ کیف پول: با عبور از این مقدار سرویس تا فردا قطع می‌شود"},
   {k:"require_auth",label:"اجبار ورود کاربر",type:"bool",hint:"اگر خاموش شود، هر کسی بدون شماره موبایل می‌تواند چت کند"},
   {k:"system_prompt",label:"دستور سیستمی ربات",type:"textarea",full:true,hint:"قوانین پاسخ‌دهی ربات؛ تأکید بر «فقط از منابع پاسخ بده»"},
@@ -343,13 +343,14 @@ async function loadUsers(){
   try{
     const users=await api("/api/admin/users");
     const b=document.getElementById("usersBody");
-    if(!users.length){ b.innerHTML=`<tr><td colspan="6" class="empty">هنوز کاربری وارد نشده است.</td></tr>`; return; }
+    if(!users.length){ b.innerHTML=`<tr><td colspan="7" class="empty">هنوز کاربری وارد نشده است.</td></tr>`; return; }
+    const fmt = v => v==null ? "پیش‌فرض" : (v<0 ? "نامحدود" : v);
     b.innerHTML=users.map(u=>{
-      const lim = u.daily_message_limit==null ? "پیش‌فرض"
-                : (u.daily_message_limit<0 ? "نامحدود" : u.daily_message_limit);
+      const lim = fmt(u.daily_message_limit), tlim = fmt(u.monthly_token_limit);
       return `<tr>
       <td>${u.username}</td><td>${u.total_messages}</td>
-      <td><button class="btn-ghost" style="padding:4px 10px;font-size:12px" onclick="setUserLimit(${u.id},${u.daily_message_limit==null?'null':u.daily_message_limit})">${lim} ✎</button></td>
+      <td><button class="btn-ghost" style="padding:4px 10px;font-size:12px" onclick="setUserLimit(${u.id},'daily_message_limit',${u.daily_message_limit==null?'null':u.daily_message_limit})">${lim} ✎</button></td>
+      <td><button class="btn-ghost" style="padding:4px 10px;font-size:12px" onclick="setUserLimit(${u.id},'monthly_token_limit',${u.monthly_token_limit==null?'null':u.monthly_token_limit})">${tlim} ✎</button></td>
       <td>${new Date(u.created_at).toLocaleDateString("fa-IR")}</td>
       <td><span class="tag ${u.blocked?"error":"ready"}">${u.blocked?"مسدود":"فعال"}</span></td>
       <td><button class="btn-danger" onclick="toggleBlock(${u.id})">${u.blocked?"رفع مسدودی":"مسدود کردن"}</button></td>
@@ -360,14 +361,19 @@ async function toggleBlock(id){
   try{ await api("/api/admin/users/"+id+"/toggle-block",{method:"POST"}); loadUsers(); }
   catch(e){ toast(e.message,true); }
 }
-async function setUserLimit(id, cur){
-  const v = prompt("سقف پیام روزانه برای این کاربر:\n• خالی = استفاده از سقف پیش‌فرض عمومی\n• یک عدد = سقف دلخواه (مثلاً 100)\n• -1 = نامحدود", cur==null?"":String(cur));
+async function setUserLimit(id, field, cur){
+  const isTok = field==="monthly_token_limit";
+  const title = isTok
+    ? "سقف توکن ماهانه برای این کاربر:\n(هر سؤال بسته به حجم منابع حدود ۵٬۰۰۰ تا ۸٬۰۰۰ توکن مصرف می‌کند)"
+    : "سقف پیام روزانه برای این کاربر:";
+  const v = prompt(title+"\n• خالی = استفاده از سقف پیش‌فرض عمومی\n• یک عدد = سقف دلخواه\n• -1 = نامحدود", cur==null?"":String(cur));
   if(v===null) return;
   const t=v.trim();
   let val = t==="" ? null : parseInt(t,10);
   if(t!=="" && isNaN(val)){ toast("عدد نامعتبر است",true); return; }
+  const body={}; body[field]=val;
   try{
-    await api("/api/admin/users/"+id+"/limit",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({daily_message_limit:val})});
+    await api("/api/admin/users/"+id+"/limit",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     toast("سقف کاربر به‌روزرسانی شد"); loadUsers();
   }catch(e){ toast(e.message,true); }
 }
