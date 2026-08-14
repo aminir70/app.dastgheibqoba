@@ -87,6 +87,30 @@ function _aicSetBotText(wrap, text) {
     const box = document.getElementById('aic-messages');
     if (box) box.scrollTop = box.scrollHeight;
 }
+function _aicPrettyLabel(raw) {
+    const s = String(raw || '').replace('مساله', 'مسأله').trim();
+    return (typeof toFa === 'function') ? toFa(s) : s;
+}
+// مدل گاهی منبع را به شکل «[۱۲]» می‌نویسد که برای کاربر بی‌معنی است.
+// اینجا با شماره‌ی واقعی مسأله جایگزین می‌شود و اگر قابل تشخیص نبود، حذف می‌شود.
+function _aicApplyCitations(text, sources) {
+    if (!text) return text;
+    const byIdx = {};
+    (sources || []).forEach(s => {
+        if (s && typeof s === 'object' && s.idx && s.label) byIdx[String(s.idx)] = _aicPrettyLabel(s.label);
+    });
+    const toLatin = d => String(d)
+        .replace(/[۰-۹]/g, c => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(c)))
+        .replace(/[٠-٩]/g, c => String('٠١٢٣٤٥٦٧٨٩'.indexOf(c)));
+    // فقط فاصله‌ی چسبیده به خودِ نشانه حذف می‌شود تا متن اصلی دست‌نخورده بماند
+    return text
+        .replace(/[ \t]*\[\s*([0-9۰-۹٠-٩]{1,3})\s*\]/g, (m, d) => {
+            const lbl = byIdx[toLatin(d)];
+            return lbl ? ' (' + lbl + ')' : '';
+        })
+        .trim();
+}
+
 // ارجاع کوتاه زیر پاسخ: فقط شماره‌ی مسأله‌های استنادشده (بدون تکرار نام فایل)
 function _aicAddSources(wrap, sources) {
     if (!sources || !sources.length) return;
@@ -95,15 +119,14 @@ function _aicAddSources(wrap, sources) {
     sources.forEach(s => {
         const raw = (s && typeof s === 'object') ? s.label : null;
         if (!raw) return;
-        const pretty = String(raw).replace('مساله', 'مسأله').trim();
+        const pretty = _aicPrettyLabel(raw);
         if (!seen.has(pretty)) { seen.add(pretty); labels.push(pretty); }
     });
     if (!labels.length) return;
     const el = document.createElement('div');
     el.className = 'text-[10px] text-gray-400 px-2 mt-1 flex flex-wrap gap-1 items-center';
     el.innerHTML = '<i class="fas fa-book-open text-[9px]"></i>' +
-        labels.map(l => `<span class="bg-violet-50 text-violet-500 rounded-full px-2 py-0.5">${
-            _aicEsc(typeof toFa === 'function' ? toFa(l) : l)}</span>`).join('');
+        labels.map(l => `<span class="bg-violet-50 text-violet-500 rounded-full px-2 py-0.5">${_aicEsc(l)}</span>`).join('');
     wrap.appendChild(el);
 }
 function _aicError(wrap, msg) {
@@ -147,7 +170,7 @@ async function aicSend() {
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        let buf = '', full = '';
+        let buf = '', full = '', gotSources = false;
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -161,10 +184,16 @@ async function aicSend() {
                 try { ev = JSON.parse(raw.slice(5)); } catch(e) { continue; }
                 if (ev.type === 'meta' && ev.conversation_id) _aicConvId = ev.conversation_id;
                 else if (ev.type === 'delta') { full += ev.text; _aicSetBotText(wrap, full); }
-                else if (ev.type === 'sources') _aicAddSources(wrap, ev.sources);
+                else if (ev.type === 'sources') {
+                    gotSources = true;
+                    full = _aicApplyCitations(full, ev.sources);
+                    _aicSetBotText(wrap, full);
+                    _aicAddSources(wrap, ev.sources);
+                }
                 else if (ev.type === 'error') { _aicError(wrap, ev.detail || 'خطا در پردازش پاسخ'); }
             }
         }
+        if (full && !gotSources) { full = _aicApplyCitations(full, []); _aicSetBotText(wrap, full); }
         if (!full && !wrap.querySelector('.text-rose-600')) _aicSetBotText(wrap, 'پاسخی دریافت نشد.');
     } catch(e) {
         _aicError(wrap, 'ارتباط با دستیار برقرار نشد. لطفاً دوباره تلاش کنید.');
@@ -225,7 +254,7 @@ async function aicOpenConversation(cid) {
             if (m.role === 'user') _aicAddUserMsg(m.content);
             else {
                 const w = _aicAddBotMsg();
-                _aicSetBotText(w, m.content);
+                _aicSetBotText(w, _aicApplyCitations(m.content, m.sources));
                 if (m.sources) _aicAddSources(w, m.sources);
             }
         });
