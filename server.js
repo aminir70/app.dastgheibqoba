@@ -1067,7 +1067,7 @@ app.get('/api/ticket-categories',(req,res)=>{
 app.get('/api/tickets',userAuth,(req,res)=>{
     mainDb.all(
         `SELECT t.id,t.subject,t.status,t.updated_at,t.tracking_code,tc.name as category_name,
-         (SELECT text FROM ticket_messages WHERE ticket_id=t.id ORDER BY created_at ASC LIMIT 1) as first_message
+         (SELECT text FROM ticket_messages WHERE ticket_id=t.id ORDER BY created_at ASC, id ASC LIMIT 1) as first_message
          FROM tickets t LEFT JOIN ticket_categories tc ON tc.id=t.category_id
          WHERE t.user_id=? ORDER BY t.updated_at DESC`,
         [req.userId],(err,rows)=>{
@@ -1133,7 +1133,7 @@ app.put('/api/tickets/:id',userAuth,(req,res)=>{
         mainDb.get('SELECT id FROM ticket_messages WHERE ticket_id=? AND sender_type="admin" LIMIT 1',[id],(err2,adminReply)=>{
             if(adminReply) return res.status(403).json({error:'پس از پاسخ ادمین ویرایش امکان‌پذیر نیست'});
             mainDb.run('UPDATE tickets SET subject=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',[s,id],()=>{
-                mainDb.run('UPDATE ticket_messages SET text=? WHERE ticket_id=? AND sender_type="user" ORDER BY created_at ASC LIMIT 1',[m,id],
+                mainDb.run('UPDATE ticket_messages SET text=? WHERE ticket_id=? AND sender_type="user" ORDER BY created_at ASC, id ASC LIMIT 1',[m,id],
                     ()=>res.json({success:true}));
             });
         });
@@ -1163,7 +1163,7 @@ app.post('/api/tickets/:id/messages',userAuth,uploadTicketFile.single('ticket_fi
     mainDb.get('SELECT id,status FROM tickets WHERE id=? AND user_id=?',[id,req.userId],(err,ticket)=>{
         if(err||!ticket) return res.status(404).json({error:'تیکت یافت نشد'});
         if(ticket.status==='closed') return res.status(400).json({error:'این تیکت بسته شده است'});
-        mainDb.all('SELECT sender_type FROM ticket_messages WHERE ticket_id=? ORDER BY created_at DESC LIMIT 5',[id],(err2,msgs)=>{
+        mainDb.all('SELECT sender_type FROM ticket_messages WHERE ticket_id=? ORDER BY created_at DESC, id DESC LIMIT 5',[id],(err2,msgs)=>{
             let consecutiveUser=0;
             for(const m of (msgs||[])){ if(m.sender_type==='user') consecutiveUser++; else break; }
             if(consecutiveUser>=2) return res.status(400).json({error:'لطفاً صبر کنید تا ادمین جواب دهد. حداکثر ۲ پیام متوالی مجاز است.'});
@@ -1171,7 +1171,10 @@ app.post('/api/tickets/:id/messages',userAuth,uploadTicketFile.single('ticket_fi
             _validateReplyTo(replyTo,id,(validReplyTo)=>{
                 mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,attachment,attachment_type,reply_to) VALUES (?,?,"user",?,?,?)',[id,t.trim(),att,attType,validReplyTo],function(err3){
                     if(err3) return res.status(500).json({error:err3.message});
-                    mainDb.run('UPDATE tickets SET updated_at=CURRENT_TIMESTAMP WHERE id=?',[id]);
+                    // اگر ادمین قبلاً پاسخ داده بود، وضعیت را به «پاسخ کاربر» ببر تا
+                    // پیام جدید کاربر در پنل گم نشود. تیکت تازه (open) باز می‌ماند.
+                    const newStatus = ticket.status==='open' ? 'open' : 'user_replied';
+                    mainDb.run('UPDATE tickets SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',[newStatus,id]);
                     res.json({success:true,id:this.lastID});
                 });
             });
@@ -1198,7 +1201,7 @@ app.get('/api/tickets/:id/messages',(req,res)=>{
     mainDb.all(`SELECT m.id,m.text,m.sender_type,m.created_at,m.attachment,m.attachment_type,m.edited_at,m.reply_to,
                 r.text as reply_text, r.sender_type as reply_sender, r.attachment_type as reply_attachment_type
                 FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
-                WHERE m.ticket_id=? ORDER BY m.created_at ASC`,[id],(err,rows)=>{
+                WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err,rows)=>{
         if(err) return res.status(500).json({error:err.message});
         res.json(rows||[]);
     });
@@ -1919,13 +1922,13 @@ app.delete('/api/admin/canned-responses/:id',adminAuth,(req,res)=>{
 });
 // Admin Tickets
 app.get('/api/admin/tickets',adminAuth,(req,res)=>{
-    mainDb.all(`SELECT t.*,tc.name as category_name,(SELECT COUNT(*) FROM ticket_messages WHERE ticket_id=t.id) as msg_count,(SELECT text FROM ticket_messages WHERE ticket_id=t.id ORDER BY created_at DESC LIMIT 1) as last_msg FROM tickets t LEFT JOIN ticket_categories tc ON tc.id=t.category_id ORDER BY t.updated_at DESC`,[],(err,rows)=>res.json(rows||[]));
+    mainDb.all(`SELECT t.*,tc.name as category_name,(SELECT COUNT(*) FROM ticket_messages WHERE ticket_id=t.id) as msg_count,(SELECT text FROM ticket_messages WHERE ticket_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) as last_msg FROM tickets t LEFT JOIN ticket_categories tc ON tc.id=t.category_id ORDER BY t.updated_at DESC`,[],(err,rows)=>res.json(rows||[]));
 });
 app.get('/api/admin/tickets/:id/messages',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     mainDb.all(`SELECT m.*, r.text as reply_text, r.sender_type as reply_sender, r.attachment_type as reply_attachment_type
                 FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
-                WHERE m.ticket_id=? ORDER BY m.created_at ASC`,[id],(err,rows)=>res.json(rows||[]));
+                WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/tickets/:id/reply',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
@@ -1961,7 +1964,7 @@ app.put('/api/admin/ticket-messages/:msgId',adminAuth,(req,res)=>{
 });
 app.put('/api/admin/tickets/:id/status',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const s=['open','answered','closed'].includes(req.body.status)?req.body.status:'open';
+    const s=['open','answered','user_replied','closed'].includes(req.body.status)?req.body.status:'open';
     mainDb.run('UPDATE tickets SET status=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',[s,id],()=>res.json({success:true}));
 });
 

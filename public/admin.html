@@ -794,6 +794,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
         <div id="ticket-status-btns" class="hidden gap-2 flex">
           <button onclick="changeTicketStatus('open')" class="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100">باز</button>
           <button onclick="changeTicketStatus('answered')" class="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-bold hover:bg-green-100">پاسخ داده شد</button>
+          <button onclick="changeTicketStatus('user_replied')" class="text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-100">پاسخ کاربر</button>
           <button onclick="changeTicketStatus('closed')" class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-200">بستن تیکت</button>
         </div>
       </div>
@@ -1342,7 +1343,7 @@ async function checkUnreadSupport() {
   try {
     const r = await adminFetch('/api/admin/tickets');
     const tickets = await r.json();
-    const openCount = Array.isArray(tickets) ? tickets.filter(t=>t.status==='open').length : 0;
+    const openCount = Array.isArray(tickets) ? tickets.filter(t=>t.status==='open'||t.status==='user_replied').length : 0;
     const badge = document.getElementById('support-badge');
     if(openCount>0){badge.textContent=openCount;badge.classList.remove('hidden');}
     else badge.classList.add('hidden');
@@ -2260,7 +2261,7 @@ async function loadTickets(){
     const ts=await r.json();
     const c=document.getElementById('tickets-list');
     if(!Array.isArray(ts)||!ts.length){c.innerHTML='<p class="text-center text-xs text-gray-400 mt-8">تیکتی وجود ندارد</p>';return;}
-    const statusMap={open:{text:'باز',cls:'bg-blue-50 text-blue-600'},answered:{text:'پاسخ داده شد',cls:'bg-green-50 text-green-600'},closed:{text:'بسته',cls:'bg-gray-100 text-gray-400'}};
+    const statusMap={open:{text:'باز',cls:'bg-blue-50 text-blue-600'},answered:{text:'پاسخ داده شد',cls:'bg-green-50 text-green-600'},user_replied:{text:'پاسخ کاربر',cls:'bg-amber-100 text-amber-700'},closed:{text:'بسته',cls:'bg-gray-100 text-gray-400'}};
     c.innerHTML=ts.map(t=>{
       const s=statusMap[t.status]||statusMap.open;
       const act=activeTicketId==t.id&&currentSupportMode==='tickets';
@@ -2289,7 +2290,7 @@ async function selectTicket(id,subject,status){
   status=status.trim();
   openSupportChat();
   document.getElementById('active-support-title').textContent=subject;
-  document.getElementById('active-support-sub').textContent={open:'باز',answered:'پاسخ داده شد',closed:'بسته'}[status]||'';
+  document.getElementById('active-support-sub').textContent={open:'باز',answered:'پاسخ داده شد',user_replied:'پاسخ کاربر',closed:'بسته'}[status]||'';
   document.getElementById('support-avatar').innerHTML='<i class="fas fa-ticket-alt text-amber-600 text-sm"></i>';
   document.getElementById('support-avatar').className='w-9 h-9 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center';
   const inp=document.getElementById('support-reply-input'),btn=document.getElementById('support-reply-send');

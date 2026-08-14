@@ -1078,7 +1078,7 @@ async function renderQATickets() {
             c.innerHTML = `<div class="text-center py-16 text-gray-400"><i class="fas fa-comments text-5xl mb-4 opacity-30"></i><p class="text-sm font-bold mb-2">هنوز سوالی ارسال نشده</p><p class="text-xs opacity-70">از دکمه «سوال جدید» استفاده کنید</p></div>`;
             return;
         }
-        const statusMap = { open:{text:'در انتظار پاسخ',cls:'bg-blue-50 text-blue-600'}, answered:{text:'پاسخ داده شد',cls:'bg-green-50 text-green-600'}, closed:{text:'بسته شد',cls:'bg-gray-100 text-gray-500'} };
+        const statusMap = { open:{text:'در انتظار پاسخ',cls:'bg-blue-50 text-blue-600'}, answered:{text:'پاسخ داده شد',cls:'bg-green-50 text-green-600'}, user_replied:{text:'در انتظار پاسخ',cls:'bg-blue-50 text-blue-600'}, closed:{text:'بسته شد',cls:'bg-gray-100 text-gray-500'} };
         c.innerHTML = qaTickets.map(t => {
             const s = statusMap[t.status] || statusMap.open;
             const date = toFa(new Date(t.updated_at).toLocaleDateString('fa-IR'));
@@ -1346,7 +1346,7 @@ async function loadQAConversationMessages(ticketId) {
 
         if (ticket && ticket.status) {
             if (localTicket) { localTicket.status = ticket.status; localStorage.setItem('qa_tickets', JSON.stringify(qaTickets)); }
-            const statusMap = { open: 'در انتظار پاسخ', answered: 'پاسخ داده شد', closed: 'بسته شد' };
+            const statusMap = { open: 'در انتظار پاسخ', answered: 'پاسخ داده شد', user_replied: 'در انتظار پاسخ', closed: 'بسته شد' };
             document.getElementById('qa-conv-status').textContent = statusMap[ticket.status] || '';
         }
 
