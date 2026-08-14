@@ -12,6 +12,11 @@ import re
 # tanwin / harakat / tashdid, superscript alef, tatweel(kashida)
 _HARAKAT = re.compile(r"[ً-ْٰـ]")
 
+# Invisible formatting marks. This source uses RLM (U+200F) *inside* words
+# ("کسی‏که" = کسی + RLM + که), which hides word boundaries from both keyword
+# matching and the tokenizer. They separate words, so they become a space.
+_INVISIBLE = re.compile("[​‌‍‎‏﻿]")
+
 # Arabic letter variants -> canonical Persian
 _LETTER_MAP = {
     "ك": "ک",  # ك -> ک
@@ -34,7 +39,8 @@ def normalize_fa(s: str) -> str:
     if not s:
         return s
     s = _HARAKAT.sub("", s)
+    s = _INVISIBLE.sub(" ", s)
     for a, b in _LETTER_MAP.items():
         s = s.replace(a, b)
     s = s.translate(_DIGITS)
-    return s
+    return re.sub(r"[ \t]{2,}", " ", s)

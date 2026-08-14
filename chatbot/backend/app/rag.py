@@ -1,7 +1,9 @@
 import logging
+import operator
 import re
+from functools import reduce
 
-from sqlalchemy import func
+from sqlalchemy import case, desc, func, or_
 from sqlalchemy.orm import Session
 
 from .models import Chunk, Document
@@ -82,14 +84,19 @@ def _number_word_terms(q_norm: str):
     return out
 
 
+# DB-side mirror of text_norm.normalize_fa, so already-indexed documents match
+# Persian-typed queries without needing a re-ingest.
+#   digits -> Latin, Arabic letter variants -> Persian, invisible marks -> space,
+#   harakat -> removed (translate drops chars with no counterpart in `to`).
+_TR_FROM = ("۰۱۲۳۴۵۶۷۸۹" "٠١٢٣٤٥٦٧٨٩" "كيىةأإآٱؤئ" "​‌‍‎‏﻿"
+            "ًٌٍَُِّْٰـ")
+_TR_TO = ("0123456789" "0123456789" "کییهااااوی" "      ")
+
+
 def _norm_content_expr():
     """SQL expression: chunk content normalized the same way as queries, so
     Arabic-script source text matches Persian-typed terms."""
-    return func.translate(
-        Chunk.content,
-        "۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩كيىةأإآٱؤئًٌٍَُِّْٰـ",
-        "01234567890123456789کییهااااوی",
-    )
+    return func.translate(Chunk.content, _TR_FROM, _TR_TO)
 
 
 def reference_search(db: Session, q_norm: str, limit: int = 3):
@@ -132,32 +139,48 @@ def find_ruling(db: Session, number: int):
     )
 
 
-def keyword_search(db: Session, query: str, per_term: int = 2):
-    """Literal keyword/number lookup — complements semantic search for things
-    like exact numbers ('مسأله ۱۳') or distinctive words. Uses whole-word
-    matching so 'کر' doesn't match 'فکر'/'شکر'. Deterministic (ordered by id)."""
-    q = normalize_fa(query)
-    terms = re.findall(r"[0-9]{1,6}|[^\W\d_]{2,}", q, flags=re.UNICODE)
-    terms = [t for t in terms if t not in _STOP][:6]
-    terms += [w for w in _number_word_terms(q) if w not in terms]
-    hits, seen = [], set()
+def _query_terms(q_norm: str, limit: int = 8):
+    """Distinctive search terms from a question.
+
+    Deduplicated and longest-first: a repeated common word ("کسی") used to eat
+    the budget and push out the words that actually identify the ruling
+    ("اقتدا", "نشسته"). Longer Persian words are the more specific ones."""
+    raw = re.findall(r"[0-9]{1,6}|[^\W\d_]{2,}", q_norm, flags=re.UNICODE)
+    seen, terms = set(), []
+    for t in raw:
+        if t in _STOP or t in seen:
+            continue
+        seen.add(t)
+        terms.append(t)
+    for w in _number_word_terms(q_norm):
+        if w not in seen:
+            seen.add(w)
+            terms.append(w)
+    terms.sort(key=lambda t: (-len(t), t))
+    return terms[:limit]
+
+
+def keyword_search(db: Session, query: str, limit: int = 6):
+    """Literal keyword lookup, ranked by how many distinct query terms a chunk
+    contains. Previously each term independently returned its first two chunks
+    by id, so a common word ("نماز") returned the earliest rulings in the book
+    while the chunk matching several terms at once was never surfaced."""
+    terms = _query_terms(normalize_fa(query))
+    if not terms:
+        return []
     norm_content = _norm_content_expr()
-    for term in terms:
-        pattern = r"\m" + term + r"\M"   # whole-word match
-        rows = (
-            db.query(Chunk, Document.filename)
-            .join(Document, Document.id == Chunk.document_id)
-            .filter(Document.status == "ready")
-            .filter(norm_content.op("~")(pattern))
-            .order_by(Chunk.id.asc())
-            .limit(per_term)
-            .all()
-        )
-        for c, f in rows:
-            if c.id not in seen:
-                seen.add(c.id)
-                hits.append((c, f))
-    return hits
+    conds = [norm_content.op("~")(r"\m" + t + r"\M") for t in terms]
+    score = reduce(operator.add, [case((c, 1), else_=0) for c in conds])
+    rows = (
+        db.query(Chunk, Document.filename, score.label("hits"))
+        .join(Document, Document.id == Chunk.document_id)
+        .filter(Document.status == "ready")
+        .filter(or_(*conds))
+        .order_by(desc("hits"), Chunk.id.asc())
+        .limit(limit)
+        .all()
+    )
+    return [(c, f) for c, f, _hits in rows]
 
 
 def _neighbors(db: Session, chunk, radius: int):
