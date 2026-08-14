@@ -1,4 +1,5 @@
 import logging
+import math
 import operator
 import re
 from functools import reduce
@@ -14,6 +15,24 @@ from .text_norm import normalize_fa
 log = logging.getLogger("rag")
 
 NOT_FOUND = "در منابع موجود پاسخی برای این سؤال پیدا نشد."
+
+# The model often paraphrases the refusal ("در رساله ... پاسخی داده نشده است")،
+# so an exact string test wrongly counted it as an answer and showed sources.
+_NOT_FOUND_RE = re.compile(
+    r"(پاسخ|جواب|مطلب|حکم)\w*[^.\n]{0,60}?"
+    r"(پیدا نشد|یافت نشد|داده نشده|ذکر نشده|وجود ندارد|موجود نیست|نیامده)"
+)
+
+
+def looks_not_found(text: str) -> bool:
+    """True when the answer is a refusal rather than a real answer. Length-gated
+    so a long answer that merely discusses a missing case is not misread."""
+    t = normalize_fa(text or "").strip()
+    if not t:
+        return False
+    if normalize_fa(NOT_FOUND) in t:
+        return True
+    return len(t) < 400 and bool(_NOT_FOUND_RE.search(t))
 
 # normalize Persian/Arabic digits to Latin so "۱۳" and "13" match
 _DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
@@ -160,17 +179,46 @@ def _query_terms(q_norm: str, limit: int = 8):
     return terms[:limit]
 
 
+def _ready_chunks(db: Session):
+    return (db.query(Chunk.id)
+            .join(Document, Document.id == Chunk.document_id)
+            .filter(Document.status == "ready"))
+
+
+def _term_weights(db: Session, terms, conds):
+    """IDF weights: a rare word ('محتضر') must outweigh a common one ('سر'),
+    otherwise frequent words decide the ranking. One extra aggregate query."""
+    total = _ready_chunks(db).count() or 1
+    cols = [func.sum(case((c, 1), else_=0)) for c in conds]
+    row = (db.query(*cols)
+           .select_from(Chunk)
+           .join(Document, Document.id == Chunk.document_id)
+           .filter(Document.status == "ready")
+           .one())
+    weights = []
+    for i, _t in enumerate(terms):
+        df = int(row[i] or 0)
+        weights.append(math.log((total + 1) / (df + 1)) + 0.1)
+    return weights
+
+
 def keyword_search(db: Session, query: str, limit: int = 6):
-    """Literal keyword lookup, ranked by how many distinct query terms a chunk
-    contains. Previously each term independently returned its first two chunks
-    by id, so a common word ("نماز") returned the earliest rulings in the book
-    while the chunk matching several terms at once was never surfaced."""
+    """Literal keyword lookup, ranked by the IDF-weighted set of query terms a
+    chunk contains. Previously each term independently returned its first two
+    chunks by id, so a common word ("نماز") returned the earliest rulings in the
+    book while the chunk matching several distinctive terms was never surfaced."""
     terms = _query_terms(normalize_fa(query))
     if not terms:
         return []
     norm_content = _norm_content_expr()
     conds = [norm_content.op("~")(r"\m" + t + r"\M") for t in terms]
-    score = reduce(operator.add, [case((c, 1), else_=0) for c in conds])
+    try:
+        weights = _term_weights(db, terms, conds)
+    except Exception:                     # never let ranking break retrieval
+        log.exception("term weighting failed; falling back to flat scoring")
+        weights = [1.0] * len(terms)
+    score = reduce(operator.add,
+                   [case((c, w), else_=0.0) for c, w in zip(conds, weights)])
     rows = (
         db.query(Chunk, Document.filename, score.label("hits"))
         .join(Document, Document.id == Chunk.document_id)

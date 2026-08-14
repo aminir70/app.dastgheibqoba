@@ -13,7 +13,7 @@ from ..limits import (check_global_budget, check_user_limits, record_usage,
                       user_quota)
 from ..models import Conversation, ConversationMessage, EndUser
 from ..rag import (NOT_FOUND, build_messages, find_ruling, format_sources,
-                   retrieve, select_cited_sources)
+                   looks_not_found, retrieve, select_cited_sources)
 from ..openai_client import chat_stream
 from ..schemas import ChatRequest, TokenResponse, UserCredentials
 from ..settings_store import get_setting
@@ -245,7 +245,7 @@ def chat_endpoint(
                         yield _sse({"type": "delta", "text": val})
                     elif kind == "usage":
                         p_tok, c_tok = val
-                finish(full, p_tok, c_tok, NOT_FOUND not in full, None)
+                finish(full, p_tok, c_tok, not looks_not_found(full), None)
                 yield _sse({"type": "done"})
                 return
 
@@ -258,7 +258,7 @@ def chat_endpoint(
                     yield _sse({"type": "delta", "text": val})
                 elif kind == "usage":
                     p_tok, c_tok = val
-            found = NOT_FOUND not in full
+            found = not looks_not_found(full)
             shown = select_cited_sources(full, sources) if found else []
             finish(full, p_tok, c_tok, found, shown or None)
             if found and shown:
