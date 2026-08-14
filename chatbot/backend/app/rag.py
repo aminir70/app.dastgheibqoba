@@ -186,7 +186,7 @@ def retrieve(db: Session, query: str):
     is_relevant = bool(ref_hits) or bool(kw_hits) or \
         (best is not None and best <= max_distance)
     if not is_relevant:
-        return [], set(), emb_tokens
+        return [], [], emb_tokens
 
     # primary chunks: explicit references first (authoritative), then vector
     # results by relevance, then keyword hits
@@ -204,7 +204,7 @@ def retrieve(db: Session, query: str):
             seen.add(c.id)
             primary.append((c, f))
 
-    primary_ids = {c.id for c, _ in primary}
+    primary_ids = [c.id for c, _ in primary]   # relevance order
 
     # keep primary chunks (up to cap), then fill with neighbors so that
     # content split across chunk boundaries (lists, multi-part answers) stays whole
@@ -241,67 +241,88 @@ def _lookback_label(db: Session, chunk):
 
 
 def format_sources(db: Session, chunks, primary_ids=None):
-    """Return (context_string, sources_list). Context keeps one numbered entry
-    per chunk. Each matched (primary) chunk is tagged with its page and the
-    structural label (e.g. 'مسأله ۱۷') that governs it — found from the chunk
-    itself or the nearest preceding chunk in the same document."""
+    """Return (context_string, entries). Context keeps one numbered entry per
+    chunk; `entries` mirrors it one-to-one so a "[N]" citation in the answer can
+    be resolved back to the ruling it came from. Each entry carries the
+    structural label (e.g. 'مسأله ۱۷') taken from the chunk itself or the
+    nearest preceding chunk, plus whether it was a primary (matched) chunk."""
     if primary_ids is None:
-        primary_ids = {c.id for c, _ in chunks}
-    context_parts, sources, seen = [], [], set()
+        primary_ids = [c.id for c, _ in chunks]
+    rank = {cid: i for i, cid in enumerate(primary_ids)}
+    context_parts, entries = [], []
     for idx, (chunk, fname) in enumerate(chunks, start=1):
         loc = f" (صفحه {chunk.page})" if chunk.page else ""
         context_parts.append(f"[{idx}] منبع: {fname}{loc}\n{chunk.content}")
-        if chunk.id not in primary_ids:
-            continue
         own = extract_labels(chunk.content)
         label = own[0] if own else _lookback_label(db, chunk)
-        key = (fname, chunk.page, label)
-        if key not in seen:
-            seen.add(key)
-            sources.append({"filename": fname, "page": chunk.page, "label": label})
-    return "\n\n---\n\n".join(context_parts), sources
+        entries.append({
+            "idx": idx,
+            "filename": fname,
+            "page": chunk.page,
+            "label": label,
+            "primary": chunk.id in rank,
+            "rank": rank.get(chunk.id, 10**6),
+        })
+    return "\n\n---\n\n".join(context_parts), entries
 
 
-# numbers the answer itself cites, e.g. "بر اساس مسأله ۱۱۶۸ ..."
+# citations the answer itself makes: "مسأله ۱۱۶۸" or a context marker "[۱۲]"
 _CITED_RE = re.compile(r"(?:مساله|ماده)\s*([0-9]{1,5})")
+_BRACKET_RE = re.compile(r"\[\s*([0-9]{1,3})\s*\]")
 
 
-def select_cited_sources(answer: str, sources, limit: int = 5):
-    """Narrow the source list to the rulings the answer actually cites.
+def select_cited_sources(answer: str, entries, limit: int = 4):
+    """Pick the rulings to show under an answer.
 
     Listing every retrieved chunk produced a long, repetitive strip of the same
-    filename. The model now names the ruling inline ('مسأله ۱۱۶۸'), so keep only
-    those (in the order cited); if it named none, fall back to the first few
-    labelled sources. Unlabelled sources are dropped — a bare filename repeated
-    per chunk is noise, not a reference."""
-    if not sources:
+    filename, and simply taking the first few was wrong: `entries` follows
+    DOCUMENT order, so the earliest rulings in the book were shown even when the
+    answer came from a much later chapter.
+
+    Resolution order:
+      1. rulings the answer names inline ("بر اساس مسأله ۱۱۶۸")،
+      2. context markers the model emits ("[۱۲]") mapped back to that entry,
+      3. otherwise the best-matching chunks by RELEVANCE rank (not book order).
+    Entries without a label are dropped — a bare filename is noise, not a
+    reference."""
+    if not entries:
         return []
-    cited = []
-    for m in _CITED_RE.finditer(normalize_fa(answer or "")):
-        if m.group(1) not in cited:
-            cited.append(m.group(1))
+    ans = normalize_fa(answer or "")
 
-    by_num, labelled = {}, []
-    for s in sources:
-        label = s.get("label")
-        if not label:
+    def label_num(e):
+        m = re.search(r"[0-9]{1,5}", normalize_fa(e.get("label") or ""))
+        return m.group(0) if m else None
+
+    by_num, by_idx = {}, {}
+    for e in entries:
+        if not e.get("label"):
             continue
-        labelled.append(s)
-        m = re.search(r"[0-9]{1,5}", normalize_fa(label))
-        if m:
-            by_num.setdefault(m.group(0), s)
+        by_idx[e.get("idx")] = e
+        n = label_num(e)
+        if n:
+            by_num.setdefault(n, e)
 
-    out = [by_num[n] for n in cited if n in by_num]
-    if out:
-        return out[:limit]
+    out, seen = [], set()
 
-    # nothing cited: show only a couple of the top matches, never a long strip
-    seen = set()
-    for s in labelled:
-        if s["label"] not in seen:
-            seen.add(s["label"])
-            out.append(s)
-    return out[:3]
+    def add(e):
+        lbl = e.get("label")
+        if lbl and lbl not in seen:
+            seen.add(lbl)
+            out.append(e)
+
+    for m in _CITED_RE.finditer(ans):                 # 1) named rulings
+        if m.group(1) in by_num:
+            add(by_num[m.group(1)])
+    if not out:
+        for m in _BRACKET_RE.finditer(ans):           # 2) "[N]" markers
+            e = by_idx.get(int(m.group(1)))
+            if e:
+                add(e)
+    if not out:                                       # 3) most relevant
+        for e in sorted((x for x in entries if x.get("label") and x.get("primary")),
+                        key=lambda x: x.get("rank", 10**6))[:2]:
+            add(e)
+    return out[:limit]
 
 
 def build_messages(db: Session, history, context: str, question: str):
