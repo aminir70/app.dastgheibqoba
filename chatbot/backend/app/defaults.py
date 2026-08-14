@@ -43,8 +43,11 @@ DEFAULT_SETTINGS = {
     "max_distance": 0.85,         # cosine distance; higher = more lenient recall
     "max_context_chunks": 16,     # max chunks (incl. neighbors) sent to the model
     "neighbor_radius": 1,         # also include N chunks before/after each hit
-    "chunk_tokens": 800,
-    "chunk_overlap": 150,
+    # With structure-aware extraction each ruling/Q&A is already emitted as its
+    # own block, so these act only as a size CEILING (they never merge unrelated
+    # text). Keep them generous so a long ruling stays whole.
+    "chunk_tokens": 1200,
+    "chunk_overlap": 120,
     "temperature": 0.1,
     "system_prompt": DEFAULT_SYSTEM_PROMPT,
 

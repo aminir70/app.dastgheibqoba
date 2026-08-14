@@ -54,17 +54,97 @@ def _extract_pdf(path: str):
     return used_ocr
 
 
-def _extract_docx(path: str):
-    d = DocxDocument(path)
-    parts = [p.text for p in d.paragraphs if p.text.strip()]
+def _is_ruling_style(style_name: str) -> bool:
+    """True for the paragraph style that marks a numbered ruling (مسأله).
+    Matched loosely because authors name the style differently."""
+    n = normalize_fa(style_name or "")
+    return "مساله" in n or "مسیله" in n
+
+
+def _heading_level(style_name: str):
+    """Return the heading depth for 'Heading N' / 'عنوان N' styles, else None."""
+    n = (style_name or "").strip()
+    m = re.match(r"^(?:Heading|heading|عنوان)\s*([1-9])$", n)
+    return int(m.group(1)) if m else None
+
+
+def _docx_tables_text(d):
+    out = []
     for table in d.tables:
         for row in table.rows:
             cells = [c.text.strip() for c in row.cells if c.text.strip()]
             if cells:
-                parts.append(" | ".join(cells))
-    text = "\n".join(parts).strip()
-    if text:
-        yield None, text
+                out.append(" | ".join(cells))
+    return out
+
+
+def _extract_docx(path: str):
+    """Structure-aware DOCX extraction.
+
+    Religious/legal books (رساله) mark each ruling with a dedicated paragraph
+    style and continue it in following body paragraphs, while the ruling NUMBER
+    exists only implicitly (by order). Reading paragraphs as one flat blob
+    therefore separates a ruling from its own clauses and loses its number.
+
+    Here each ruling becomes ONE self-contained block:
+        مسأله 1168 (احکام نماز ← شكّيات ← شکّ‌های مبطل)
+        شکّ‌هايى كه نماز را باطل مى‏كند از اين قرار است:
+        اوّل: ...  دوم: شکّ در شماره ركعتهاى نماز سه ركعتى. ...
+
+    Documents without that style fall back to grouping by heading (useful for
+    Q&A files), and documents without headings yield a single blob as before.
+    """
+    d = DocxDocument(path)
+    paras = [p for p in d.paragraphs if p.text and p.text.strip()]
+    has_rulings = any(_is_ruling_style(p.style.name) for p in paras)
+    has_headings = any(_heading_level(p.style.name) for p in paras)
+
+    if not has_rulings and not has_headings:
+        parts = [p.text.strip() for p in paras] + _docx_tables_text(d)
+        text = "\n".join(parts).strip()
+        if text:
+            yield None, text
+        return
+
+    heads = {}          # heading level -> latest text
+    blocks = []         # list of (title, [lines])
+    cur = None
+    counter = 0
+
+    def breadcrumb():
+        return " ← ".join(heads[k] for k in sorted(heads) if heads.get(k))
+
+    for p in paras:
+        text = p.text.strip()
+        lvl = _heading_level(p.style.name)
+        if lvl:
+            heads[lvl] = text
+            for deeper in [k for k in heads if k > lvl]:
+                heads.pop(deeper, None)
+            cur = None                      # a heading ends the previous block
+            continue
+        if _is_ruling_style(p.style.name):
+            counter += 1
+            crumb = breadcrumb()
+            title = f"مسأله {counter}" + (f" ({crumb})" if crumb else "")
+            cur = (title, [text])
+            blocks.append(cur)
+        elif cur is not None:
+            cur[1].append(text)             # continuation of the current ruling
+        else:
+            crumb = breadcrumb()
+            cur = (crumb, [text]) if crumb else ("", [text])
+            blocks.append(cur)
+
+    for title, lines in blocks:
+        body = "\n".join(lines).strip()
+        if not body:
+            continue
+        yield None, (f"{title}\n{body}" if title else body)
+
+    tables = _docx_tables_text(d)
+    if tables:
+        yield None, "\n".join(tables)
 
 
 def _extract_image(path: str):
@@ -95,10 +175,17 @@ def extract(path: str, mime: str):
 
 
 # ---------- chunking ----------
-# split just before a structural heading like "مساله 1168" / "ماده 5"
-# (text is already normalized, so 'مسأله' has become 'مساله'). The digit
-# lookahead avoids splitting on phrases like "در این مساله".
-_STRUCT_SPLIT = re.compile(r"(?=(?:مساله|ماده)\s*[0-9]{1,5})")
+# Split just before a structural heading like "مساله 1168" / "ماده 5", or before
+# a Q&A item ("سوال 3:" / "پرسش:") so each question keeps its own answer. Text is
+# already normalized, so 'مسأله' has become 'مساله'. Anchored to line starts so an
+# in-text cross-reference ("تفصيل اين مسأله در مسأله 1202 مى‏آيد") never cuts a
+# ruling in half; the digit/colon lookaheads skip prose like "در این مساله".
+_STRUCT_SPLIT = re.compile(
+    r"(?m)^(?="
+    r"(?:مساله|ماده)\s*[0-9]{1,5}"
+    r"|(?:سوال|پرسش)\s*[0-9]{0,4}\s*[:：]"
+    r")"
+)
 
 
 def _window(tokens, page, max_tokens, step, out):
