@@ -262,6 +262,48 @@ def format_sources(db: Session, chunks, primary_ids=None):
     return "\n\n---\n\n".join(context_parts), sources
 
 
+# numbers the answer itself cites, e.g. "بر اساس مسأله ۱۱۶۸ ..."
+_CITED_RE = re.compile(r"(?:مساله|ماده)\s*([0-9]{1,5})")
+
+
+def select_cited_sources(answer: str, sources, limit: int = 5):
+    """Narrow the source list to the rulings the answer actually cites.
+
+    Listing every retrieved chunk produced a long, repetitive strip of the same
+    filename. The model now names the ruling inline ('مسأله ۱۱۶۸'), so keep only
+    those (in the order cited); if it named none, fall back to the first few
+    labelled sources. Unlabelled sources are dropped — a bare filename repeated
+    per chunk is noise, not a reference."""
+    if not sources:
+        return []
+    cited = []
+    for m in _CITED_RE.finditer(normalize_fa(answer or "")):
+        if m.group(1) not in cited:
+            cited.append(m.group(1))
+
+    by_num, labelled = {}, []
+    for s in sources:
+        label = s.get("label")
+        if not label:
+            continue
+        labelled.append(s)
+        m = re.search(r"[0-9]{1,5}", normalize_fa(label))
+        if m:
+            by_num.setdefault(m.group(0), s)
+
+    out = [by_num[n] for n in cited if n in by_num]
+    if out:
+        return out[:limit]
+
+    # nothing cited: show only a couple of the top matches, never a long strip
+    seen = set()
+    for s in labelled:
+        if s["label"] not in seen:
+            seen.add(s["label"])
+            out.append(s)
+    return out[:3]
+
+
 def build_messages(db: Session, history, context: str, question: str):
     """system prompt + recent history + current question with its context."""
     system_prompt = get_setting(db, "system_prompt", "")

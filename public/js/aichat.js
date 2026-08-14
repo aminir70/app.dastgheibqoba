@@ -87,9 +87,25 @@ function _aicSetBotText(wrap, text) {
     const box = document.getElementById('aic-messages');
     if (box) box.scrollTop = box.scrollHeight;
 }
-// نمایش فهرست منابع حذف شد: نام فایل برای هر قطعه تکرار می‌شد و شلوغ بود.
-// به‌جایش مدل شماره‌ی مسأله را داخل خود پاسخ ذکر می‌کند (مثل «مسأله ۱۱۶۸»).
-function _aicAddSources() { /* no-op */ }
+// ارجاع کوتاه زیر پاسخ: فقط شماره‌ی مسأله‌های استنادشده (بدون تکرار نام فایل)
+function _aicAddSources(wrap, sources) {
+    if (!sources || !sources.length) return;
+    const seen = new Set();
+    const labels = [];
+    sources.forEach(s => {
+        const raw = (s && typeof s === 'object') ? s.label : null;
+        if (!raw) return;
+        const pretty = String(raw).replace('مساله', 'مسأله').trim();
+        if (!seen.has(pretty)) { seen.add(pretty); labels.push(pretty); }
+    });
+    if (!labels.length) return;
+    const el = document.createElement('div');
+    el.className = 'text-[10px] text-gray-400 px-2 mt-1 flex flex-wrap gap-1 items-center';
+    el.innerHTML = '<i class="fas fa-book-open text-[9px]"></i>' +
+        labels.map(l => `<span class="bg-violet-50 text-violet-500 rounded-full px-2 py-0.5">${
+            _aicEsc(typeof toFa === 'function' ? toFa(l) : l)}</span>`).join('');
+    wrap.appendChild(el);
+}
 function _aicError(wrap, msg) {
     if (wrap) {
         const body = wrap.querySelector('.aic-body');

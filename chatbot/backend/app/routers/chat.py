@@ -12,7 +12,8 @@ from ..db import SessionLocal, get_db
 from ..limits import (check_global_budget, check_user_limits, record_usage,
                       user_quota)
 from ..models import Conversation, ConversationMessage, EndUser
-from ..rag import NOT_FOUND, build_messages, format_sources, retrieve
+from ..rag import (NOT_FOUND, build_messages, format_sources, retrieve,
+                   select_cited_sources)
 from ..openai_client import chat_stream
 from ..schemas import ChatRequest, TokenResponse, UserCredentials
 from ..settings_store import get_setting
@@ -239,9 +240,10 @@ def chat_endpoint(
                 elif kind == "usage":
                     p_tok, c_tok = val
             found = NOT_FOUND not in full
-            finish(full, p_tok, c_tok, found, sources if found else None)
-            if found:
-                yield _sse({"type": "sources", "sources": sources})
+            shown = select_cited_sources(full, sources) if found else []
+            finish(full, p_tok, c_tok, found, shown or None)
+            if found and shown:
+                yield _sse({"type": "sources", "sources": shown})
             yield _sse({"type": "done"})
         except Exception as e:
             detail = str(e) if settings.DEBUG else "خطایی در پردازش پاسخ رخ داد."
