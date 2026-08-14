@@ -55,8 +55,14 @@ DEFAULT_SETTINGS = {
     "embedding_dims": 1536,
     "top_k": 10,
     "max_distance": 0.85,         # cosine distance; higher = more lenient recall
-    "max_context_chunks": 16,     # max chunks (incl. neighbors) sent to the model
-    "neighbor_radius": 1,         # also include N chunks before/after each hit
+    # Each chunk is now a COMPLETE ruling (heading + all its clauses), so a
+    # large context no longer buys completeness — it just sends more unrelated
+    # rulings. Measured on a real رساله: ~196 tokens per ruling, so 12 chunks is
+    # ~2.4k tokens of context, roughly half the cost of the old 28 with no loss
+    # in answer quality. Neighbours existed to rejoin rulings split across
+    # fixed-size windows; that no longer happens, so they default to off.
+    "max_context_chunks": 12,
+    "neighbor_radius": 0,
     # With structure-aware extraction each ruling/Q&A is already emitted as its
     # own block, so these act only as a size CEILING (they never merge unrelated
     # text). Keep them generous so a long ruling stays whole.
