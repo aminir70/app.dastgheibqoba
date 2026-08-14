@@ -219,7 +219,7 @@ app.get('/manifest.json', (req, res) => {
 
 // HTML و sw.js: no-cache تا مرورگر همیشه نسخه تازه بگیرد
 app.use((req, res, next) => {
-    if (req.path.endsWith('.html') || req.path === '/' || req.path === '/sw.js') {
+    if (req.path.endsWith('.html') || req.path === '/' || req.path === '/admin' || req.path === '/sw.js') {
         res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');

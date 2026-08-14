@@ -2263,7 +2263,8 @@ async function loadTickets(){
     if(!Array.isArray(ts)||!ts.length){c.innerHTML='<p class="text-center text-xs text-gray-400 mt-8">تیکتی وجود ندارد</p>';return;}
     const statusMap={open:{text:'باز',cls:'bg-blue-50 text-blue-600'},answered:{text:'پاسخ داده شد',cls:'bg-green-50 text-green-600'},user_replied:{text:'پاسخ کاربر',cls:'bg-amber-100 text-amber-700'},closed:{text:'بسته',cls:'bg-gray-100 text-gray-400'}};
     c.innerHTML=ts.map(t=>{
-      const s=statusMap[t.status]||statusMap.open;
+      // وضعیت ناشناخته نباید خودش را «باز» جا بزند (گمراه‌کننده است)
+      const s=statusMap[t.status]||{text:t.status||'نامشخص',cls:'bg-gray-100 text-gray-500'};
       const act=activeTicketId==t.id&&currentSupportMode==='tickets';
       const copyText=`موضوع: ${t.subject||''}\nکاربر: ${t.username||''}\n${t.last_msg?'پیام: '+t.last_msg:''}`.trim();
       return `<div class="relative border rounded-xl transition ${act?'bg-amber-50 border-amber-200':'bg-white border-gray-100 hover:bg-gray-50'}">
