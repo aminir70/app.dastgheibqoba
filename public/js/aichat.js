@@ -87,14 +87,9 @@ function _aicSetBotText(wrap, text) {
     const box = document.getElementById('aic-messages');
     if (box) box.scrollTop = box.scrollHeight;
 }
-function _aicAddSources(wrap, sources) {
-    if (!sources || !sources.length) return;
-    const el = document.createElement('div');
-    el.className = 'text-[10px] text-gray-400 px-2 flex flex-wrap gap-1 items-center';
-    el.innerHTML = '<i class="fas fa-book-open text-[9px]"></i>' +
-        sources.map(s => `<span class="bg-gray-100 rounded-full px-2 py-0.5">${_aicEsc(typeof s === 'string' ? s : (s.filename || s.title || 'منبع'))}${s && s.page ? ' — ص ' + toFa(s.page) : ''}</span>`).join('');
-    wrap.appendChild(el);
-}
+// نمایش فهرست منابع حذف شد: نام فایل برای هر قطعه تکرار می‌شد و شلوغ بود.
+// به‌جایش مدل شماره‌ی مسأله را داخل خود پاسخ ذکر می‌کند (مثل «مسأله ۱۱۶۸»).
+function _aicAddSources() { /* no-op */ }
 function _aicError(wrap, msg) {
     if (wrap) {
         const body = wrap.querySelector('.aic-body');
