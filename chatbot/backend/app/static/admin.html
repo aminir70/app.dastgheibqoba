@@ -103,6 +103,7 @@
     aside .spacer{display:none}
     aside>a[href="/demo"]{display:none}
     .form-grid{grid-template-columns:1fr}
+    #chatSplit{grid-template-columns:1fr!important}
     main{padding:20px}
   }
 </style>
@@ -128,6 +129,7 @@
       <a data-page="dashboard" class="active" onclick="go('dashboard')">داشبورد</a>
       <a data-page="files" onclick="go('files')">فایل‌ها</a>
       <a data-page="settings" onclick="go('settings')">تنظیمات</a>
+      <a data-page="chats" onclick="go('chats')">گفتگوها</a>
       <a data-page="users" onclick="go('users')">کاربران</a>
     </nav>
     <div class="spacer"></div>
@@ -174,6 +176,26 @@
       <div class="panel"><table><thead><tr><th>نام کاربری</th><th>تعداد پیام</th><th>سقف پیام روزانه</th><th>سقف توکن ماهانه</th><th>تاریخ عضویت</th><th>وضعیت</th><th></th></tr></thead>
         <tbody id="usersBody"></tbody></table></div>
     </section>
+
+    <!-- CHATS -->
+    <section id="page-chats" class="hidden">
+      <div class="page-head"><div><h2>گفتگوهای کاربران</h2><div class="sub">مشاهده‌ی پرسش‌ها و پاسخ‌های دستیار برای بررسی کیفیت</div></div>
+        <button class="btn btn-ghost" onclick="loadChats()">به‌روزرسانی</button></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+        <input id="chatSearch" placeholder="جست‌وجو در متن گفتگوها…" style="flex:1;min-width:220px"
+               onkeydown="if(event.key==='Enter')loadChats()">
+        <label class="switch" style="white-space:nowrap"><input type="checkbox" id="chatUnanswered" onchange="loadChats()">
+          <span>فقط بی‌پاسخ‌ها</span></label>
+      </div>
+      <div id="chatSplit" style="display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start">
+        <div class="panel" style="max-height:70vh;overflow:auto"><table>
+          <thead><tr><th>کاربر / موضوع</th><th>پیام</th></tr></thead>
+          <tbody id="chatsBody"></tbody></table></div>
+        <div class="panel" id="chatView" style="max-height:70vh;overflow:auto;padding:18px">
+          <div class="empty">یک گفتگو را از فهرست انتخاب کنید</div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -218,12 +240,13 @@ function enterApp(){
 }
 function go(page){
   document.querySelectorAll("[data-page]").forEach(a=>a.classList.toggle("active",a.dataset.page===page));
-  ["dashboard","files","settings","users"].forEach(p=>
+  ["dashboard","files","settings","users","chats"].forEach(p=>
     document.getElementById("page-"+p).classList.toggle("hidden",p!==page));
   if(page==="dashboard")loadStats();
   if(page==="files")loadFiles();
   if(page==="settings")loadSettings();
   if(page==="users")loadUsers();
+  if(page==="chats")loadChats();
 }
 
 /* ---- dashboard ---- */
@@ -336,6 +359,50 @@ async function saveSettings(){
     headers:{"Content-Type":"application/json"},body:JSON.stringify({values})});
     toast("تنظیمات ذخیره شد"); }
   catch(e){ toast(e.message,true); }
+}
+
+/* ---- chats (read-only review) ---- */
+let activeChatId=null;
+function chatEsc(t){return String(t==null?"":t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function chatDate(iso){ try{ return new Date(iso).toLocaleString("fa-IR"); }catch(e){ return ""; } }
+async function loadChats(){
+  const qs=new URLSearchParams();
+  const q=(document.getElementById("chatSearch")||{}).value||"";
+  if(q.trim()) qs.set("q",q.trim());
+  if((document.getElementById("chatUnanswered")||{}).checked) qs.set("unanswered","true");
+  try{
+    const list=await api("/api/admin/conversations"+(qs.toString()?"?"+qs:""));
+    const b=document.getElementById("chatsBody");
+    if(!list.length){ b.innerHTML=`<tr><td colspan="2" class="empty">گفتگویی یافت نشد.</td></tr>`; return; }
+    b.innerHTML=list.map(c=>`<tr style="cursor:pointer${activeChatId===c.id?";background:var(--accent-soft)":""}" onclick="openChat(${c.id})">
+      <td><div style="font-weight:600">${chatEsc(c.username)}</div>
+          <div style="font-size:12px;color:var(--muted)">${chatEsc(c.title)}</div>
+          <div style="font-size:11px;color:var(--muted)">${chatDate(c.updated_at)}</div></td>
+      <td>${c.messages}</td></tr>`).join("");
+  }catch(e){ toast(e.message,true); }
+}
+async function openChat(cid){
+  activeChatId=cid;
+  const v=document.getElementById("chatView");
+  v.innerHTML=`<div class="empty">در حال بارگذاری…</div>`;
+  loadChats();
+  try{
+    const d=await api("/api/admin/conversations/"+cid+"/messages");
+    if(!d.messages.length){ v.innerHTML=`<div class="empty">پیامی ندارد.</div>`; return; }
+    v.innerHTML=`<div style="font-weight:700;margin-bottom:4px">${chatEsc(d.title)}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">کاربر: ${chatEsc(d.username)}</div>`
+      + d.messages.map(m=>{
+        const me=m.role==="user";
+        const labels=(m.sources||[]).map(x=>x&&x.label).filter(Boolean);
+        const src=labels.length?`<div style="font-size:11px;color:var(--muted);margin-top:6px">منبع: ${labels.map(chatEsc).join(" · ")}</div>`:"";
+        return `<div style="margin-bottom:12px;display:flex;justify-content:${me?"flex-start":"flex-end"}">
+          <div style="max-width:80%;padding:10px 14px;border-radius:14px;white-space:pre-wrap;line-height:1.9;
+                      background:${me?"var(--accent-soft)":"#faf8f3"};border:1px solid var(--line)">
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">${me?"کاربر":"دستیار"} — ${chatDate(m.created_at)}</div>
+            ${chatEsc(m.content)}${src}
+          </div></div>`;
+      }).join("");
+  }catch(e){ v.innerHTML=`<div class="empty">${chatEsc(e.message)}</div>`; }
 }
 
 /* ---- users ---- */

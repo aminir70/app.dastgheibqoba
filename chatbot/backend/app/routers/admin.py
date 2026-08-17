@@ -3,13 +3,14 @@ import uuid
 from datetime import datetime
 
 from fastapi import (APIRouter, Body, Depends, File, HTTPException, UploadFile)
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..auth import make_admin_token, require_admin
 from ..config import settings
 from ..db import get_db
-from ..models import Chunk, Document, EndUser, UsageLog
+from ..models import (Chunk, Conversation, ConversationMessage, Document,
+                      EndUser, UsageLog)
 from ..schemas import AdminLogin, SettingsUpdate, TokenResponse
 from ..settings_store import get_all_settings, set_setting
 from ..worker import enqueue_ingest
@@ -145,6 +146,75 @@ def set_user_limit(user_id: int, payload: dict = Body(...),
     return {"id": u.id,
             "daily_message_limit": u.daily_message_limit,
             "monthly_token_limit": u.monthly_token_limit}
+
+
+# ---------- conversations (read-only review of user chats) ----------
+@router.get("/conversations")
+def list_conversations(user_id: int | None = None, q: str | None = None,
+                       limit: int = 100, unanswered: bool = False,
+                       _: bool = Depends(require_admin), db: Session = Depends(get_db)):
+    """Conversations newest-first, for reviewing answer quality.
+    Optional filters: a single user, a text search over messages, and
+    'unanswered' to surface chats where the assistant found nothing."""
+    msgs = func.count(ConversationMessage.id)
+    query = (
+        db.query(Conversation, EndUser.username, msgs.label("n"),
+                 func.max(ConversationMessage.created_at).label("last_at"))
+        .outerjoin(EndUser, EndUser.id == Conversation.user_id)
+        .outerjoin(ConversationMessage,
+                   ConversationMessage.conversation_id == Conversation.id)
+        .group_by(Conversation.id, EndUser.username)
+        .order_by(Conversation.updated_at.desc())
+    )
+    if user_id:
+        query = query.filter(Conversation.user_id == user_id)
+    if q:
+        like = f"%{q.strip()}%"
+        inner = (db.query(ConversationMessage.conversation_id)
+                 .filter(ConversationMessage.content.ilike(like)))
+        query = query.filter(Conversation.id.in_(inner))
+    if unanswered:
+        # conversations where the assistant itself reported finding nothing —
+        # the useful list for deciding what sources are still missing
+        refusal = or_(ConversationMessage.content.ilike("%پیدا نشد%"),
+                      ConversationMessage.content.ilike("%یافت نشد%"),
+                      ConversationMessage.content.ilike("%داده نشده%"))
+        inner = (db.query(ConversationMessage.conversation_id)
+                 .filter(ConversationMessage.role == "assistant", refusal))
+        query = query.filter(Conversation.id.in_(inner))
+    rows = query.limit(max(1, min(limit, 500))).all()
+    return [{
+        "id": c.id,
+        "title": c.title or "گفتگو",
+        "username": username or "—",
+        "user_id": c.user_id,
+        "messages": int(n or 0),
+        "updated_at": (last_at or c.updated_at).isoformat(),
+    } for c, username, n, last_at in rows]
+
+
+@router.get("/conversations/{cid}/messages")
+def conversation_messages(cid: int, _: bool = Depends(require_admin),
+                          db: Session = Depends(get_db)):
+    conv = db.query(Conversation).get(cid)
+    if not conv:
+        raise HTTPException(status_code=404, detail="گفتگو یافت نشد.")
+    rows = (db.query(ConversationMessage)
+            .filter_by(conversation_id=cid)
+            .order_by(ConversationMessage.created_at.asc(),
+                      ConversationMessage.id.asc()).all())
+    user = db.query(EndUser).get(conv.user_id) if conv.user_id else None
+    return {
+        "id": conv.id,
+        "title": conv.title or "گفتگو",
+        "username": user.username if user else "—",
+        "messages": [{
+            "role": r.role,
+            "content": r.content,
+            "sources": r.sources,
+            "created_at": r.created_at.isoformat(),
+        } for r in rows],
+    }
 
 
 # ---------- usage / stats ----------
