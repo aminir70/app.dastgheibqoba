@@ -311,19 +311,20 @@ def retrieve(db: Session, query: str):
     return final, primary_ids, emb_tokens
 
 
-def _lookback_label(db: Session, chunk):
-    """Find the nearest 'مسأله N'-style heading at or before this chunk in the
-    document, by scanning a few preceding chunks."""
-    prev_chunks = (
-        db.query(Chunk)
-        .filter(Chunk.document_id == chunk.document_id, Chunk.id < chunk.id)
-        .order_by(Chunk.id.desc()).limit(8).all()
-    )
-    for pc in prev_chunks:
-        labels = extract_labels(pc.content)
-        if labels:
-            return labels[-1]
-    return None
+_OWN_LABEL_RE = re.compile(r"^\s*(مساله|ماده)\s*([0-9]{1,5})")
+
+
+def own_label(content: str):
+    """The ruling number a chunk *starts* with, or None.
+
+    Deliberately strict. The previous version fell back to the nearest earlier
+    ruling when a chunk had no number of its own, which mis-attributed every
+    unnumbered section intro ("شرط اول: آنکه سفر او کمتر از هشت فرسخ نباشد")
+    to the preceding ruling — the answer was right but the citation was wrong.
+    A cross-reference inside the body is ignored too, since only the opening
+    number identifies the chunk."""
+    m = _OWN_LABEL_RE.match(normalize_fa(content or ""))
+    return f"{m.group(1)} {m.group(2)}" if m else None
 
 
 def format_sources(db: Session, chunks, primary_ids=None):
@@ -338,9 +339,9 @@ def format_sources(db: Session, chunks, primary_ids=None):
     context_parts, entries = [], []
     for idx, (chunk, fname) in enumerate(chunks, start=1):
         loc = f" (صفحه {chunk.page})" if chunk.page else ""
-        context_parts.append(f"[{idx}] منبع: {fname}{loc}\n{chunk.content}")
-        own = extract_labels(chunk.content)
-        label = own[0] if own else _lookback_label(db, chunk)
+        note = "" if own_label(chunk.content) else "  (این بخش شماره‌ی مسأله ندارد)"
+        context_parts.append(f"[{idx}] منبع: {fname}{loc}{note}\n{chunk.content}")
+        label = own_label(chunk.content)
         entries.append({
             "idx": idx,
             "filename": fname,

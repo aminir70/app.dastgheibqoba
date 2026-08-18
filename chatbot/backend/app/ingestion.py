@@ -202,7 +202,11 @@ def chunk_text(text: str, page, max_tokens: int, overlap: int):
     """Structure-aware chunking: split on 'مساله N' / 'ماده N' headings so each
     ruling stays whole (heading + all its clauses in one chunk), then window any
     oversized segment. Falls back to plain token windows for text that has no
-    such headings (intros, tables of contents, etc.)."""
+    such headings (intros, tables of contents, etc.).
+
+    When a long ruling must be windowed, every window repeats its heading line,
+    so each chunk carries the number of the ruling it belongs to and can never
+    be attributed to a neighbouring one."""
     step = max(1, max_tokens - overlap)
     segments = [s for s in _STRUCT_SPLIT.split(text) if s.strip()]
     if len(segments) <= 1:
@@ -215,8 +219,16 @@ def chunk_text(text: str, page, max_tokens: int, overlap: int):
         toks = _enc.encode(seg)
         if len(toks) <= max_tokens:
             chunks.append((seg, page, len(toks)))
-        else:
-            _window(toks, page, max_tokens, step, chunks)
+            continue
+        head = seg.split("\n", 1)[0].strip()
+        carry = head if _STRUCT_SPLIT.match(head + "\n") else ""
+        parts = []
+        _window(toks, page, max_tokens, step, parts)
+        for i, (body, pg, n) in enumerate(parts):
+            if i and carry and not body.startswith(carry):
+                body = f"{carry} (ادامه)\n{body}"
+                n = len(_enc.encode(body))
+            chunks.append((body, pg, n))
     return chunks
 
 
