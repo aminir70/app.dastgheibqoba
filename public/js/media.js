@@ -541,6 +541,9 @@ async function loadVideoCategories(parentId, parentName) {
     if(backBtn) backBtn.style.display = _videoNavStack.length > 0 ? '' : 'none';
     if(titleEl) titleEl.textContent = parentName || 'گالری ویدیو';
     if(hdr) { if(_videoNavStack.length > 0 || parentName) { hdr.classList.remove('hidden'); hdr.classList.add('flex'); } else { hdr.classList.add('hidden'); hdr.classList.remove('flex'); } }
+    // بنر ریلز فقط در صفحهٔ اصلی ویدیو (سطح ریشه)
+    const _reelsBanner = document.getElementById('video-reels-banner');
+    if(_reelsBanner) _reelsBanner.classList.toggle('hidden', _videoNavStack.length > 0);
 
     try {
         const url = parentId != null ? `/api/videos/categories?parent_id=${parentId}` : '/api/videos/categories';
@@ -609,6 +612,8 @@ async function loadVideoList(categoryId, title, count) {
     const list = document.getElementById('video-items-list');
 
     if(catsView) catsView.classList.add('hidden');
+    const _reelsBannerHide = document.getElementById('video-reels-banner');
+    if(_reelsBannerHide) _reelsBannerHide.classList.add('hidden');
     if(playerView) playerView.classList.add('hidden');
     if(listView) { listView.classList.remove('hidden'); listView.classList.add('flex'); }
     const _vCatsHdr = document.getElementById('video-cats-header');
@@ -747,6 +752,148 @@ function backToVideoList() {
     const playerView = document.getElementById('video-player-view');
     if(playerView) { playerView.classList.add('hidden'); playerView.classList.remove('flex'); document.getElementById('video-aparat-iframe').src = ''; }
     if(listView) { listView.classList.remove('hidden'); listView.classList.add('flex'); }
+}
+
+// ====================================================
+// نمای ریلز ویدیو — اسکرول عمودی تمام‌صفحه مثل اینستاگرام
+// همهٔ داده‌های DB قبل از درج escape می‌شوند و src ایفریم از safeUrl رد
+// می‌شود؛ ایفریم هم با createElement ساخته می‌شود نه با رشتهٔ HTML.
+// ====================================================
+let _reelsObserver = null;
+
+// جمع‌آوری همهٔ ویدیوها با پیمایش دسته‌ها و زیردسته‌ها
+async function _fetchAllVideos() {
+    const out = [], seen = new Set();
+    async function walk(parentId) {
+        const url = parentId != null ? `/api/videos/categories?parent_id=${encodeURIComponent(parentId)}` : '/api/videos/categories';
+        let cats = [];
+        try { cats = await fetch(url).then(r => r.json()); } catch(e) {}
+        if (!Array.isArray(cats)) return;
+        for (const c of cats) {
+            if (c.sub_count > 0) await walk(c.id);
+            try {
+                const items = await fetch(`/api/videos/categories/${encodeURIComponent(c.id)}/items`).then(r => r.json());
+                if (Array.isArray(items)) items.forEach(v => { if (!seen.has(v.id)) { seen.add(v.id); out.push(v); } });
+            } catch(e) {}
+        }
+    }
+    await walk(null);
+    return out;
+}
+
+// ریلز همهٔ ویدیوها (از ابتدای صفحهٔ ویدیو)
+let _reelsLoading = false;
+async function openAllVideoReels() {
+    if (_reelsLoading) return;
+    _reelsLoading = true;
+    if (typeof showToast === 'function') showToast('در حال بارگذاری ویدیوها…');
+    let items = [];
+    try { items = await _fetchAllVideos(); } catch(e) {}
+    _reelsLoading = false;
+    if (!Array.isArray(items) || !items.length) { if (typeof showToast === 'function') showToast('ویدیویی برای نمایش نیست', false); return; }
+    _renderReels(items, 'ریلز ویدیوها');
+}
+
+// ریلز ویدیوهای دستهٔ جاری
+function openVideoReels() {
+    const items = (typeof videoCachedItems !== 'undefined' && Array.isArray(videoCachedItems)) ? videoCachedItems : [];
+    if (!items.length) { if (typeof showToast === 'function') showToast('ویدیویی برای نمایش نیست', false); return; }
+    const catTitle = document.getElementById('video-cat-title');
+    _renderReels(items, catTitle ? catTitle.textContent : 'ریلز');
+}
+
+function _renderReels(items, title, startId) {
+    const screen = document.getElementById('video-reels-screen');
+    const container = document.getElementById('reels-container');
+    if (!screen || !container) return;
+    const titleEl = document.getElementById('reels-title');
+    if (titleEl) titleEl.textContent = title || 'ریلز';
+    items = items.slice();
+    if (startId != null) {
+        // شروع از ویدیوی انتخاب‌شده (بدون شافل)
+        const idx = items.findIndex(v => v.id === startId);
+        if (idx > 0) { const sel = items.splice(idx, 1)[0]; items.unshift(sel); }
+    } else {
+        // نمایش تصادفی (روی کپی تا ترتیب لیست عادی دست‌نخورده بماند)
+        for (let k = items.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); const t = items[k]; items[k] = items[j]; items[j] = t; }
+    }
+    container.innerHTML = items.map((v, i) => {
+        const thumb = safeUrl(v.thumbnail || v._catCover || '');
+        const poster = thumb ? `<img src="${thumb}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';
+        const embed = safeUrl(v.embed_url || '');
+        const dateStr = v.publish_date ? `<p class="text-white/60 text-[11px] mt-1">${escHtml(toFa(v.publish_date))}</p>` : '';
+        // عمودی → cover (پر صفحه)، افقی → contain (واید) — بر اساس فلگ ادمین
+        const mountCls = (v.vertical == 1 || v.vertical === '1' || v.vertical === true) ? 'cover' : 'contain';
+        return `<div class="reels-slide snap-start snap-always relative w-full bg-black overflow-hidden" style="height:100%" data-idx="${i}" data-embed="${embed}">
+            <div class="reels-mount ${mountCls} absolute inset-0 overflow-hidden"></div>
+            <div class="reels-poster absolute inset-0 flex items-center justify-center bg-black cursor-pointer">
+                ${poster}
+                <div class="relative w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/40 shadow-lg"><i class="fas fa-play text-white text-xl mr-[-2px]"></i></div>
+            </div>
+            <div class="absolute bottom-0 inset-x-0 p-4 pb-10 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
+                <h3 class="text-white font-bold text-sm leading-snug line-clamp-2">${escHtml(v.title || '')}</h3>
+                ${dateStr}
+            </div>
+        </div>`;
+    }).join('');
+    screen.classList.remove('hidden'); screen.classList.add('flex');
+    container.scrollTop = 0;
+    container.querySelectorAll('.reels-slide').forEach(slide => {
+        slide.addEventListener('click', () => _reelsMount(slide, true));
+    });
+    _reelsSetupObserver(container);
+    const first = container.querySelector('.reels-slide');
+    if (first) _reelsMount(first, false);
+}
+
+function _reelsMount(slide, autoplay) {
+    if (!slide || slide.dataset.mounted === '1') return;
+    const mount = slide.querySelector('.reels-mount');
+    const poster = slide.querySelector('.reels-poster');
+    if (!mount) return;
+    let src = safeUrl(slide.dataset.embed || '');
+    if (!src) return;
+    if (autoplay && /aparat\.com/.test(src) && !/[?&]autoplay/i.test(src)) {
+        src += (src.indexOf('?') >= 0 ? '&' : '?') + 'autoplay=true';
+    }
+    // ساخت المان به‌جای رشتهٔ HTML تا آدرس هیچ‌وقت به‌عنوان markup تفسیر نشود
+    const ifr = document.createElement('iframe');
+    ifr.src = src;
+    ifr.setAttribute('allow', 'autoplay; fullscreen');
+    ifr.setAttribute('allowfullscreen', '');
+    ifr.setAttribute('scrolling', 'no');
+    mount.replaceChildren(ifr);
+    if (poster) poster.style.display = 'none';
+    slide.dataset.mounted = '1';
+}
+
+function _reelsUnmount(slide) {
+    if (!slide || slide.dataset.mounted !== '1') return;
+    const mount = slide.querySelector('.reels-mount');
+    const poster = slide.querySelector('.reels-poster');
+    if (mount) mount.replaceChildren();
+    if (poster) poster.style.display = '';
+    slide.dataset.mounted = '0';
+}
+
+function _reelsSetupObserver(container) {
+    if (_reelsObserver) { try { _reelsObserver.disconnect(); } catch(e) {} }
+    if (typeof IntersectionObserver === 'undefined') return;
+    _reelsObserver = new IntersectionObserver((entries) => {
+        entries.forEach(en => {
+            if (en.isIntersecting && en.intersectionRatio >= 0.6) _reelsMount(en.target, true);
+            else if (en.intersectionRatio < 0.2) _reelsUnmount(en.target);
+        });
+    }, { root: container, threshold: [0, 0.2, 0.6, 0.9] });
+    container.querySelectorAll('.reels-slide').forEach(s => _reelsObserver.observe(s));
+}
+
+function closeVideoReels() {
+    const screen = document.getElementById('video-reels-screen');
+    const container = document.getElementById('reels-container');
+    if (_reelsObserver) { try { _reelsObserver.disconnect(); } catch(e) {} _reelsObserver = null; }
+    if (container) container.innerHTML = '';
+    if (screen) { screen.classList.add('hidden'); screen.classList.remove('flex'); }
 }
 
 // ====================================================

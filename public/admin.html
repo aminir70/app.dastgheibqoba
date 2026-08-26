@@ -439,6 +439,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
           <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات (اختیاری)</label><textarea id="vitem-desc" rows="2" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm resize-none" placeholder="توضیح کوتاه درباره ویدیو"></textarea></div>
 
           <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار (اختیاری)</label><div class="flex gap-2"><input type="text" id="vitem-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" onclick="openJalaliPicker(document.getElementById('vitem-publish-date'))" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم"><i class="fas fa-calendar-alt"></i></button></div></div>
+          <label class="flex items-center gap-2 cursor-pointer bg-rose-50 border border-rose-200 p-3 rounded-xl"><input type="checkbox" id="vitem-vertical" class="w-4 h-4 accent-rose-500"><span class="text-xs font-bold text-rose-700">ویدیوی عمودی (استوری) — برای نمایش تمام‌صفحه در ریلز</span></label>
           <button type="submit" id="btn-add-vitem" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-plus"></i>افزودن ویدیو</button>
         </form>
       </div>
@@ -465,6 +466,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
           </div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات</label><textarea id="edit-vitem-desc" rows="2" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm resize-none"></textarea></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار</label><div class="flex gap-2"><input type="text" id="edit-vitem-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" onclick="openJalaliPicker(document.getElementById('edit-vitem-publish-date'))" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم"><i class="fas fa-calendar-alt"></i></button></div></div>
+          <label class="flex items-center gap-2 cursor-pointer bg-rose-50 border border-rose-200 p-3 rounded-xl"><input type="checkbox" id="edit-vitem-vertical" class="w-4 h-4 accent-rose-500"><span class="text-xs font-bold text-rose-700">ویدیوی عمودی (استوری)</span></label>
           <button type="submit" id="btn-save-vitem" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-save"></i>ذخیره تغییرات</button>
         </form>
       </div>
@@ -3878,6 +3880,7 @@ async function addVideoItem(e){
   else if(thumbUrl) fd.append('thumbnail_url',thumbUrl);
   const publishDate=document.getElementById('vitem-publish-date').value;
   if(publishDate) fd.append('publish_date',publishDate);
+  fd.append('vertical',document.getElementById('vitem-vertical').checked?'1':'0');
   const btn=document.getElementById('btn-add-vitem');
   btn.innerHTML='<i class="fas fa-spinner fa-spin ml-2"></i>در حال افزودن...'; btn.disabled=true;
   try{
@@ -3957,6 +3960,7 @@ async function openEditVideoItem(id,catId){
       document.getElementById('edit-vitem-title').value=v.title||'';
       document.getElementById('edit-vitem-desc').value=v.description||'';
       document.getElementById('edit-vitem-publish-date').value=v.publish_date||'';
+      document.getElementById('edit-vitem-vertical').checked=(v.vertical==1||v.vertical===true);
     }
   }catch(e){}
   const m=document.getElementById('edit-video-item-modal');
@@ -3977,6 +3981,7 @@ async function saveEditVideoItem(e){
   else if(thumbUrl) fd.append('thumb_url',thumbUrl);
   const publishDate=document.getElementById('edit-vitem-publish-date').value;
   if(publishDate) fd.append('publish_date',publishDate);
+  fd.append('vertical',document.getElementById('edit-vitem-vertical').checked?'1':'0');
   const btn=document.getElementById('btn-save-vitem');
   btn.innerHTML='<i class="fas fa-spinner fa-spin ml-2"></i>ذخیره...';btn.disabled=true;
   try{

@@ -290,7 +290,15 @@
                         <h3 class="text-sm font-black text-gray-800">آخرین تصاویر</h3>
                         <button onclick="navToScreen('media');setTimeout(()=>switchMediaTab('photo'),80)" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">مشاهده همه</button>
                     </div>
-                    <div id="home-latest-images" class="grid grid-cols-4 gap-2 px-4"></div>
+                    <div id="home-latest-images" class="flex overflow-x-auto hide-scrollbar gap-2 px-4 pb-2 snap-x"></div>
+                </div>
+                <!-- STORY — ویدیوهای عمودی به سبک استوری -->
+                <div id="home-story-section" class="mb-4 hidden">
+                    <div class="flex items-center justify-between px-6 mb-3">
+                        <h3 class="text-sm font-black text-gray-800"><i class="fas fa-circle-play text-rose-500 ml-1"></i>استوری</h3>
+                        <button onclick="openHomeStoriesAll()" class="text-[10px] font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded-full">مشاهده همه</button>
+                    </div>
+                    <div id="home-story-strip" class="flex overflow-x-auto hide-scrollbar gap-3 px-4 pb-2 snap-x"></div>
                 </div>
                 <!-- BANNERS position: after_images -->
                 <div id="home-banner-after_images" class="mb-4 flex flex-col gap-3"></div>
@@ -468,6 +476,14 @@
                         <button id="video-cats-back-btn" onclick="backToVideoCategories()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                         <h2 id="video-cats-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری ویدیو</h2>
                       </div>
+                      <button id="video-reels-banner" onclick="openAllVideoReels()" class="hidden w-full mb-1 bg-gradient-to-l from-rose-500 to-pink-600 text-white rounded-2xl p-3.5 flex items-center gap-3 shadow-md active:scale-[0.98] transition">
+                        <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-film text-xl"></i></div>
+                        <div class="flex-1 text-right min-w-0">
+                          <h3 class="font-black text-sm">ریلز ویدیوها</h3>
+                          <p class="text-[11px] text-white/80 mt-0.5">همهٔ ویدیوها را مثل استوری ببینید</p>
+                        </div>
+                        <i class="fas fa-chevron-left text-white/70"></i>
+                      </button>
                       <div id="video-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
                     </div>
 
@@ -476,6 +492,7 @@
                         <div class="flex items-center gap-2 mb-1 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
                             <button onclick="backToVideoCategories()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                             <h2 id="video-cat-title" class="font-bold text-sm text-gray-800 truncate flex-1">ویدیوها</h2>
+                            <button onclick="openVideoReels()" id="video-reels-btn" class="text-[10px] bg-rose-50 text-rose-500 px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 shrink-0 hover:bg-rose-100 transition"><i class="fas fa-film text-[9px]"></i>ریلز</button>
                             <div class="relative shrink-0">
                                 <button id="video-sort-btn" onclick="toggleVideoSortDropdown()" class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1.5 rounded-lg font-bold flex items-center gap-1"><i class="fas fa-sort-amount-down text-[9px]"></i><span id="video-sort-label">ترتیب</span></button>
                                 <div id="video-sort-dropdown" class="hidden absolute top-9 left-0 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 py-1 min-w-[110px]">
@@ -1518,6 +1535,26 @@
 </div>
 
 <!-- ===== صفحه تقویم ===== -->
+<!-- نمای ریلز ویدیو (اسکرول عمودی تمام‌صفحه) -->
+<style>
+  #reels-container{scrollbar-width:none;-ms-overflow-style:none;}
+  #reels-container::-webkit-scrollbar{display:none;}
+  .reels-mount{position:absolute;inset:0;overflow:hidden;}
+  .reels-mount iframe{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border:none;}
+  /* عمودی/استوری: پر کردن کامل صفحه بدون نوار سیاه */
+  .reels-mount.cover iframe{width:100vw;height:56.25vw;min-height:100%;min-width:177.78vh;}
+  /* افقی/واید: نمایش ۱۶:۹ وسط‌چین (نوار بالا و پایین) */
+  .reels-mount.contain iframe{width:100%;height:56.25vw;max-height:100%;}
+</style>
+<div id="video-reels-screen" class="fixed inset-0 bg-black z-[320] flex-col hidden" dir="rtl">
+  <div class="absolute top-0 inset-x-0 z-20 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
+    <button onclick="closeVideoReels()" class="pointer-events-auto w-9 h-9 flex items-center justify-center bg-white/15 backdrop-blur-sm rounded-full text-white shrink-0"><i class="fas fa-arrow-right text-sm"></i></button>
+    <h2 id="reels-title" class="font-bold text-sm text-white flex-1 text-center truncate" style="text-shadow:0 1px 3px rgba(0,0,0,.6)">ریلز</h2>
+    <div class="w-9 shrink-0"></div>
+  </div>
+  <div id="reels-container" class="flex-1 overflow-y-scroll snap-y snap-mandatory"></div>
+</div>
+
 <div id="calendar-screen" class="fixed inset-0 bg-gray-50 z-[300] flex-col hidden" dir="rtl">
   <!-- هدر -->
   <div class="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">
