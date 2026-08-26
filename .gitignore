@@ -1,6 +1,10 @@
 node_modules/
 .env
 *.sqlite
+# فایل‌های جانبی WAL (از وقتی journal_mode=WAL فعال شد)
+*.sqlite-wal
+*.sqlite-shm
+tmp/
 books/*.db
 books/*.sqlite
 public/covers/*.jpg
@@ -17,3 +21,8 @@ book_app_extracted/
 book_app_v2.zip
 npm-debug.log
 .DS_Store
+
+# Python (چت‌بات)
+__pycache__/
+*.py[cod]
+chatbot/.env

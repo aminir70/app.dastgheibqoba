@@ -1,13 +1,57 @@
 // ====================================================
-// بررسی Tailwind هنگام لود
+// Escape برای درج امن داده در HTML
+// هر داده‌ای که از سرور/کاربر می‌آید و با innerHTML درج می‌شود
+// باید از اینجا رد شود. escAttr برای مقدار داخل "..." است.
+// ====================================================
+function escHtml(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+// URL امن برای href/src — فقط http(s) یا مسیر داخلی
+function safeUrl(v) {
+    const u = String(v == null ? '' : v).trim().replace(/[\u0000-\u0020]/g, '');
+    if (!u) return '';
+    if (/^https?:\/\//i.test(u)) return escHtml(u);
+    if (u.charAt(0) === '/' && u.charAt(1) !== '/') return escHtml(u);
+    return '';
+}
+// درج امن یک رشته به‌عنوان آرگومان JS داخل attribute (مثل onclick="f(...)")
+// بدون کوتیشن اضافه استفاده شود:  onclick="f(${jsArg(v)})"
+function jsArg(v) {
+    return escHtml(JSON.stringify(v == null ? '' : String(v)));
+}
+window.escHtml = escHtml;
+window.safeUrl = safeUrl;
+window.jsArg = jsArg;
+
+// ====================================================
+// بررسی بارگذاری استایل‌ها هنگام لود
+//
+// قبلاً `typeof tailwind === 'undefined'` بررسی می‌شد؛ ولی Tailwind از CDN
+// حذف شده و به CSS از پیش کامپایل‌شده تبدیل شده، پس آن global هیچ‌وقت وجود
+// ندارد و پیام «خطا در بارگذاری» همیشه نمایش داده می‌شد. حالا خودِ CSS بررسی
+// می‌شود و فقط وقتی splash هنوز روی صفحه است پیام داده می‌شود.
 // ====================================================
 window.addEventListener('load', () => {
-    if (typeof tailwind === 'undefined') {
-        const txt = document.getElementById('loading-text');
-        const spn = document.getElementById('loading-spinner');
-        if (txt) txt.innerHTML = '<span style="color:#ef4444;font-size:16px;">❌ خطا در بارگذاری</span><br><br>لطفاً صفحه را رفرش کنید.';
-        if (spn) spn.style.display = 'none';
-    }
+    const splash = document.getElementById('loading-screen');
+    if (!splash || splash.classList.contains('hidden') || splash.style.display === 'none' || splash.style.opacity === '0') return;
+    // اگر tailwind.dist.css لود شده باشد، کلاس‌های utility اثر دارند
+    const probe = document.createElement('div');
+    probe.className = 'hidden';
+    probe.style.position = 'absolute';
+    document.body.appendChild(probe);
+    const cssLoaded = getComputedStyle(probe).display === 'none';
+    probe.remove();
+    if (cssLoaded) return;
+    const txt = document.getElementById('loading-text');
+    const spn = document.getElementById('loading-spinner');
+    if (txt) txt.innerHTML = '<span style="color:#ef4444;font-size:16px;">❌ خطا در بارگذاری</span><br><br>لطفاً صفحه را رفرش کنید.';
+    if (spn) spn.style.display = 'none';
 });
 
 // ====================================================

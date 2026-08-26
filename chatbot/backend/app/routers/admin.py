@@ -1,3 +1,4 @@
+import hmac
 import os
 import uuid
 from datetime import datetime
@@ -22,7 +23,10 @@ ALLOWED_EXT = {".pdf", ".docx", ".png", ".jpg", ".jpeg", ".webp", ".tiff", ".bmp
 
 @router.post("/login", response_model=TokenResponse)
 def login(payload: AdminLogin):
-    if payload.password != settings.ADMIN_PASSWORD:
+    # مقایسه‌ی constant-time تا طول/محتوای رمز از روی زمان پاسخ لو نرود.
+    # روی bytes انجام می‌شود چون compare_digest برای str غیر-ASCII خطا می‌دهد.
+    if not hmac.compare_digest(payload.password.encode("utf-8"),
+                               settings.ADMIN_PASSWORD.encode("utf-8")):
         raise HTTPException(status_code=401, detail="رمز عبور اشتباه است.")
     return TokenResponse(token=make_admin_token())
 

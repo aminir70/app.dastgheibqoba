@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -47,8 +48,13 @@ def get_ruling(number: int, user: EndUser = Depends(get_current_user),
 
 
 MIN_USERNAME = 3
+MAX_USERNAME = 40
 MIN_PASSWORD = 6
 HISTORY_TURNS = 6          # recent messages passed to the model as context
+
+# نام کاربری در پنل ادمین نمایش داده می‌شود؛ اجازه‌ی نویسه‌های HTML داده نشود
+# (بدون این محدودیت می‌شد با ثبت‌نام، اسکریپت را در پنل مدیر ذخیره کرد).
+_USERNAME_RE = re.compile(r"^[\w.\-@ آ-ی\u200c]+$", re.UNICODE)
 
 
 # ---------------- auth ----------------
@@ -57,6 +63,10 @@ def register(payload: UserCredentials, db: Session = Depends(get_db)):
     username = payload.username.strip()
     if len(username) < MIN_USERNAME:
         raise HTTPException(status_code=400, detail="نام کاربری حداقل ۳ نویسه باشد.")
+    if len(username) > MAX_USERNAME:
+        raise HTTPException(status_code=400, detail="نام کاربری حداکثر ۴۰ نویسه باشد.")
+    if not _USERNAME_RE.match(username):
+        raise HTTPException(status_code=400, detail="نام کاربری فقط می‌تواند شامل حرف، رقم و . - _ @ باشد.")
     if len(payload.password) < MIN_PASSWORD:
         raise HTTPException(status_code=400, detail="رمز عبور حداقل ۶ نویسه باشد.")
     if db.query(EndUser).filter_by(username=username).first():

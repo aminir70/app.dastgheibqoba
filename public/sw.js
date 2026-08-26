@@ -41,21 +41,21 @@ self.addEventListener('install', event => {
   );
 });
 
-// Activate: کش‌های قدیمی را پاک کن، کنترل را بگیر، و همه صفحات را reload کن
+// Activate: کش‌های قدیمی را پاک کن و کنترل را بگیر.
+// صفحات باز فقط وقتی reload می‌شوند که واقعاً نسخه قبلی SW وجود داشته باشد؛
+// در نصب اولیه (بازدید اول) reload لازم نیست و باعث می‌شد کاربر جدید بلافاصله
+// یک بار صفحه‌اش دوباره بارگذاری شود.
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(key => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
-            .map(key => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
-      .then(clients => Promise.all(
-        // وقتی SW جدید فعال می‌شود، همه صفحات باز را reload کن تا JS جدید بارگذاری شود
-        clients.map(client => client.navigate(client.url).catch(() => {}))
-      ))
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    const stale = keys.filter(key => key !== STATIC_CACHE && key !== DYNAMIC_CACHE);
+    await Promise.all(stale.map(key => caches.delete(key)));
+    const isUpgrade = stale.length > 0;
+    await self.clients.claim();
+    if (!isUpgrade) return;
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(clientList.map(client => client.navigate(client.url).catch(() => {})));
+  })());
 });
 
 // پیام skipWaiting از اپ برای فعال‌سازی فوری SW جدید

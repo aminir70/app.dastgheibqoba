@@ -782,6 +782,7 @@ async function mainRegister() {
 
 function authLogout() {
     qaUser = null; qaTickets = [];
+    stopNotifPolling();
     localStorage.removeItem('qa_user');
     updateAuthScreenUI(); updateQAUserUI();
     showToast('از حساب خارج شدید');
@@ -800,15 +801,30 @@ function userAuthHeaders(extra) {
 }
 function _onAuthFailure() {
     qaUser = null;
+    stopNotifPolling();
     try { localStorage.removeItem('qa_user'); } catch(e) {}
     try { updateAuthScreenUI(); updateQAUserUI(); } catch(e) {}
 }
 let _notifPollingInterval = null;
+// پیمایش اعلان‌ها: قبلاً هر ۵ ثانیه بود — یعنی ۷۲۰ درخواست در ساعت برای هر
+// کاربر لاگین‌شده (و هر کدام یک JOIN + GROUP BY). ۶۰ ثانیه کافی است و وقتی
+// تب در پس‌زمینه است اصلاً درخواستی فرستاده نمی‌شود.
+const NOTIF_POLL_MS = 60000;
 function startNotifPolling() {
     if (_notifPollingInterval) return;
     loadNotifications();
-    _notifPollingInterval = setInterval(loadNotifications, 5000);
+    _notifPollingInterval = setInterval(() => {
+        if (document.visibilityState === 'hidden') return;
+        loadNotifications();
+    }, NOTIF_POLL_MS);
 }
+function stopNotifPolling() {
+    if (_notifPollingInterval) { clearInterval(_notifPollingInterval); _notifPollingInterval = null; }
+}
+// برگشتن به تب → یک بار فوری به‌روزرسانی کن تا تاخیر حس نشود
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && _notifPollingInterval) loadNotifications();
+});
 let qaTickets = [];
 
 function showQAAuth() {
@@ -1083,21 +1099,21 @@ async function renderQATickets() {
             const s = statusMap[t.status] || statusMap.open;
             const date = toFa(new Date(t.updated_at).toLocaleDateString('fa-IR'));
             const canEdit = t.status === 'open';
-            const subjectEsc = t.subject.replace(/'/g,"\\'").replace(/`/g,'\\`');
-            const firstMsgEsc = (t.first_message||'').replace(/'/g,"\\'").replace(/`/g,'\\`');
-            return `<div onclick="openQAConversation(${t.id},'${subjectEsc}')" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition">
+            const subjArg = jsArg(t.subject);
+            const firstMsgArg = jsArg(t.first_message || '');
+            return `<div onclick="openQAConversation(${t.id},${subjArg})" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition">
                 <div class="flex items-start justify-between mb-2">
-                    <h4 class="font-bold text-sm text-gray-800 flex-1 ml-2">${t.subject}</h4>
+                    <h4 class="font-bold text-sm text-gray-800 flex-1 ml-2">${escHtml(t.subject)}</h4>
                     <span class="text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${s.cls}">${s.text}</span>
                 </div>
-                ${t.category_name ? `<span class="inline-block text-[10px] bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full mb-2">${t.category_name}</span>` : ''}
-                <p class="text-xs text-gray-500 mb-3 line-clamp-2">${t.first_message || ''}</p>
+                ${t.category_name ? `<span class="inline-block text-[10px] bg-brand-50 text-brand-600 px-2 py-0.5 rounded-full mb-2">${escHtml(t.category_name)}</span>` : ''}
+                <p class="text-xs text-gray-500 mb-3 line-clamp-2">${escHtml(t.first_message || '')}</p>
                 <div class="flex items-center justify-between text-[10px] text-gray-400">
                     <span><i class="far fa-calendar ml-1"></i>${date}</span>
                     <div class="flex items-center gap-2">
-                        ${t.tracking_code ? `<span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">${t.tracking_code}</span>` : ''}
-                        <button onclick="copyQATicket('${subjectEsc}','${firstMsgEsc}',event)" class="text-gray-400 hover:text-gray-600 px-1" title="کپی سوال"><i class="fas fa-copy text-[10px]"></i></button>
-                        ${canEdit ? `<button onclick="editQATicket(${t.id},'${subjectEsc}','${firstMsgEsc}',event)" class="text-blue-400 hover:text-blue-600 px-1"><i class="fas fa-pen text-[10px]"></i></button>` : ''}
+                        ${t.tracking_code ? `<span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">${escHtml(t.tracking_code)}</span>` : ''}
+                        <button onclick="copyQATicket(${subjArg},${firstMsgArg},event)" class="text-gray-400 hover:text-gray-600 px-1" title="کپی سوال"><i class="fas fa-copy text-[10px]"></i></button>
+                        ${canEdit ? `<button onclick="editQATicket(${t.id},${subjArg},${firstMsgArg},event)" class="text-blue-400 hover:text-blue-600 px-1"><i class="fas fa-pen text-[10px]"></i></button>` : ''}
                         ${canEdit ? `<button onclick="deleteQATicket(${t.id},event)" class="text-red-400 hover:text-red-600 px-1"><i class="fas fa-trash text-[10px]"></i></button>` : ''}
                     </div>
                 </div>
@@ -1256,13 +1272,14 @@ function renderMsgBubble(msg) {
     const timeStr = msg.created_at ? toFa(new Date(msg.created_at).toLocaleString('fa-IR')) : '';
     const editedStr = msg.edited_at ? ' (ویرایش شده)' : '';
     let attachHtml = '';
-    if (msg.attachment) {
+    const attUrl = safeUrl(msg.attachment);
+    if (attUrl) {
         if (msg.attachment_type === 'image') {
-            attachHtml = `<a href="${msg.attachment}" target="_blank"><img src="${msg.attachment}" class="rounded-xl max-h-48 w-auto mt-2 cursor-pointer" loading="lazy"></a>`;
+            attachHtml = `<a href="${attUrl}" target="_blank"><img src="${attUrl}" class="rounded-xl max-h-48 w-auto mt-2 cursor-pointer" loading="lazy"></a>`;
         } else if (msg.attachment_type === 'pdf') {
-            attachHtml = `<a href="${msg.attachment}" target="_blank" class="flex items-center gap-2 mt-2 bg-red-50 border border-red-100 px-3 py-2 rounded-xl text-xs text-red-600 font-bold hover:bg-red-100 transition"><i class="fas fa-file-pdf text-base"></i>مشاهده PDF</a>`;
+            attachHtml = `<a href="${attUrl}" target="_blank" class="flex items-center gap-2 mt-2 bg-red-50 border border-red-100 px-3 py-2 rounded-xl text-xs text-red-600 font-bold hover:bg-red-100 transition"><i class="fas fa-file-pdf text-base"></i>مشاهده PDF</a>`;
         } else if (msg.attachment_type === 'audio') {
-            attachHtml = `<audio controls class="mt-2 w-full h-8" src="${msg.attachment}"></audio>`;
+            attachHtml = `<audio controls class="mt-2 w-full h-8" src="${attUrl}"></audio>`;
         }
     }
     // دکمه پاسخ روی همه پیام‌ها؛ دکمه ویرایش فقط روی پیام‌های متنیِ خودِ کاربر
@@ -1272,7 +1289,7 @@ function renderMsgBubble(msg) {
         <div style="max-width:82%;word-break:break-word;overflow-wrap:break-word;" class="${isAdmin ? 'bg-brand-50 border border-brand-100 text-brand-900' : 'bg-white border border-gray-200 text-gray-800'} px-4 py-3 rounded-2xl shadow-sm">
             ${isAdmin ? `<div class="text-[10px] font-black text-brand-600 mb-1.5"><i class="fas fa-user-shield ml-1"></i>پاسخ ادمین</div>` : ''}
             ${_renderReplyQuote(msg)}
-            ${msg.text ? `<p class="text-sm leading-relaxed whitespace-pre-wrap">${msg.text}</p>` : ''}
+            ${msg.text ? `<p class="text-sm leading-relaxed whitespace-pre-wrap">${escHtml(msg.text)}</p>` : ''}
             ${attachHtml}
             <div class="flex items-center gap-0.5 mt-1.5">
                 ${timeStr ? `<span class="text-[9px] text-gray-400">${timeStr}${editedStr}</span>` : ''}
@@ -1336,8 +1353,8 @@ async function loadQAConversationMessages(ticketId) {
 
     try {
         const [ticketRes, msgsRes] = await Promise.all([
-            fetch('/api/tickets/' + ticketId),
-            fetch('/api/tickets/' + ticketId + '/messages')
+            fetch('/api/tickets/' + ticketId, { headers: userAuthHeaders() }),
+            fetch('/api/tickets/' + ticketId + '/messages', { headers: userAuthHeaders() })
         ]);
 
         let ticket = null, msgs = null;
@@ -1677,7 +1694,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     setupSwipe();
     // Analytics ping: یک بار در ابتدا، سپس هر ۲ دقیقه
     setTimeout(_analyticsPing, 2000);
-    setInterval(_analyticsPing, 120000);
+    setInterval(() => { if (document.visibilityState !== 'hidden') _analyticsPing(); }, 120000);
 
     // ──────────────────────────────────────────────
     // مدیریت انتخاب متن (بدون منوی native مرورگر)

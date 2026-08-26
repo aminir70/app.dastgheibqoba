@@ -17,11 +17,29 @@ async function getMusicMeta() {
 }
 let webpush; try { webpush = require('web-push'); } catch(e) { webpush = null; }
 
-// VAPID keys (stored in env or defaults generated once)
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BAL3iRBxoSa5U16TRyhqQubEAb97VXAkF0jU0iKh2rX7MX4cIYXK2qTFiBMSHL59F3lUWCYtaAvtnruUwDmgSbE';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'Y2NG_PXSMfMXfxbZ_UGX4lW7sWASyOuALHbL4QSYg4E';
+// VAPID keys — باید از env بیایند. کلید ثابت داخل سورس یعنی هر کسی که به مخزن
+// دسترسی دارد می‌تواند برای همه مشترکین push بفرستد؛ به همین دلیل fallback حذف شد.
+// اگر تنظیم نشده باشد، یک جفت کلید موقت ساخته می‌شود (با هر restart عوض می‌شود
+// و اشتراک‌های قبلی باطل می‌شوند) تا deployer متوجه شود باید مقدار بدهد.
+let VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
+let VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+let PUSH_ENABLED = false;
 if (webpush) {
-    webpush.setVapidDetails('mailto:admin@localhost', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+        try {
+            const gen = webpush.generateVAPIDKeys();
+            VAPID_PUBLIC_KEY = gen.publicKey; VAPID_PRIVATE_KEY = gen.privateKey;
+            console.error('⚠️  VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY تنظیم نشده — کلید موقت ساخته شد.');
+            console.error('   برای پایدار شدن اعلان‌ها این مقادیر را در .env بگذارید:');
+            console.error('   VAPID_PUBLIC_KEY=' + VAPID_PUBLIC_KEY);
+            console.error('   VAPID_PRIVATE_KEY=' + VAPID_PRIVATE_KEY);
+        } catch(e) { console.error('VAPID keygen failed:', e.message); }
+    }
+    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+        const contact = process.env.VAPID_CONTACT || 'mailto:admin@dastgheibqoba.info';
+        try { webpush.setVapidDetails(contact, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY); PUSH_ENABLED = true; }
+        catch(e) { console.error('VAPID setup failed:', e.message); }
+    }
 }
 
 let rateLimit, helmet, compression, jwt, cookieParser;
@@ -59,16 +77,20 @@ const JWT_ADMIN_TTL = '24h';
 
 // Digital Asset Links — قبل از هر middleware تا هیچ‌چیزی بلاکش نکنه
 app.get('/.well-known/assetlinks.json', (req, res) => {
-    const fp = path.join(__dirname, 'public', '.well-known', 'assetlinks.json');
-    try {
-        const c = fs.readFileSync(fp, 'utf8');
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Cache-Control', 'no-cache');
-        return res.end(c);
-    } catch(e) {
-        res.setHeader('Content-Type', 'application/json');
-        return res.end('[]');
-    }
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-cache');
+    const sendFromDisk = () => {
+        try {
+            return res.end(fs.readFileSync(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'), 'utf8'));
+        } catch(e) { return res.end('[]'); }
+    };
+    // پنل ادمین مقدار را در settings ذخیره می‌کند؛ قبلاً فقط از دیسک خوانده می‌شد
+    // و ذخیره‌های ادمین هیچ اثری نداشتند.
+    if (!mainDb) return sendFromDisk();
+    mainDb.get(`SELECT value FROM settings WHERE key='assetlinks'`, [], (err, row) => {
+        if (row && row.value && row.value.trim()) return res.end(row.value);
+        sendFromDisk();
+    });
 });
 
 // ---------------------------------------------------------------
@@ -77,6 +99,25 @@ app.get('/.well-known/assetlinks.json', (req, res) => {
 // دست‌نخورده و بدون بافر عبور کنند.
 // ---------------------------------------------------------------
 const CHATBOT_URL = process.env.CHATBOT_URL || 'http://127.0.0.1:8000';
+// این پروکسی قبل از rate limiter های عمومی سوار می‌شود، پس مسیرهای احراز هویت
+// چت‌بات (ورود ادمین و ثبت‌نام/ورود کاربر) هیچ محدودیتی نداشتند و brute-force
+// روی آن‌ها آزاد بود. اینجا یک limiter مخصوص همان مسیرها اضافه می‌شود.
+let chatbotAuthLimiter = (req, res, next) => next();
+if (rateLimit) {
+    chatbotAuthLimiter = rateLimit({
+        windowMs: 15*60*1000, max: 20,
+        standardHeaders: true, legacyHeaders: false,
+        skipSuccessfulRequests: true,
+        validate: { xForwardedForHeader: false },
+        message: { detail: 'تعداد تلاش بیش از حد است. کمی بعد دوباره تلاش کنید.' }
+    });
+}
+app.use('/chatbot', (req, res, next) => {
+    if (/^\/api\/(admin\/login|auth\/(login|register))\b/.test(req.path)) return chatbotAuthLimiter(req, res, next);
+    next();
+});
+// هدرهای hop-by-hop نباید بین کلاینت و سرویس بالادست منتقل شوند
+const HOP_BY_HOP = ['connection','keep-alive','proxy-authenticate','proxy-authorization','te','trailer','transfer-encoding','upgrade'];
 app.use('/chatbot', (req, res) => {
     let target;
     try { target = new URL(CHATBOT_URL); } catch(e) { return res.status(502).json({error:'chatbot url invalid'}); }
@@ -84,6 +125,7 @@ app.use('/chatbot', (req, res) => {
     const fwdHeaders = Object.assign({}, req.headers);
     delete fwdHeaders['host'];
     delete fwdHeaders['accept-encoding']; // پاسخ بدون فشرده‌سازی تا استریم سالم بماند
+    HOP_BY_HOP.forEach(h => delete fwdHeaders[h]);
     const proxyReq = lib.request({
         hostname: target.hostname,
         port: target.port || (target.protocol === 'https:' ? 443 : 80),
@@ -93,6 +135,7 @@ app.use('/chatbot', (req, res) => {
         timeout: 300000,
     }, (proxyRes) => {
         const headers = Object.assign({}, proxyRes.headers);
+        HOP_BY_HOP.forEach(h => delete headers[h]);   // Node خودش chunking را مدیریت می‌کند
         // جلوگیری از فشرده‌سازی/بافر شدن SSE توسط compression و nginx
         if ((headers['content-type'] || '').includes('text/event-stream')) {
             headers['cache-control'] = 'no-cache, no-transform';
@@ -125,6 +168,34 @@ if (helmet) {
         frameguard: { action: 'sameorigin' },
     }));
 }
+// Content-Security-Policy
+// helmet CSP خاموش است چون اپ پر از onclick/onchange درون‌خطی است و
+// script-src سخت‌گیرانه آن را می‌شکند. ولی حتی همین سیاست نسبتاً باز هم
+// چند راه واقعی سوءاستفاده را می‌بندد: بارگذاری اسکریپت از دامنه بیگانه،
+// تزریق <base>، و پلاگین‌های <object>/<embed>.
+// برای عیب‌یابی می‌توان با CSP_DISABLED=1 موقتاً خاموشش کرد.
+const CSP_VALUE = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
+    "worker-src 'self' blob:",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https:",
+    "frame-src 'self' https:"
+].join('; ');
+if (process.env.CSP_DISABLED !== '1') {
+    app.use((req, res, next) => {
+        if (!res.getHeader('Content-Security-Policy')) res.setHeader('Content-Security-Policy', CSP_VALUE);
+        next();
+    });
+}
+
 // فول‌بک اگر helmet نصب نباشد
 app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -136,18 +207,32 @@ app.use((req, res, next) => {
 });
 
 // CORS — same-origin پیش‌فرض؛ cross-origin فقط با لیست صریح ALLOWED_ORIGINS
+//
+// دو نکته مهم که قبلاً باگ‌ساز بودند:
+//  ۱) مرورگر برای فونت‌های @font-face و برای fetch های POST هدر Origin می‌فرستد
+//     حتی وقتی درخواست هم‌origin است. چون فقط «نبودن Origin» هم‌origin حساب
+//     می‌شد، اگر ALLOWED_ORIGINS دقیقاً با origin سایت یکی نبود، همه فونت‌ها و
+//     همه POST ها 403 می‌گرفتند. حالا Origin با Host خودِ درخواست مقایسه می‌شود.
+//  ۲) برگرداندن Error باعث می‌شد کل درخواست 403 شود. رفتار درست CORS این است
+//     که فقط هدرها گذاشته نشوند و مرورگر خودش جلوی خواندن پاسخ را بگیرد.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(s=>s.trim()).filter(Boolean);
-app.use(cors({
-    origin: (origin, cb) => {
-        // درخواست‌های هم‌origin (بدون Origin header) همیشه مجاز
-        if (!origin) return cb(null, true);
-        if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-        // بدون لیست صریح، cross-origin پذیرفته نمی‌شود
-        return cb(new Error('CORS: origin not allowed'));
-    },
-    credentials: true,
-    methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-    allowedHeaders: ['Content-Type','Authorization']
+function _isSameOrigin(origin, req) {
+    if (!origin) return true;                       // بدون Origin = هم‌origin
+    try {
+        const o = new URL(origin);
+        const host = req.headers['x-forwarded-host'] || req.headers.host || '';
+        return o.host.toLowerCase() === String(host).toLowerCase();
+    } catch(e) { return false; }
+}
+app.use(cors((req, cb) => {
+    const origin = req.headers.origin;
+    const allowed = _isSameOrigin(origin, req) || ALLOWED_ORIGINS.includes(origin);
+    cb(null, {
+        origin: allowed ? (origin || true) : false,
+        credentials: true,
+        methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+        allowedHeaders: ['Content-Type','Authorization']
+    });
 }));
 if (cookieParser) app.use(cookieParser());
 
@@ -233,6 +318,11 @@ const mainDbPath = path.resolve(__dirname, 'library.sqlite');
 const mainDb = new sqlite3.Database(mainDbPath, (err) => {
     if (err) { console.error('DB Error:', err.message); return; }
     console.log('✅ دیتابیس آماده است.');
+    // WAL: خواننده‌ها دیگر پشت نویسنده بلاک نمی‌شوند (مهم‌ترین برد سرعت در SQLite)
+    mainDb.run('PRAGMA journal_mode = WAL');
+    mainDb.run('PRAGMA synchronous = NORMAL');
+    mainDb.run('PRAGMA busy_timeout = 5000');
+    mainDb.run('PRAGMA foreign_keys = ON');
     initDb();
     // تاخیر کوچک تا اطمینان از اتمام initDb و قابل دسترس بودن جدول settings
     mainDb.serialize(() => { ensureJwtSecret(); });
@@ -475,7 +565,11 @@ const upload = multer({ storage, limits:{fileSize:200*1024*1024, files:10}, file
 const uploadTicketFile = multer({ storage, limits:{fileSize:5*1024*1024, files:1}, fileFilter: _makeFilter(['image','pdf','audio']) });
 function genTrackingCode() {
     const d = new Date().toISOString().slice(0,10).replace(/-/g,'');
-    const r = Math.random().toString(36).substr(2,5).toUpperCase();
+    // کد رهگیری نباید قابل حدس باشد → crypto به جای Math.random
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // بدون کاراکترهای مبهم
+    const bytes = crypto.randomBytes(6);
+    let r = '';
+    for (let i = 0; i < 6; i++) r += alphabet[bytes[i] % alphabet.length];
     return `Q${d}-${r}`;
 }
 
@@ -522,24 +616,68 @@ function unlinkPublicFile(rel) {
     if (full !== base && !full.startsWith(base + path.sep)) return; // outside public/
     try { if (fs.existsSync(full)) fs.unlinkSync(full); } catch(e) {}
 }
-// sanitize رشته ورودی: حذف tag های خطرناک و event handlerها
+// ---------------------------------------------------------------------------
+// Sanitizers
+//
+// san()     — برای محتوای rich (ویرایشگر ادمین). تگ‌های اجرایی و event handler
+//             را حذف می‌کند ولی HTML قالب‌بندی را نگه می‌دارد.
+// sanText() — برای فیلدهای متن ساده (عنوان، نام کاربری، متن تیکت و ...).
+//             هر چیزی شبیه تگ را حذف می‌کند تا هیچ HTML ای به DOM نرسد.
+//
+// نکته: san() یک blacklist است و blacklist هیچ‌وقت کامل نیست؛ بنابراین سمت
+// کلاینت هم باید escape شود. برای هر فیلدی که HTML لازم ندارد از sanText
+// استفاده کنید.
+// ---------------------------------------------------------------------------
+const _DANGEROUS_TAGS = 'script|style|iframe|object|embed|link|meta|base|form|svg|math|template|noscript|frame|frameset|applet';
 function san(s){
     if (typeof s !== 'string') return s;
+    let out = s;
+    // تا وقتی چیزی حذف می‌شود تکرار کن — جلوی ترفند تگ تودرتو
+    // (مثل «<scr<script>ipt>») را می‌گیرد.
+    for (let i = 0; i < 6; i++) {
+        const before = out;
+        out = out
+            .replace(new RegExp(`<(${_DANGEROUS_TAGS})\\b[\\s\\S]*?<\\/\\1\\s*>`, 'gi'), '')
+            .replace(new RegExp(`<\\/?(${_DANGEROUS_TAGS})\\b[^>]*>?`, 'gi'), '')
+            // event handler — جداکننده می‌تواند فاصله یا / باشد: <svg/onload=…>
+            .replace(/[\s\/]on[a-z]+\s*=\s*"[^"]*"/gi, ' ')
+            .replace(/[\s\/]on[a-z]+\s*=\s*'[^']*'/gi, ' ')
+            .replace(/[\s\/]on[a-z]+\s*=\s*[^\s>]+/gi, ' ')
+            // پروتکل‌های اجرایی — با احتساب کاراکترهای کنترلی/entity در وسط
+            .replace(/j[\s\u0000-\u0020]*a[\s\u0000-\u0020]*v[\s\u0000-\u0020]*a[\s\u0000-\u0020]*s[\s\u0000-\u0020]*c[\s\u0000-\u0020]*r[\s\u0000-\u0020]*i[\s\u0000-\u0020]*p[\s\u0000-\u0020]*t[\s\u0000-\u0020]*:/gi, '')
+            .replace(/vbscript[\s\u0000-\u0020]*:/gi, '')
+            .replace(/data[\s\u0000-\u0020]*:[^,;]*?(text\/html|image\/svg)/gi, '')
+            .replace(/&#(x0*6a|0*106);?/gi, '');  // «j» به صورت entity در javascript:
+        if (out === before) break;
+    }
+    return out.trim();
+}
+// فیلدهای URL: فقط http/https یا مسیر داخلی (جلوی javascript:/data: را می‌گیرد)
+function sanUrl(u){
+    if (typeof u !== 'string') return '';
+    const v = u.trim().replace(/[\u0000-\u0020]/g, '');
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v)) return v.slice(0, 500);
+    if (v.startsWith('/') && !v.startsWith('//')) return v.slice(0, 500);   // مسیر داخلی
+    return '';
+}
+// فیلدهای متن ساده: هیچ HTML ای مجاز نیست
+function sanText(s){
+    if (typeof s !== 'string') return s;
     return s
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
-        .replace(/<object[\s\S]*?<\/object>/gi, '')
-        .replace(/<embed[\s\S]*?>/gi, '')
-        .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
-        .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '')
-        .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, '')
-        .replace(/javascript\s*:/gi, '')
-        .replace(/data\s*:\s*text\/html/gi, '')
-        .replace(/vbscript\s*:/gi, '')
+        .replace(/<[^>]*>?/g, '')   // هر تگ (حتی ناقص) حذف شود
+        .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '')
         .trim();
 }
 
+// پیام خطا برای کلاینت: در production جزئیات داخلی (مثل متن خطای SQLite،
+// نام ستون/جدول یا مسیر فایل) نباید بیرون برود.
+const _IS_PROD = process.env.NODE_ENV === 'production';
+function failMsg(err, fallback) {
+    const generic = fallback || 'خطای داخلی سرور';
+    if (_IS_PROD) return generic;
+    return (err && err.message) ? String(err.message) : generic;
+}
 // DB helper
 function findBestTable(bookDb) {
     return new Promise(resolve=>{
@@ -574,15 +712,16 @@ function countPages(p){
 
 // === API BOOKS ===
 app.get('/api/books',(req,res)=>{
+    res.set('Cache-Control','public, max-age=120');
     mainDb.all('SELECT id,title,author,description,cover,page_count,sort_order,created_at,book_type,pdf_filename FROM books ORDER BY sort_order ASC, created_at DESC',[],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows);
     });
 });
 app.get('/api/books/:id',(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     mainDb.get('SELECT * FROM books WHERE id=?',[id],(err,b)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         if(!b) return res.status(404).json({error:'کتاب یافت نشد'});
         res.json(b);
     });
@@ -604,7 +743,9 @@ app.get('/api/books/:id/pages',(req,res)=>{
                 for(const pc of['r','page','id','_id','rowid']){const i=cnl.indexOf(pc);if(i!==-1){oc=cn[i];break;}}
                 const q=oc?`SELECT * FROM "${tbl}" ORDER BY "${oc}" ASC`:`SELECT * FROM "${tbl}"`;
                 bDb.all(q,[],(err,rows)=>{
-                    bDb.close();if(err) return res.status(500).json({error:err.message});
+                    bDb.close();if(err) return res.status(500).json({error:failMsg(err)});
+                    // محتوای کتاب تغییر نمی‌کند؛ پاسخ می‌تواند بزرگ باشد → کش شود
+                    res.set('Cache-Control','public, max-age=3600');
                     const norm=rows.map((r,idx)=>{
                         const ks=Object.keys(r);
                         const gv=ns=>{for(const k of ks){if(ns.includes(k.toLowerCase().trim())){let v=r[k];if(Buffer.isBuffer(v))v=v.toString('utf8');return v;}}return null;};
@@ -689,9 +830,16 @@ app.get('/api/search', searchLimiter, async (req, res) => {
 
     const PER_BOOK = 3;
     const MAX_PAGES = 50;
+    // بودجه زمانی: هر کتاب یک فایل SQLite جدا است و LIKE '%…%' یعنی full scan.
+    // بدون سقف، یک درخواست جستجو می‌تواند ده‌ها فایل را پشت سر هم اسکن کند و
+    // thread pool دیتابیس را قفل کند (DoS ارزان‌قیمت).
+    const SEARCH_BUDGET_MS = 3000;
+    const startedAt = Date.now();
+    let timedOut = false;
 
     for (const book of allB) {
         if (result.pages.length >= MAX_PAGES) break;
+        if (Date.now() - startedAt > SEARCH_BUDGET_MS) { timedOut = true; break; }
         if (!book.db_filename) continue;
         const dbp = path.resolve(__dirname, 'books', path.basename(book.db_filename));
         if (!fs.existsSync(dbp)) continue;
@@ -746,13 +894,15 @@ app.get('/api/search', searchLimiter, async (req, res) => {
         });
     }
 
-    res.json(result);
+    // partial=true یعنی نتایج کامل نیست (بودجه زمانی تمام شد)
+    res.json(timedOut ? Object.assign(result, { partial: true }) : result);
 });
 
 // === API SETTINGS (PUBLIC) ===
 app.get('/api/settings',(req,res)=>{
+    res.set('Cache-Control','public, max-age=60');
     mainDb.all('SELECT key,value FROM settings',[],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         const s={};rows.forEach(r=>s[r.key]=r.value);res.json(s);
     });
 });
@@ -826,7 +976,11 @@ async function _proxyFetch(url, res, redirectCount) {
                 const base = new URL(url);
                 loc = new URL(loc, base).href;
             }
-            // _proxyFetch خودش hostname مقصد جدید را اعتبارسنجی می‌کند
+            // redirect هم باید داخل allowlist بماند (وگرنه redirect راه فرار است)
+            try {
+                const lh = new URL(loc).hostname;
+                if (!_proxyHostAllowed(lh)) return res.status(403).send('Host not allowed');
+            } catch(e) { return res.status(400).send('Invalid redirect'); }
             return _proxyFetch(loc, res, redirectCount + 1);
         }
         const headers = {...proxyRes.headers};
@@ -869,10 +1023,22 @@ async function _proxyFetch(url, res, redirectCount) {
     proxyReq.on('timeout', () => { proxyReq.destroy(); if (!res.headersSent) res.status(504).send('Timeout'); });
     proxyReq.end();
 }
+// دامنه‌های مجاز برای پروکسی — پیش‌فرض خالی یعنی پروکسی غیرفعال است.
+// بدون allowlist این endpoint یک open proxy است: هر کسی می‌تواند محتوای دلخواه
+// را از origin خودِ سایت سرو کند (فیشینگ/XSS روی دامنه خودمان + مصرف پهنای باند).
+const PROXY_ALLOWED_HOSTS = (process.env.PROXY_ALLOWED_HOSTS || '')
+    .split(',').map(h => h.trim().toLowerCase()).filter(Boolean);
+function _proxyHostAllowed(hostname) {
+    const h = String(hostname || '').toLowerCase();
+    return PROXY_ALLOWED_HOSTS.some(a => h === a || h.endsWith('.' + a));
+}
 app.get('/api/proxy', proxyLimiter, (req, res) => {
     const url = req.query.url;
     if (!url || typeof url !== 'string' || url.length > 2048) return res.status(400).send('Invalid URL');
     if (!/^https?:\/\/.+/i.test(url)) return res.status(400).send('Invalid URL');
+    if (!PROXY_ALLOWED_HOSTS.length) return res.status(403).send('Proxy disabled');
+    let parsed; try { parsed = new URL(url); } catch(e) { return res.status(400).send('Invalid URL'); }
+    if (!_proxyHostAllowed(parsed.hostname)) return res.status(403).send('Host not allowed');
     try { _proxyFetch(url, res, 0); } catch(e) { res.status(500).send('Server error'); }
 });
 
@@ -890,9 +1056,13 @@ function _wpCacheGet(key) {
     return { body: e.body, stale: Date.now() - e.t > WP_CACHE_TTL_MS };
 }
 function _wpCacheSet(key, body) {
-    if (_wpCache.size >= WP_CACHE_MAX_ENTRIES) {
-        const first = _wpCache.keys().next().value;
-        if (first) _wpCache.delete(first);
+    // delete قبل از set تا کلید تازه‌شده به انتهای ترتیب درج برود؛
+    // بدون آن، حذفِ «قدیمی‌ترین» پرتکرارترین کلید را بیرون می‌انداخت.
+    _wpCache.delete(key);
+    while (_wpCache.size >= WP_CACHE_MAX_ENTRIES) {
+        const oldest = _wpCache.keys().next().value;
+        if (oldest === undefined) break;
+        _wpCache.delete(oldest);
     }
     _wpCache.set(key, { body, t: Date.now() });
 }
@@ -958,7 +1128,7 @@ app.get('/api/wp', (req, res) => {
             res.setHeader('X-WP-Cache', 'STALE');
             return res.end(cacheEntry.body);
         }
-        res.status(502).json({error: e.message});
+        res.status(502).json({error:failMsg(e)});
     });
     pr.on('timeout', () => {
         pr.destroy();
@@ -1013,13 +1183,13 @@ app.get('/api/news-sliders',(req,res)=>{
 
 // === API AUTH ===
 app.post('/api/auth/register',(req,res)=>{
-    const u=san(req.body.username),p=req.body.password;
+    const u=sanText(req.body.username),p=req.body.password;
     if(!u||!p) return res.status(400).json({error:'نام کاربری و رمز عبور الزامی است'});
     if(u.length<3) return res.status(400).json({error:'نام کاربری حداقل ۳ کاراکتر باشد'});
     if(p.length<6) return res.status(400).json({error:'رمز عبور حداقل ۶ کاراکتر باشد'});
     const hash = bcrypt.hashSync(p, 12);
     mainDb.run('INSERT INTO users (username,password) VALUES (?,?)',[u,hash],function(err){
-        if(err){if(err.message.includes('UNIQUE')) return res.status(400).json({error:'این نام کاربری قبلاً ثبت شده'});return res.status(500).json({error:err.message});}
+        if(err){if(err.message.includes('UNIQUE')) return res.status(400).json({error:'این نام کاربری قبلاً ثبت شده'});return res.status(500).json({error:failMsg(err)});}
         const uid=this.lastID;
         // Auto-assign existing broadcast notifications to new user (single batched insert)
         mainDb.run(
@@ -1032,10 +1202,10 @@ app.post('/api/auth/register',(req,res)=>{
     });
 });
 app.post('/api/auth/login',(req,res)=>{
-    const u=san(req.body.username),p=req.body.password;
+    const u=sanText(req.body.username),p=req.body.password;
     if(!u||!p) return res.status(400).json({error:'نام کاربری و رمز عبور را وارد کنید'});
     mainDb.get('SELECT id,username,password FROM users WHERE username=?',[u],(err,row)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         if(!row) return res.status(401).json({error:'نام کاربری یا رمز عبور اشتباه است'});
         // Support both hashed and plaintext (migration)
         let valid = false;
@@ -1052,16 +1222,17 @@ app.get('/api/qa/messages',userAuth,(req,res)=>{
     mainDb.all('SELECT * FROM messages WHERE user_id=? ORDER BY created_at ASC',[req.userId],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/qa/messages',userAuth,(req,res)=>{
-    const t=san(req.body.text);
+    const t=sanText(req.body.text);
     if(!t||!t.trim()) return res.status(400).json({error:'متن پیام خالی است'});
     mainDb.run('INSERT INTO messages (user_id,text,sender_type) VALUES (?,?,"user")',[req.userId,t.trim()],function(err){
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json({success:true,id:this.lastID});
     });
 });
 
 // === API TICKETS ===
 app.get('/api/ticket-categories',(req,res)=>{
+    res.set('Cache-Control','public, max-age=300');
     mainDb.all('SELECT id,name FROM ticket_categories WHERE active=1 ORDER BY sort_order,id',[],(_,rows)=>res.json(rows||[]));
 });
 app.get('/api/tickets',userAuth,(req,res)=>{
@@ -1071,13 +1242,13 @@ app.get('/api/tickets',userAuth,(req,res)=>{
          FROM tickets t LEFT JOIN ticket_categories tc ON tc.id=t.category_id
          WHERE t.user_id=? ORDER BY t.updated_at DESC`,
         [req.userId],(err,rows)=>{
-            if(err) return res.status(500).json({error:err.message});
+            if(err) return res.status(500).json({error:failMsg(err)});
             res.json(rows||[]);
         }
     );
 });
 app.post('/api/tickets',userAuth,uploadTicketFile.single('ticket_file'),(req,res)=>{
-    const s=san(req.body.subject),m=san(req.body.message);
+    const s=sanText(req.body.subject),m=sanText(req.body.message);
     if(!s||!m) return res.status(400).json({error:'موضوع و پیام الزامی است'});
     const catId=req.body.category_id?+req.body.category_id:null;
     // Daily limit: max 5 tickets per day
@@ -1090,7 +1261,7 @@ app.post('/api/tickets',userAuth,uploadTicketFile.single('ticket_file'),(req,res
                 const uname=user?user.username:'کاربر';
                 mainDb.run('INSERT INTO tickets (username,subject,user_id,category_id,tracking_code) VALUES (?,?,?,?,?)',[uname,s,req.userId,catId,tracking_code],function(err2){
                     if(err2&&err2.message.includes('UNIQUE')&&tries++<3) return tryInsert();
-                    if(err2) return res.status(500).json({error:err2.message});
+                    if(err2) return res.status(500).json({error:failMsg(err2)});
                     const tid=this.lastID;
                     const att=req.file?('/ticket-files/'+req.file.filename):null;
                     const attType=req.file?_detectAttachmentType(req.file):null;
@@ -1126,15 +1297,26 @@ function _validateReplyTo(replyTo,ticketId,cb){
 // ویرایش تیکت توسط کاربر (فقط اگه ادمین هنوز جواب نداده)
 app.put('/api/tickets/:id',userAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const s=san(req.body.subject),m=san(req.body.message);
+    const s=sanText(req.body.subject),m=sanText(req.body.message);
     if(!s||!m) return res.status(400).json({error:'موضوع و متن الزامی است'});
     mainDb.get('SELECT id FROM tickets WHERE id=? AND user_id=?',[id,req.userId],(err,t)=>{
         if(!t) return res.status(404).json({error:'تیکت یافت نشد'});
         mainDb.get('SELECT id FROM ticket_messages WHERE ticket_id=? AND sender_type="admin" LIMIT 1',[id],(err2,adminReply)=>{
             if(adminReply) return res.status(403).json({error:'پس از پاسخ ادمین ویرایش امکان‌پذیر نیست'});
             mainDb.run('UPDATE tickets SET subject=?,updated_at=CURRENT_TIMESTAMP WHERE id=?',[s,id],()=>{
-                mainDb.run('UPDATE ticket_messages SET text=? WHERE ticket_id=? AND sender_type="user" ORDER BY created_at ASC, id ASC LIMIT 1',[m,id],
-                    ()=>res.json({success:true}));
+                // node-sqlite3 با SQLITE_ENABLE_UPDATE_DELETE_LIMIT کامپایل نشده،
+                // پس ORDER BY/LIMIT در UPDATE خطای syntax می‌داد و متن هیچ‌وقت
+                // به‌روز نمی‌شد. با subquery روی اولین پیامِ کاربر انجام می‌شود.
+                mainDb.run(
+                    `UPDATE ticket_messages SET text=? WHERE id = (
+                        SELECT id FROM ticket_messages
+                        WHERE ticket_id=? AND sender_type='user'
+                        ORDER BY created_at ASC, id ASC LIMIT 1)`,
+                    [m,id],
+                    (e3)=>{
+                        if(e3) return res.status(500).json({error:'خطا در ویرایش پیام'});
+                        res.json({success:true});
+                    });
             });
         });
     });
@@ -1155,7 +1337,7 @@ app.delete('/api/tickets/:id',userAuth,(req,res)=>{
 // ارسال پیام اضافه در تیکت توسط کاربر
 app.post('/api/tickets/:id/messages',userAuth,uploadTicketFile.single('ticket_file'),(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const t=san(req.body.text)||'';
+    const t=sanText(req.body.text)||'';
     const att=req.file?('/ticket-files/'+req.file.filename):null;
     const attType=req.file?_detectAttachmentType(req.file):null;
     let replyTo=_parseReplyTo(req.body.reply_to);
@@ -1170,7 +1352,7 @@ app.post('/api/tickets/:id/messages',userAuth,uploadTicketFile.single('ticket_fi
             // reply_to باید به پیامی در همین تیکت اشاره کند، وگرنه نادیده گرفته می‌شود
             _validateReplyTo(replyTo,id,(validReplyTo)=>{
                 mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,attachment,attachment_type,reply_to) VALUES (?,?,"user",?,?,?)',[id,t.trim(),att,attType,validReplyTo],function(err3){
-                    if(err3) return res.status(500).json({error:err3.message});
+                    if(err3) return res.status(500).json({error:failMsg(err3)});
                     // اگر ادمین قبلاً پاسخ داده بود، وضعیت را به «پاسخ کاربر» ببر تا
                     // پیام جدید کاربر در پنل گم نشود. تیکت تازه (open) باز می‌ماند.
                     const newStatus = ticket.status==='open' ? 'open' : 'user_replied';
@@ -1184,31 +1366,36 @@ app.post('/api/tickets/:id/messages',userAuth,uploadTicketFile.single('ticket_fi
 // ویرایش پیام کاربر توسط خودش (فقط پیام‌های خودِ کاربر و تیکت بازِ متعلق به او)
 app.put('/api/tickets/messages/:msgId',userAuth,(req,res)=>{
     const msgId=+req.params.msgId;if(isNaN(msgId)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const t=san(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن الزامی است'});
+    const t=sanText(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن الزامی است'});
     mainDb.get(`SELECT tm.id FROM ticket_messages tm JOIN tickets t ON t.id=tm.ticket_id
                 WHERE tm.id=? AND tm.sender_type='user' AND t.user_id=? AND t.status!='closed'`,[msgId,req.userId],(err,row)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         if(!row) return res.status(404).json({error:'پیام یافت نشد یا قابل ویرایش نیست'});
         mainDb.run('UPDATE ticket_messages SET text=?,edited_at=CURRENT_TIMESTAMP WHERE id=?',[t.trim(),msgId],function(e){
-            if(e) return res.status(500).json({error:e.message});
+            if(e) return res.status(500).json({error:failMsg(e)});
             res.json({success:true});
         });
     });
 });
-// دریافت پیام‌های یک تیکت (عمومی - برای کاربر)
-app.get('/api/tickets/:id/messages',(req,res)=>{
+// دریافت پیام‌های یک تیکت — فقط صاحب تیکت (جلوگیری از IDOR).
+// قبلاً بدون احراز هویت بود و با شمردن id می‌شد پیام‌های بقیه را خواند.
+app.get('/api/tickets/:id/messages',userAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    mainDb.all(`SELECT m.id,m.text,m.sender_type,m.created_at,m.attachment,m.attachment_type,m.edited_at,m.reply_to,
-                r.text as reply_text, r.sender_type as reply_sender, r.attachment_type as reply_attachment_type
-                FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
-                WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
-        res.json(rows||[]);
+    mainDb.get('SELECT id FROM tickets WHERE id=? AND user_id=?',[id,req.userId],(err,own)=>{
+        if(err) return res.status(500).json({error:'خطای داخلی'});
+        if(!own) return res.status(404).json({error:'تیکت یافت نشد'});
+        mainDb.all(`SELECT m.id,m.text,m.sender_type,m.created_at,m.attachment,m.attachment_type,m.edited_at,m.reply_to,
+                    r.text as reply_text, r.sender_type as reply_sender, r.attachment_type as reply_attachment_type
+                    FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
+                    WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err2,rows)=>{
+            if(err2) return res.status(500).json({error:'خطای داخلی'});
+            res.json(rows||[]);
+        });
     });
 });
-app.get('/api/tickets/:id',(req,res)=>{
+app.get('/api/tickets/:id',userAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    mainDb.get('SELECT t.id,t.subject,t.status,t.updated_at,t.tracking_code,tc.name as category_name FROM tickets t LEFT JOIN ticket_categories tc ON tc.id=t.category_id WHERE t.id=?',[id],(err,row)=>{
+    mainDb.get('SELECT t.id,t.subject,t.status,t.updated_at,t.tracking_code,tc.name as category_name FROM tickets t LEFT JOIN ticket_categories tc ON tc.id=t.category_id WHERE t.id=? AND t.user_id=?',[id,req.userId],(err,row)=>{
         if(err||!row) return res.status(404).json({error:'یافت نشد'});
         res.json(row);
     });
@@ -1226,13 +1413,14 @@ function _getClientIp(req) {
     if (xfwd) return xfwd.split(',')[0].trim();
     return (req.connection?.remoteAddress || req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
 }
-function _isPrivateIp(ip) {
+// نام مجزا از _isPrivateIp (نگهبان SSRF) — تعریف هم‌نام قبلاً آن را بازنویسی می‌کرد
+function _isPrivateClientIp(ip) {
     if (!ip || ip === '::1' || ip === '127.0.0.1') return true;
-    return /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(ip);
+    return _isPrivateIp(ip);
 }
 // Fire-and-forget country lookup (only on new visitor)
 function _lookupCountry(ip, visitor_id) {
-    if (_isPrivateIp(ip)) return;
+    if (_isPrivateClientIp(ip)) return;
     try {
         const http = require('http');
         const req = http.get(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=country,countryCode`, { timeout: 2500 }, (r) => {
@@ -1306,7 +1494,7 @@ app.get('/api/admin/analytics', adminAuth, (req, res) => {
 // === NOTIFICATIONS PUBLIC (broadcast - no login needed) ===
 app.get('/api/notifications/public',(req,res)=>{
     mainDb.all(`SELECT id, title, message, type, created_at FROM notifications WHERE type='broadcast' ORDER BY created_at DESC LIMIT 20`,[],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows||[]);
     });
 });
@@ -1323,7 +1511,7 @@ app.get('/api/notifications',userAuth,(req,res)=>{
         GROUP BY n.id
         ORDER BY n.created_at DESC LIMIT 50
     `,[req.userId],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows||[]);
     });
 });
@@ -1374,7 +1562,7 @@ app.get('/api/admin/auth-check', adminAuth, (req, res) => res.json({ ok: true })
 
 app.post('/api/admin/books',adminAuth,upload.fields([{name:'database',maxCount:1},{name:'pdf_file',maxCount:1},{name:'cover',maxCount:1}]),async(req,res)=>{
     try{
-        const t=san(req.body.title),a=san(req.body.author),d=san(req.body.description);
+        const t=sanText(req.body.title),a=sanText(req.body.author),d=sanText(req.body.description);
         const bookType=req.body.book_type==='pdf'?'pdf':'db';
         console.log('[books] upload start - type:',bookType,'files:',Object.keys(req.files||{}));
         if(!t) return res.status(400).json({error:'عنوان الزامی است'});
@@ -1388,7 +1576,7 @@ app.post('/api/admin/books',adminAuth,upload.fields([{name:'database',maxCount:1
                 if(!pf) return res.status(400).json({error:'فایل PDF الزامی است'});
                 console.log('[books] pdf file saved:',pf.filename,'size:',pf.size);
                 mainDb.run('INSERT INTO books (title,author,description,cover,db_filename,page_count,book_type,pdf_filename,sort_order) VALUES (?,?,?,?,?,?,?,?,?)',[t,a||'',d||'',cp,'',0,'pdf',pf.filename,nextOrder],function(err){
-                    if(err){console.error('[books] db insert error:',err.message);return res.status(500).json({error:err.message});}
+                    if(err){console.error('[books] db insert error:',err.message);return res.status(500).json({error:failMsg(err)});}
                     res.json({success:true,id:this.lastID,page_count:0});
                 });
             } else {
@@ -1396,12 +1584,12 @@ app.post('/api/admin/books',adminAuth,upload.fields([{name:'database',maxCount:1
                 if(!dbf) return res.status(400).json({error:'فایل دیتابیس الزامی است'});
                 const pc=await countPages(path.resolve(__dirname,'books',dbf.filename));
                 mainDb.run('INSERT INTO books (title,author,description,cover,db_filename,page_count,book_type,pdf_filename,sort_order) VALUES (?,?,?,?,?,?,?,?,?)',[t,a||'',d||'',cp,dbf.filename,pc,'db','',nextOrder],function(err){
-                    if(err){console.error('[books] db insert error:',err.message);return res.status(500).json({error:err.message});}
+                    if(err){console.error('[books] db insert error:',err.message);return res.status(500).json({error:failMsg(err)});}
                     res.json({success:true,id:this.lastID,page_count:pc});
                 });
             }
         });
-    }catch(e){console.error('[books] caught error:',e.message);res.status(500).json({error:e.message});}
+    }catch(e){console.error('[books] caught error:',e.message);res.status(500).json({error:failMsg(e)});}
 });
 app.delete('/api/admin/books/:id',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
@@ -1437,7 +1625,7 @@ app.put('/api/admin/books/:id',adminAuth,upload.fields([{name:'cover',maxCount:1
             dbFn=df.filename;
             try{pc=await countPages(path.resolve(__dirname,'books',df.filename));}catch(e){}
         }
-        mainDb.run('UPDATE books SET title=?,author=?,description=?,cover=?,pdf_filename=?,db_filename=?,page_count=? WHERE id=?',[san(req.body.title)||b.title,san(req.body.author)||b.author,san(req.body.description)||b.description,cp,pdfFn,dbFn,pc,id],()=>res.json({success:true}));
+        mainDb.run('UPDATE books SET title=?,author=?,description=?,cover=?,pdf_filename=?,db_filename=?,page_count=? WHERE id=?',[sanText(req.body.title)||b.title,sanText(req.body.author)||b.author,sanText(req.body.description)||b.description,cp,pdfFn,dbFn,pc,id],()=>res.json({success:true}));
     });
 });
 // سرویس‌دهی فایل‌های PDF کتاب‌ها
@@ -1528,20 +1716,26 @@ app.get('/api/admin/settings',adminAuth,(req,res)=>{
 app.post('/api/admin/settings',adminAuth,(req,res)=>{
     const u=req.body;if(!u||typeof u!=='object') return res.status(400).json({error:'داده نامعتبر'});
     const stmt=mainDb.prepare('INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP)');
+    // کلیدهایی که مقدارشان در href/src قرار می‌گیرد و باید URL معتبر باشند
+    const URL_SETTING_KEYS = new Set(['live_url','live_embed','logo_url','header_logo_url','favicon_url','splash_icon_url']);
     Object.entries(u).forEach(([k,v])=>{
-        const key=san(k.toString());
-        let val=san(v.toString());
-        // live_embed: if user pasted a full iframe embed code, extract just the src URL
+        // v می‌تواند null/undefined/object باشد — toString() مستقیم throw می‌کرد
+        if (v === null || v === undefined) v = '';
+        if (typeof v === 'object') { try { v = JSON.stringify(v); } catch(e) { v = ''; } }
+        const key=sanText(String(k));
+        let val=sanText(String(v));
+        // live_embed: اگر کد کامل iframe پیست شده، فقط src استخراج شود
         if(key==='live_embed'){
-            const raw=(v||'').toString().trim();
+            const raw=String(v).trim();
             if(raw.includes('<iframe')){
                 const m=raw.match(/src\s*=\s*["']([^"']+)["']/i);
-                val=(m&&m[1]&&/^https?:\/\//.test(m[1]))?m[1]:'';
+                val=(m&&m[1])?m[1]:'';
             }
         }
+        if (URL_SETTING_KEYS.has(key)) val = sanUrl(val);
         stmt.run(key,val);
     });
-    stmt.finalize(err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+    stmt.finalize(err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
 });
 // ذخیره assetlinks.json برای TWA Android
 app.post('/api/admin/assetlinks', adminAuth, (req, res) => {
@@ -1549,7 +1743,7 @@ app.post('/api/admin/assetlinks', adminAuth, (req, res) => {
     if (!content) return res.status(400).json({ error: 'محتوا الزامی است' });
     try { JSON.parse(content); } catch(e) { return res.status(400).json({ error: 'JSON نامعتبر است' }); }
     mainDb.run(`INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('assetlinks',?,CURRENT_TIMESTAMP)`, [content], err =>
-        err ? res.status(500).json({ error: err.message }) : res.json({ success: true })
+        err ? res.status(500).json({ error:failMsg(err) }) : res.json({ success: true })
     );
 });
 
@@ -1565,6 +1759,7 @@ const _defaultHomeShortcuts = () => [
     {icon:'fas fa-broadcast-tower',label:'پخش زنده',color1:'#ef4444',color2:'#dc2626',action:'screen:live'}
 ];
 app.get('/api/shortcuts',(req,res)=>{
+    res.set('Cache-Control','public, max-age=300');
     mainDb.get("SELECT value FROM settings WHERE key='home_shortcuts'",[],( err,row)=>{
         if(err||!row||!row.value) return res.json(_defaultHomeShortcuts());
         try{res.json(JSON.parse(row.value));}catch(e){res.json(_defaultHomeShortcuts());}
@@ -1574,15 +1769,15 @@ app.post('/api/admin/shortcuts',adminAuth,(req,res)=>{
     const {shortcuts}=req.body;
     if(!Array.isArray(shortcuts)) return res.status(400).json({error:'داده نامعتبر'});
     const safe=shortcuts.slice(0,8).map(s=>({
-        icon:String(s.icon||'fas fa-star').slice(0,60),
-        label:String(s.label||'').slice(0,40),
+        icon:String(s.icon||'fas fa-star').replace(/[^a-z0-9 \-]/gi,'').slice(0,60),
+        label:sanText(String(s.label||'')).slice(0,40),
         color1:String(s.color1||'#0d9488').slice(0,10),
         color2:String(s.color2||'#065f46').slice(0,10),
         action:String(s.action||'screen:news').slice(0,60),
-        image:String(s.image||'').slice(0,500)
+        image:sanUrl(s.image||'')
     }));
     mainDb.run("INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('home_shortcuts',?,CURRENT_TIMESTAMP)",[JSON.stringify(safe)],
-        err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+        err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
 });
 app.post('/api/admin/shortcuts/upload-icon',adminAuth,uploadImage.single('shortcut_icon'),(req,res)=>{
     if(!req.file) return res.status(400).json({error:'فایل ارائه نشده'});
@@ -1615,15 +1810,15 @@ app.post('/api/admin/link-shortcuts',adminAuth,(req,res)=>{
     const {shortcuts}=req.body;
     if(!Array.isArray(shortcuts)) return res.status(400).json({error:'داده نامعتبر'});
     const safe=shortcuts.slice(0,8).map(s=>({
-        icon:String(s.icon||'fas fa-link').slice(0,60),
-        label:String(s.label||'').slice(0,40),
+        icon:String(s.icon||'fas fa-link').replace(/[^a-z0-9 \-]/gi,'').slice(0,60),
+        label:sanText(String(s.label||'')).slice(0,40),
         color1:String(s.color1||'#3b82f6').slice(0,10),
         color2:String(s.color2||'#1d4ed8').slice(0,10),
-        image:String(s.image||'').slice(0,500),
-        url:String(s.url||'').slice(0,500)
+        image:sanUrl(s.image||''),
+        url:sanUrl(s.url||'')
     }));
     mainDb.run("INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('home_link_shortcuts',?,CURRENT_TIMESTAMP)",[JSON.stringify(safe)],
-        err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+        err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
 });
 app.post('/api/admin/link-shortcuts/upload-icon',adminAuth,uploadImage.single('link_shortcut_icon'),(req,res)=>{
     if(!req.file) return res.status(400).json({error:'فایل ارائه نشده'});
@@ -1711,11 +1906,11 @@ app.put('/api/admin/banners/:pos',adminAuth,uploadImage.single('banner_image'),(
             unlinkPublicFile(img);
             img=`/banners/${req.file.filename}`;
         } else if(req.body.image_url&&req.body.image_url.trim().length>5) {
-            img=san(req.body.image_url.trim());
+            img=sanUrl(req.body.image_url);
         }
         const act=req.body.active==='1'||req.body.active==='true'?1:0;
-        const title=san(req.body.title||'');
-        const link=san(req.body.link||'');
+        const title=sanText(req.body.title||'');
+        const link=sanUrl(req.body.link||'');
         const validSections=['after_slider','after_shortcuts','after_books','after_lectures','after_images','after_videos','after_audio'];
         const pageSec=validSections.includes(req.body.page_section)?req.body.page_section:(bn&&bn.page_section||'after_books');
         const deskSec=validSections.includes(req.body.desktop_section)?req.body.desktop_section:'';
@@ -1736,10 +1931,10 @@ app.put('/api/admin/nav-items',adminAuth,(req,res)=>{
     const validActions=['screen:home','screen:library','screen:media','screen:lectures','screen:qa','screen:news','screen:favorites','screen:auth','media-tab:audio','media-tab:video','media-tab:photo'];
     const stmt = mainDb.prepare(`INSERT OR REPLACE INTO nav_items (sort_order,icon,label,action,image) VALUES (?,?,?,?,?)`);
     items.forEach((item,i)=>{
-        const icon = san(item.icon||'fas fa-circle').substring(0,80);
-        const label = san(item.label||'').substring(0,30);
+        const icon = String(item.icon||'fas fa-circle').replace(/[^a-z0-9 \-]/gi,'').substring(0,80);
+        const label = sanText(item.label||'').substring(0,30);
         const action = validActions.includes(item.action) ? item.action : 'screen:home';
-        const image = san(item.image||'').substring(0,300);
+        const image = sanUrl(item.image||'').substring(0,300);
         stmt.run([i+1, icon, label, action, image]);
     });
     stmt.finalize(()=>res.json({success:true}));
@@ -1750,7 +1945,7 @@ app.get('/api/admin/sliders',adminAuth,(req,res)=>{
     mainDb.all('SELECT * FROM sliders ORDER BY sort_order ASC',[],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/sliders',adminAuth,uploadImage.single('slider_image'),(req,res)=>{
-    const imageUrl = req.body.image_url && req.body.image_url.trim().length > 5 ? san(req.body.image_url.trim()) : null;
+    const imageUrl = req.body.image_url && req.body.image_url.trim().length > 5 ? (sanUrl(req.body.image_url) || null) : null;
     if(!req.file && !imageUrl) return res.status(400).json({error:'تصویر یا لینک تصویر الزامی است'});
     mainDb.get('SELECT COUNT(*) as c FROM sliders',[],(err,r)=>{
         if(r&&r.c>=10) return res.status(400).json({error:'حداکثر ۱۰ اسلاید مجاز است'});
@@ -1758,8 +1953,8 @@ app.post('/api/admin/sliders',adminAuth,uploadImage.single('slider_image'),(req,
         const section = ['main','after_books','after_shortcuts','after_lectures','after_banners'].includes(req.body.display_section) ? req.body.display_section : 'main';
         const validSliderPages=['home','media_video','media_audio','media_photo','lectures','library'];
         const sliderPages=(req.body.pages||'home').split(',').filter(p=>validSliderPages.includes(p)).join(',') || 'home';
-        mainDb.run('INSERT INTO sliders (title,image,link,sort_order,display_section,pages) VALUES (?,?,?,?,?,?)',[san(req.body.title||''),img,san(req.body.link||''),r?r.c:0,section,sliderPages],function(err){
-            if(err) return res.status(500).json({error:err.message});
+        mainDb.run('INSERT INTO sliders (title,image,link,sort_order,display_section,pages) VALUES (?,?,?,?,?,?)',[sanText(req.body.title||''),img,sanUrl(req.body.link||''),r?r.c:0,section,sliderPages],function(err){
+            if(err) return res.status(500).json({error:failMsg(err)});
             res.json({success:true,id:this.lastID,image:img});
         });
     });
@@ -1792,7 +1987,7 @@ app.get('/api/admin/wp-posts-preview', adminAuth, (req, res) => {
                 res.json(simplified);
             } catch(e) { res.status(500).json({error:'خطا در پردازش پاسخ وردپرس'}); }
         });
-    }).on('error', (e) => res.status(500).json({error: e.message}));
+    }).on('error', (e) => res.status(500).json({error:failMsg(e)}));
 });
 
 app.get('/api/admin/news-sliders', adminAuth, (req, res) => {
@@ -1807,9 +2002,9 @@ app.post('/api/admin/news-sliders', adminAuth, (req, res) => {
         const showT = show_title === false || show_title === 0 || show_title === '0' ? 0 : 1;
         mainDb.run(
             'INSERT OR REPLACE INTO news_sliders (post_id, post_title, post_url, post_image, sort_order, show_title) VALUES (?,?,?,?,?,?)',
-            [+post_id, san(post_title), san(post_url), san(post_image || ''), order, showT],
+            [+post_id, sanText(post_title), sanUrl(post_url), sanUrl(post_image || ''), order, showT],
             function(err) {
-                if (err) return res.status(500).json({error: err.message});
+                if (err) return res.status(500).json({error:failMsg(err)});
                 res.json({success: true, id: this.lastID});
             }
         );
@@ -1842,10 +2037,10 @@ app.put('/api/admin/page-content/:id',adminAuth,(req,res)=>{
     const validIds=['social','biography','mosque','contact'];
     const id=req.params.id;
     if(!validIds.includes(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const content=san(req.body.content||'');
-    const title=san(req.body.title||'');
+    const content=san(req.body.content||'');   // محتوای rich ویرایشگر ادمین
+    const title=sanText(req.body.title||'');
     mainDb.run('INSERT OR REPLACE INTO page_contents (id,title,content,updated_at) VALUES (?,?,?,CURRENT_TIMESTAMP)',
-        [id,title,content],err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+        [id,title,content],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
 });
 
 // Admin Users
@@ -1854,7 +2049,7 @@ app.get('/api/admin/users',adminAuth,(req,res)=>{
         ((SELECT COUNT(*) FROM messages WHERE user_id=u.id)+(SELECT COUNT(*) FROM ticket_messages tm JOIN tickets t ON t.id=tm.ticket_id WHERE t.user_id=u.id)) as msg_count,
         (SELECT MAX(a) FROM (SELECT created_at as a FROM messages WHERE user_id=u.id UNION SELECT tm.created_at as a FROM ticket_messages tm JOIN tickets t ON t.id=tm.ticket_id WHERE t.user_id=u.id)) as last_active
         FROM users u ORDER BY u.created_at DESC`,[],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows||[]);
     });
 });
@@ -1874,9 +2069,9 @@ app.get('/api/admin/qa/messages/:uid',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/qa/messages/:uid',adminAuth,(req,res)=>{
     const uid=+req.params.uid;if(isNaN(uid)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const t=san(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن خالی است'});
+    const t=sanText(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن خالی است'});
     mainDb.run('INSERT INTO messages (user_id,text,sender_type) VALUES (?,?,"admin")',[uid,t],function(err){
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json({success:true});
     });
 });
@@ -1886,15 +2081,15 @@ app.get('/api/admin/ticket-categories',adminAuth,(req,res)=>{
     mainDb.all('SELECT * FROM ticket_categories ORDER BY sort_order,id',[],(_,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/ticket-categories',adminAuth,(req,res)=>{
-    const name=san(req.body.name);if(!name) return res.status(400).json({error:'نام الزامی است'});
+    const name=sanText(req.body.name);if(!name) return res.status(400).json({error:'نام الزامی است'});
     mainDb.run('INSERT INTO ticket_categories (name,sort_order,active) VALUES (?,?,?)',[name,+req.body.sort_order||0,1],function(e){
-        if(e) return res.status(500).json({error:e.message});
+        if(e) return res.status(500).json({error:failMsg(e)});
         res.json({success:true,id:this.lastID});
     });
 });
 app.put('/api/admin/ticket-categories/:id',adminAuth,(req,res)=>{
     const id=+req.params.id;
-    const name=san(req.body.name);if(!name) return res.status(400).json({error:'نام الزامی است'});
+    const name=sanText(req.body.name);if(!name) return res.status(400).json({error:'نام الزامی است'});
     mainDb.run('UPDATE ticket_categories SET name=?,sort_order=?,active=? WHERE id=?',[name,+req.body.sort_order||0,req.body.active==='0'?0:1,id],()=>res.json({success:true}));
 });
 app.delete('/api/admin/ticket-categories/:id',adminAuth,(req,res)=>{
@@ -1905,15 +2100,15 @@ app.get('/api/admin/canned-responses',adminAuth,(req,res)=>{
     mainDb.all('SELECT * FROM canned_responses ORDER BY id DESC',[],(_,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/canned-responses',adminAuth,(req,res)=>{
-    const title=san(req.body.title),text=san(req.body.text);
+    const title=sanText(req.body.title),text=sanText(req.body.text);
     if(!title||!text) return res.status(400).json({error:'عنوان و متن الزامی است'});
     mainDb.run('INSERT INTO canned_responses (title,text) VALUES (?,?)',[title,text],function(e){
-        if(e) return res.status(500).json({error:e.message});
+        if(e) return res.status(500).json({error:failMsg(e)});
         res.json({success:true,id:this.lastID});
     });
 });
 app.put('/api/admin/canned-responses/:id',adminAuth,(req,res)=>{
-    const id=+req.params.id,title=san(req.body.title),text=san(req.body.text);
+    const id=+req.params.id,title=sanText(req.body.title),text=sanText(req.body.text);
     if(!title||!text) return res.status(400).json({error:'عنوان و متن الزامی است'});
     mainDb.run('UPDATE canned_responses SET title=?,text=? WHERE id=?',[title,text,id],()=>res.json({success:true}));
 });
@@ -1932,11 +2127,11 @@ app.get('/api/admin/tickets/:id/messages',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/tickets/:id/reply',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const t=san(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن خالی است'});
+    const t=sanText(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن خالی است'});
     const replyTo=_parseReplyTo(req.body.reply_to);
     _validateReplyTo(replyTo,id,(validReplyTo)=>{
     mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,reply_to) VALUES (?,?,"admin",?)',[id,t,validReplyTo],function(err){
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         mainDb.run('UPDATE tickets SET status="answered",updated_at=CURRENT_TIMESTAMP WHERE id=?',[id]);
         mainDb.get('SELECT user_id,subject FROM tickets WHERE id=?',[id],(err2,ticket)=>{
             if(ticket&&ticket.user_id){
@@ -1956,7 +2151,7 @@ app.post('/api/admin/tickets/:id/reply',adminAuth,(req,res)=>{
 // ویرایش پیام ادمین
 app.put('/api/admin/ticket-messages/:msgId',adminAuth,(req,res)=>{
     const msgId=+req.params.msgId;if(isNaN(msgId)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const t=san(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن خالی است'});
+    const t=sanText(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن خالی است'});
     mainDb.run('UPDATE ticket_messages SET text=?,edited_at=CURRENT_TIMESTAMP WHERE id=? AND sender_type="admin"',[t,msgId],function(e){
         if(this.changes===0) return res.status(404).json({error:'پیام یافت نشد'});
         res.json({success:true});
@@ -1973,10 +2168,10 @@ app.get('/api/admin/notifications',adminAuth,(req,res)=>{
     mainDb.all('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50',[],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/notifications',adminAuth,(req,res)=>{
-    const title=san(req.body.title),msg=san(req.body.message);
+    const title=sanText(req.body.title),msg=sanText(req.body.message);
     if(!title||!msg) return res.status(400).json({error:'عنوان و متن الزامی است'});
     mainDb.run('INSERT INTO notifications (title,message,type) VALUES (?,?,"broadcast")',[title,msg],function(err){
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         const notifId=this.lastID;
         // Single batched INSERT...SELECT to avoid N+1 inserts on broadcast
         mainDb.run(
@@ -1999,11 +2194,11 @@ app.get('/api/push/vapid-public-key',(req,res)=>{
     res.json({publicKey: VAPID_PUBLIC_KEY});
 });
 app.post('/api/push/subscribe',userAuth,(req,res)=>{
-    if(!webpush) return res.status(503).json({error:'سرویس پوش پشتیبانی نمی‌شود'});
+    if(!webpush || !PUSH_ENABLED) return res.status(503).json({error:'سرویس پوش پشتیبانی نمی‌شود'});
     const sub=req.body.subscription;
     if(!sub||!sub.endpoint) return res.status(400).json({error:'اشتراک نامعتبر'});
     mainDb.run('INSERT OR REPLACE INTO push_subscriptions (user_id,subscription) VALUES (?,?)',[req.userId,JSON.stringify(sub)],function(err){
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json({success:true});
     });
 });
@@ -2012,7 +2207,7 @@ app.post('/api/push/unsubscribe',userAuth,(req,res)=>{
 });
 
 function sendPushToUser(userId, payload) {
-    if(!webpush) return;
+    if(!webpush || !PUSH_ENABLED) return;
     mainDb.get('SELECT subscription FROM push_subscriptions WHERE user_id=?',[userId],(err,row)=>{
         if(err||!row) return;
         try {
@@ -2024,7 +2219,7 @@ function sendPushToUser(userId, payload) {
     });
 }
 function sendPushToAll(payload) {
-    if(!webpush) return;
+    if(!webpush || !PUSH_ENABLED) return;
     mainDb.all('SELECT user_id,subscription FROM push_subscriptions',[],(err,rows)=>{
         if(err||!rows) return;
         rows.forEach(row=>{
@@ -2052,7 +2247,7 @@ app.get('/api/gallery/categories',(req,res)=>{
 app.get('/api/gallery/categories/:id/photos',(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     mainDb.all('SELECT * FROM gallery_photos WHERE category_id=? ORDER BY sort_order ASC, created_at ASC',[id],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows||[]);
     });
 });
@@ -2062,16 +2257,16 @@ app.get('/api/admin/gallery/categories',adminAuth,(req,res)=>{
     mainDb.all(`SELECT gc.*, (SELECT COUNT(*) FROM gallery_photos WHERE category_id=gc.id) as photo_count, (SELECT COUNT(*) FROM gallery_categories WHERE parent_id=gc.id) as sub_count FROM gallery_categories gc ORDER BY gc.sort_order ASC, gc.created_at DESC`,[],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/gallery/categories',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
-    const name=san(req.body.name||'').trim();
+    const name=sanText(req.body.name||'').trim();
     if(!name) return res.status(400).json({error:'نام دسته‌بندی الزامی است'});
-    const imgUrl=req.body.image_url&&req.body.image_url.trim().length>5?san(req.body.image_url.trim()):null;
+    const imgUrl=req.body.image_url&&req.body.image_url.trim().length>5?sanUrl(req.body.image_url):null;
     const cover=req.file?`/gallery/${req.file.filename}`:(imgUrl||'');
-    const desc=san(req.body.description||'');
+    const desc=sanText(req.body.description||'');
     const parentId=req.body.parent_id&&+req.body.parent_id>0?+req.body.parent_id:null;
     mainDb.get('SELECT MAX(sort_order) as mx FROM gallery_categories',[],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO gallery_categories (name,description,cover,sort_order,parent_id) VALUES (?,?,?,?,?)',[name,desc,cover,so,parentId],function(err2){
-            if(err2) return res.status(500).json({error:err2.message});
+            if(err2) return res.status(500).json({error:failMsg(err2)});
             res.json({success:true,id:this.lastID});
         });
     });
@@ -2080,14 +2275,14 @@ app.put('/api/admin/gallery/categories/:id',adminAuth,uploadImage.single('galler
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     mainDb.get('SELECT * FROM gallery_categories WHERE id=?',[id],(err,cat)=>{
         if(err||!cat) return res.status(404).json({error:'دسته‌بندی یافت نشد'});
-        const name=san(req.body.name||cat.name).trim();
-        const desc=san(req.body.description||cat.description);
+        const name=sanText(req.body.name||cat.name).trim();
+        const desc=sanText(req.body.description||cat.description);
         let cover=cat.cover;
         if(req.file){
             unlinkPublicFile(cover);
             cover=`/gallery/${req.file.filename}`;
         } else if(req.body.image_url&&req.body.image_url.trim().length>5){
-            cover=san(req.body.image_url.trim());
+            cover=sanUrl(req.body.image_url);
         }
         mainDb.run('UPDATE gallery_categories SET name=?,description=?,cover=? WHERE id=?',[name,desc,cover,id],()=>res.json({success:true,cover}));
     });
@@ -2113,14 +2308,14 @@ app.delete('/api/admin/gallery/categories/:id',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/gallery/photos',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
     const catId=+req.body.category_id;if(isNaN(catId)) return res.status(400).json({error:'دسته‌بندی الزامی است'});
-    const imgUrl=req.body.image_url&&req.body.image_url.trim().length>5?san(req.body.image_url.trim()):null;
+    const imgUrl=req.body.image_url&&req.body.image_url.trim().length>5?sanUrl(req.body.image_url):null;
     if(!req.file&&!imgUrl) return res.status(400).json({error:'تصویر یا لینک تصویر الزامی است'});
     const img=req.file?`/gallery/${req.file.filename}`:imgUrl;
-    const title=san(req.body.title||'');
+    const title=sanText(req.body.title||'');
     mainDb.get('SELECT MAX(sort_order) as mx FROM gallery_photos WHERE category_id=?',[catId],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO gallery_photos (category_id,title,image,sort_order) VALUES (?,?,?,?)',[catId,title,img,so],function(err2){
-            if(err2) return res.status(500).json({error:err2.message});
+            if(err2) return res.status(500).json({error:failMsg(err2)});
             // Update category cover if empty
             mainDb.run('UPDATE gallery_categories SET cover=? WHERE id=? AND (cover IS NULL OR cover="")',[img,catId]);
             res.json({success:true,id:this.lastID,image:img});
@@ -2129,16 +2324,16 @@ app.post('/api/admin/gallery/photos',adminAuth,uploadImage.single('gallery_image
 });
 app.put('/api/admin/gallery/photos/:id',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const title=san(req.body.title||'');
+    const title=sanText(req.body.title||'');
     const catId=req.body.category_id?+req.body.category_id:null;
     if(catId){
         mainDb.run('UPDATE gallery_photos SET title=?,category_id=? WHERE id=?',[title,catId,id],function(err){
-            if(err) return res.status(500).json({error:err.message});
+            if(err) return res.status(500).json({error:failMsg(err)});
             res.json({success:true});
         });
     } else {
         mainDb.run('UPDATE gallery_photos SET title=? WHERE id=?',[title,id],function(err){
-            if(err) return res.status(500).json({error:err.message});
+            if(err) return res.status(500).json({error:failMsg(err)});
             res.json({success:true});
         });
     }
@@ -2166,7 +2361,7 @@ app.get('/api/audio/categories/:id/tracks',(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     const sortBy = req.query.sort === 'date' ? 'COALESCE(at.publish_date,at.created_at) DESC' : 'at.sort_order ASC, COALESCE(at.publish_date,at.created_at) ASC';
     mainDb.all(`SELECT at.*, COALESCE(NULLIF(at.cover,''), ac.cover, '') as _catCover FROM audio_tracks at LEFT JOIN audio_categories ac ON at.category_id=ac.id WHERE at.category_id=? ORDER BY ${sortBy}`,[id],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows||[]);
     });
 });
@@ -2179,16 +2374,16 @@ app.get('/api/admin/audio/all-tracks',adminAuth,(req,res)=>{
     mainDb.all(`SELECT at.id,at.title,ac.name as cat_name FROM audio_tracks at LEFT JOIN audio_categories ac ON at.category_id=ac.id ORDER BY ac.sort_order ASC,at.sort_order ASC,at.title ASC`,[],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/audio/categories',adminAuth,uploadImage.single('audio_cover'),(req,res)=>{
-    const name=san(req.body.name||'').trim();
+    const name=sanText(req.body.name||'').trim();
     if(!name) return res.status(400).json({error:'نام دسته‌بندی الزامی است'});
-    const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?san(req.body.cover_url.trim()):null;
+    const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const cover=req.file?`/gallery/${req.file.filename}`:(coverUrl||'');
-    const desc=san(req.body.description||'');
+    const desc=sanText(req.body.description||'');
     const parentId=req.body.parent_id&&+req.body.parent_id>0?+req.body.parent_id:null;
     mainDb.get('SELECT MAX(sort_order) as mx FROM audio_categories',[],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO audio_categories (name,description,cover,sort_order,parent_id) VALUES (?,?,?,?,?)',[name,desc,cover,so,parentId],function(err2){
-            if(err2) return res.status(500).json({error:err2.message});
+            if(err2) return res.status(500).json({error:failMsg(err2)});
             res.json({success:true,id:this.lastID});
         });
     });
@@ -2205,12 +2400,12 @@ app.delete('/api/admin/audio/categories/:id',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/audio/tracks',adminAuth,uploadAudio.fields([{name:'audio_file',maxCount:1},{name:'audio_cover',maxCount:1}]),async(req,res)=>{
     const catId=+req.body.category_id;if(isNaN(catId)) return res.status(400).json({error:'دسته‌بندی الزامی است'});
-    const title=san(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان صوت الزامی است'});
-    const audioUrlInput=req.body.audio_url&&req.body.audio_url.trim().length>5?san(req.body.audio_url.trim()):null;
+    const title=sanText(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان صوت الزامی است'});
+    const audioUrlInput=req.body.audio_url&&req.body.audio_url.trim().length>5?sanUrl(req.body.audio_url):null;
     const audioFile=req.files&&req.files['audio_file']?req.files['audio_file'][0]:null;
     if(!audioFile&&!audioUrlInput) return res.status(400).json({error:'فایل صوتی یا لینک الزامی است'});
     const audioUrl=audioFile?`/audio/${audioFile.filename}`:audioUrlInput;
-    const coverUrlInput=req.body.cover_url&&req.body.cover_url.trim().length>5?san(req.body.cover_url.trim()):null;
+    const coverUrlInput=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const coverFile=req.files&&req.files['audio_cover']?req.files['audio_cover'][0]:null;
     let cover=coverFile?`/gallery/${coverFile.filename}`:(coverUrlInput||'');
     // اگه کاور آپلود نشده، از تگ‌های ID3 فایل صوتی استخراج کن
@@ -2228,12 +2423,12 @@ app.post('/api/admin/audio/tracks',adminAuth,uploadAudio.fields([{name:'audio_fi
             }
         }catch(e){console.warn('ID3 cover extract:',e.message);}
     }
-    const artist=san(req.body.artist||'');
+    const artist=sanText(req.body.artist||'');
     const publishDate=req.body.publish_date||null;
     mainDb.get('SELECT MAX(sort_order) as mx FROM audio_tracks WHERE category_id=?',[catId],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO audio_tracks (category_id,title,artist,audio_url,cover,sort_order,publish_date) VALUES (?,?,?,?,?,?,?)',[catId,title,artist,audioUrl,cover,so,publishDate],function(err2){
-            if(err2) return res.status(500).json({error:err2.message});
+            if(err2) return res.status(500).json({error:failMsg(err2)});
             mainDb.run('UPDATE audio_categories SET cover=? WHERE id=? AND (cover IS NULL OR cover="")',[cover||audioUrl,catId]);
             res.json({success:true,id:this.lastID,audio_url:audioUrl,cover});
         });
@@ -2249,15 +2444,15 @@ app.delete('/api/admin/audio/tracks/:id',adminAuth,(req,res)=>{
 });
 app.put('/api/admin/audio/categories/:id',adminAuth,uploadImage.single('audio_cover'),(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const name=san(req.body.name||'').trim();if(!name) return res.status(400).json({error:'نام الزامی است'});
-    const desc=san(req.body.description||'');
+    const name=sanText(req.body.name||'').trim();if(!name) return res.status(400).json({error:'نام الزامی است'});
+    const desc=sanText(req.body.description||'');
     const parentId=req.body.parent_id&&+req.body.parent_id>0?+req.body.parent_id:null;
-    const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?san(req.body.cover_url.trim()):null;
+    const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const newCover=req.file?`/gallery/${req.file.filename}`:coverUrl;
     if(newCover){
-        mainDb.run('UPDATE audio_categories SET name=?,description=?,cover=?,parent_id=? WHERE id=?',[name,desc,newCover,parentId,id],err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+        mainDb.run('UPDATE audio_categories SET name=?,description=?,cover=?,parent_id=? WHERE id=?',[name,desc,newCover,parentId,id],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
     } else {
-        mainDb.run('UPDATE audio_categories SET name=?,description=?,parent_id=? WHERE id=?',[name,desc,parentId,id],err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+        mainDb.run('UPDATE audio_categories SET name=?,description=?,parent_id=? WHERE id=?',[name,desc,parentId,id],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
     }
 });
 // sort قبل از :id تا Express آن را با id='sort' مطابقت ندهد
@@ -2275,20 +2470,20 @@ app.put('/api/admin/audio/tracks/sort',adminAuth,express.json(),(req,res)=>{
 });
 app.put('/api/admin/audio/tracks/:id',adminAuth,uploadAudio.fields([{name:'audio_file',maxCount:1},{name:'audio_cover',maxCount:1}]),(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const title=san(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان الزامی است'});
-    const artist=san(req.body.artist||'');
+    const title=sanText(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان الزامی است'});
+    const artist=sanText(req.body.artist||'');
     const publishDate=req.body.publish_date||null;
     const sets=['title=?','artist=?','publish_date=?'];const vals=[title,artist,publishDate];
     const audioFile=req.files&&req.files['audio_file']?req.files['audio_file'][0]:null;
-    const audioUrlInput=req.body.audio_url&&req.body.audio_url.trim().length>5?san(req.body.audio_url.trim()):null;
+    const audioUrlInput=req.body.audio_url&&req.body.audio_url.trim().length>5?sanUrl(req.body.audio_url):null;
     if(audioFile){sets.push('audio_url=?');vals.push(`/audio/${audioFile.filename}`);}
     else if(audioUrlInput){sets.push('audio_url=?');vals.push(audioUrlInput);}
     const coverFile=req.files&&req.files['audio_cover']?req.files['audio_cover'][0]:null;
-    const coverUrlInput=req.body.cover_url&&req.body.cover_url.trim().length>5?san(req.body.cover_url.trim()):null;
+    const coverUrlInput=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     if(coverFile){sets.push('cover=?');vals.push(`/gallery/${coverFile.filename}`);}
     else if(coverUrlInput){sets.push('cover=?');vals.push(coverUrlInput);}
     vals.push(id);
-    mainDb.run(`UPDATE audio_tracks SET ${sets.join(',')} WHERE id=?`,vals,err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+    mainDb.run(`UPDATE audio_tracks SET ${sets.join(',')} WHERE id=?`,vals,err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
 });
 
 // === AUDIO DOWNLOAD (force download with proper headers) ===
@@ -2327,6 +2522,14 @@ function parseAparatEmbed(raw) {
     if(/^https?:\/\//.test(raw)) return raw;
     return null;
 }
+// همه‌ی خروجی‌های parseAparatEmbed مستقیم داخل <iframe src> می‌نشینند، پس نتیجه
+// باید حتماً یک URL با پروتکل http(s) باشد. بعضی شاخه‌ها raw را دست‌نخورده
+// برمی‌گرداندند و مقداری مثل «javascript:…//aparat.com/embed» رد می‌شد.
+function parseEmbedUrl(raw) {
+    const out = parseAparatEmbed(raw);
+    if (!out || !/^https?:\/\//i.test(out)) return null;
+    return out.slice(0, 500);
+}
 
 function extractAparatThumb(embedUrl) {
     if(!embedUrl) return '';
@@ -2351,7 +2554,7 @@ app.get('/api/videos/categories/:id/items',(req,res)=>{
     const sortBy = req.query.sort === 'date' ? 'COALESCE(vi.publish_date,vi.created_at) DESC' : 'vi.sort_order ASC, COALESCE(vi.publish_date,vi.created_at) ASC';
     // _catCover = فقط کاور دسته (جدا از thumbnail ویدیو)، برای fallback در کلاینت
     mainDb.all(`SELECT vi.*, COALESCE(vc.cover,'') as _catCover FROM video_items vi LEFT JOIN video_categories vc ON vi.category_id=vc.id WHERE vi.category_id=? ORDER BY ${sortBy}`,[id],(err,rows)=>{
-        if(err) return res.status(500).json({error:err.message});
+        if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows||[]);
     });
 });
@@ -2364,16 +2567,16 @@ app.get('/api/admin/video/all-items',adminAuth,(req,res)=>{
     mainDb.all(`SELECT vi.id,vi.title,vc.name as cat_name FROM video_items vi LEFT JOIN video_categories vc ON vi.category_id=vc.id ORDER BY vc.sort_order ASC,vi.sort_order ASC,vi.title ASC`,[],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/video/categories',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
-    const name=san(req.body.name||'').trim();
+    const name=sanText(req.body.name||'').trim();
     if(!name) return res.status(400).json({error:'نام دسته‌بندی الزامی است'});
-    const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?san(req.body.cover_url.trim()):null;
+    const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const cover=req.file?`/gallery/${req.file.filename}`:(coverUrl||'');
-    const desc=san(req.body.description||'');
+    const desc=sanText(req.body.description||'');
     const parentId=req.body.parent_id&&+req.body.parent_id>0?+req.body.parent_id:null;
     mainDb.get('SELECT MAX(sort_order) as mx FROM video_categories',[],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO video_categories (name,description,cover,sort_order,parent_id) VALUES (?,?,?,?,?)',[name,desc,cover,so,parentId],function(err2){
-            if(err2) return res.status(500).json({error:err2.message});
+            if(err2) return res.status(500).json({error:failMsg(err2)});
             res.json({success:true,id:this.lastID});
         });
     });
@@ -2387,20 +2590,21 @@ app.delete('/api/admin/video/categories/:id',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/video/items',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
     const catId=+req.body.category_id;if(isNaN(catId)) return res.status(400).json({error:'دسته‌بندی الزامی است'});
-    const title=san(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان ویدیو الزامی است'});
-    const rawEmbed=san(req.body.embed_input||'');
-    const embedUrl=parseAparatEmbed(rawEmbed);
+    const title=sanText(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان ویدیو الزامی است'});
+    // از مقدار خام پارس می‌شود (نه sanText) چون ادمین ممکن است کد کامل <iframe>
+    // را پیست کند؛ خروجی parseEmbedUrl خودش به URL معتبر محدود شده است.
+    const embedUrl=parseEmbedUrl(req.body.embed_input||'');
     if(!embedUrl) return res.status(400).json({error:'لینک یا کد آپارات نامعتبر است'});
     // Thumbnail: uploaded file, provided URL, or auto-extracted from embed
-    const thumbUrlInput=req.body.thumbnail_url&&req.body.thumbnail_url.trim().length>5?san(req.body.thumbnail_url.trim()):null;
+    const thumbUrlInput=req.body.thumbnail_url&&req.body.thumbnail_url.trim().length>5?sanUrl(req.body.thumbnail_url):null;
     const thumbFile=req.file;
     let thumbnail=thumbFile?`/gallery/${thumbFile.filename}`:(thumbUrlInput||extractAparatThumb(embedUrl));
-    const desc=san(req.body.description||'');
+    const desc=sanText(req.body.description||'');
     const publishDate=req.body.publish_date||null;
     mainDb.get('SELECT MAX(sort_order) as mx FROM video_items WHERE category_id=?',[catId],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO video_items (category_id,title,embed_url,thumbnail,description,sort_order,publish_date) VALUES (?,?,?,?,?,?,?)',[catId,title,embedUrl,thumbnail,desc,so,publishDate],function(err2){
-            if(err2) return res.status(500).json({error:err2.message});
+            if(err2) return res.status(500).json({error:failMsg(err2)});
             // Auto-set category cover if empty
             if(thumbnail) mainDb.run('UPDATE video_categories SET cover=? WHERE id=? AND (cover IS NULL OR cover="")',[thumbnail,catId]);
             res.json({success:true,id:this.lastID,embed_url:embedUrl,thumbnail});
@@ -2416,15 +2620,15 @@ app.delete('/api/admin/video/items/:id',adminAuth,(req,res)=>{
 });
 app.put('/api/admin/video/categories/:id',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const name=san(req.body.name||'').trim();if(!name) return res.status(400).json({error:'نام الزامی است'});
-    const desc=san(req.body.description||'');
+    const name=sanText(req.body.name||'').trim();if(!name) return res.status(400).json({error:'نام الزامی است'});
+    const desc=sanText(req.body.description||'');
     const parentId=req.body.parent_id&&+req.body.parent_id>0?+req.body.parent_id:null;
-    const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?san(req.body.cover_url.trim()):null;
+    const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const newCover=req.file?`/gallery/${req.file.filename}`:coverUrl;
     if(newCover){
-        mainDb.run('UPDATE video_categories SET name=?,description=?,cover=?,parent_id=? WHERE id=?',[name,desc,newCover,parentId,id],err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+        mainDb.run('UPDATE video_categories SET name=?,description=?,cover=?,parent_id=? WHERE id=?',[name,desc,newCover,parentId,id],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
     } else {
-        mainDb.run('UPDATE video_categories SET name=?,description=?,parent_id=? WHERE id=?',[name,desc,parentId,id],err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+        mainDb.run('UPDATE video_categories SET name=?,description=?,parent_id=? WHERE id=?',[name,desc,parentId,id],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
     }
 });
 // sort قبل از :id
@@ -2448,17 +2652,17 @@ app.put('/api/admin/video/items/sort',adminAuth,express.json(),(req,res)=>{
 });
 app.put('/api/admin/video/items/:id',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const title=san(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان الزامی است'});
-    const desc=san(req.body.description||'');
+    const title=sanText(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان الزامی است'});
+    const desc=sanText(req.body.description||'');
     const publishDate=req.body.publish_date||null;
     const sets=['title=?','description=?','publish_date=?'];const vals=[title,desc,publishDate];
     const embedRaw=req.body.embed_url||'';
-    if(embedRaw.trim()){const embedUrl=parseAparatEmbed(embedRaw);if(embedUrl){sets.push('embed_url=?');vals.push(embedUrl);}}
-    const thumbUrlInput=req.body.thumb_url&&req.body.thumb_url.trim().length>5?san(req.body.thumb_url.trim()):null;
+    if(embedRaw.trim()){const embedUrl=parseEmbedUrl(embedRaw);if(embedUrl){sets.push('embed_url=?');vals.push(embedUrl);}}
+    const thumbUrlInput=req.body.thumb_url&&req.body.thumb_url.trim().length>5?sanUrl(req.body.thumb_url):null;
     if(req.file){sets.push('thumbnail=?');vals.push(`/gallery/${req.file.filename}`);}
     else if(thumbUrlInput){sets.push('thumbnail=?');vals.push(thumbUrlInput);}
     vals.push(id);
-    mainDb.run(`UPDATE video_items SET ${sets.join(',')} WHERE id=?`,vals,err=>err?res.status(500).json({error:err.message}):res.json({success:true}));
+    mainDb.run(`UPDATE video_items SET ${sets.join(',')} WHERE id=?`,vals,err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
 });
 // === استخراج کاور از فایل‌های صوتی موجود ===
 // استخراج کاور از فایل صوتی با music-metadata
@@ -2495,7 +2699,7 @@ app.post('/api/admin/audio/extract-covers', adminAuth, async(req, res) => {
                 FROM audio_tracks at LEFT JOIN audio_categories ac ON at.category_id=ac.id
                 WHERE (at.cover IS NULL OR at.cover='') AND at.audio_url LIKE '/audio/%'`,
     [], async (err, tracks) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) return res.status(500).json({ error:failMsg(err) });
         let updated = 0, fromFile = 0, fromCategory = 0;
         for (const tr of (tracks || [])) {
             try {
@@ -2525,31 +2729,25 @@ app.post('/api/admin/audio/extract-covers', adminAuth, async(req, res) => {
 app.post('/api/admin/video/extract-covers', adminAuth, async(req, res) => {
     const galleryDir = path.join(__dirname, 'public', 'gallery');
     if (!fs.existsSync(galleryDir)) fs.mkdirSync(galleryDir, { recursive: true });
-    mainDb.all(`SELECT vi.id, vi.video_url, vi.thumbnail, COALESCE(vc.cover,'') as cat_cover
+    // ویدیوها فایل محلی ندارند (فقط embed_url)، پس ستون video_url وجود نداشت و
+    // این کوئری همیشه خطا می‌داد. منابع واقعی thumbnail: آپارات، سپس کاور دسته.
+    mainDb.all(`SELECT vi.id, vi.embed_url, vi.thumbnail, COALESCE(vc.cover,'') as cat_cover
                 FROM video_items vi LEFT JOIN video_categories vc ON vi.category_id=vc.id
-                WHERE (vi.thumbnail IS NULL OR vi.thumbnail='') AND vi.video_url LIKE '/audio/%'`,
+                WHERE vi.thumbnail IS NULL OR vi.thumbnail=''`,
     [], async (err, items) => {
-        if (err) return res.status(500).json({ error: err.message });
-        let updated = 0, fromFile = 0, fromCategory = 0;
+        if (err) return res.status(500).json({ error: 'خطای داخلی' });
+        let updated = 0, fromEmbed = 0, fromCategory = 0;
         for (const vi of (items || [])) {
             try {
-                const fp = path.resolve(__dirname, 'public', vi.video_url.replace(/^\//, ''));
-                let coverImg = null;
-                if (fs.existsSync(fp)) {
-                    coverImg = await _extractVideoCover(fp);
-                }
-                if (coverImg) {
-                    const coverName = crypto.randomBytes(8).toString('hex') + '-thumb.jpg';
-                    fs.writeFileSync(path.join(galleryDir, coverName), coverImg.data);
-                    await new Promise(r => mainDb.run('UPDATE video_items SET thumbnail=? WHERE id=?', ['/gallery/' + coverName, vi.id], r));
-                    updated++; fromFile++;
-                } else if (vi.cat_cover) {
-                    await new Promise(r => mainDb.run('UPDATE video_items SET thumbnail=? WHERE id=?', [vi.cat_cover, vi.id], r));
-                    updated++; fromCategory++;
-                }
+                const thumb = extractAparatThumb(vi.embed_url) || '';
+                const val = thumb || vi.cat_cover;
+                if (!val) continue;
+                await new Promise(r => mainDb.run('UPDATE video_items SET thumbnail=? WHERE id=?', [val, vi.id], r));
+                updated++;
+                if (thumb) fromEmbed++; else fromCategory++;
             } catch(e) {}
         }
-        res.json({ success: true, updated, fromFile, fromCategory, total: (items || []).length });
+        res.json({ success: true, updated, fromEmbed, fromCategory, total: (items || []).length });
     });
 });
 
@@ -2573,9 +2771,11 @@ app.get('/api/videos/search',(req,res)=>{
     mainDb.all(`SELECT v.*,c.name as cat_name,COALESCE(NULLIF(v.thumbnail,''),c.cover) as _catCover FROM video_items v LEFT JOIN video_categories c ON v.category_id=c.id WHERE v.title LIKE ? ORDER BY v.publish_date DESC LIMIT 60`,['%'+q+'%'],(err,rows)=>res.json(rows||[]));
 });
 app.get('/api/audio/all-dates',(req,res)=>{
+    res.set('Cache-Control','public, max-age=300');
     mainDb.all(`SELECT at.id,at.title,at.audio_url,at.publish_date,at.artist,COALESCE(NULLIF(at.cover,''),ac.cover) as cover FROM audio_tracks at LEFT JOIN audio_categories ac ON at.category_id=ac.id WHERE at.publish_date IS NOT NULL AND at.publish_date!='' ORDER BY at.publish_date DESC`,[],(err,rows)=>res.json(rows||[]));
 });
 app.get('/api/videos/all-dates',(req,res)=>{
+    res.set('Cache-Control','public, max-age=300');
     mainDb.all(`SELECT vi.id,vi.title,vi.embed_url,vi.publish_date,COALESCE(NULLIF(vi.thumbnail,''),vc.cover) as thumbnail FROM video_items vi LEFT JOIN video_categories vc ON vi.category_id=vc.id WHERE vi.publish_date IS NOT NULL AND vi.publish_date!='' ORDER BY vi.publish_date DESC`,[],(err,rows)=>res.json(rows||[]));
 });
 app.get('/api/audio/latest',(req,res)=>{
@@ -2622,9 +2822,31 @@ async function ensureMaskableIcons() {
     }
 }
 
-app.listen(PORT,()=>{
+const server = app.listen(PORT,()=>{
     console.log(`\n🚀 سرور: http://localhost:${PORT}`);
     console.log(`🔐 ادمین: http://localhost:${PORT}/admin`);
     console.log('');
     ensureMaskableIcons();
 });
+
+// یک reject/throw بدون هندلر نباید کل پروسه را ببندد (قبلاً سرور می‌مرد)
+process.on('unhandledRejection', (reason) => {
+    console.error('UnhandledRejection:', reason && reason.stack || reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('UncaughtException:', err && err.stack || err);
+});
+
+// خاموشی تمیز: اتصال‌های باز تمام شوند و دیتابیس بسته شود (WAL checkpoint)
+let _shuttingDown = false;
+function shutdown(signal) {
+    if (_shuttingDown) return;
+    _shuttingDown = true;
+    console.log(`\n${signal} دریافت شد — در حال خاموش شدن...`);
+    const force = setTimeout(() => { console.error('خاموشی اجباری'); process.exit(1); }, 10000);
+    force.unref();
+    server.close(() => {
+        mainDb.close(() => { console.log('✅ دیتابیس بسته شد'); process.exit(0); });
+    });
+}
+['SIGTERM','SIGINT'].forEach(sig => process.on(sig, () => shutdown(sig)));

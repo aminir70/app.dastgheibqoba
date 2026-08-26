@@ -270,6 +270,11 @@ async function loadStats(){
   }catch(e){ toast(e.message,true); }
 }
 
+function chatEsc(t){return String(t==null?"":t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+// نام کاربری را کاربر نهایی انتخاب می‌کند و نام فایل هم از ورودی می‌آید؛
+// هر دو در همین پنل نمایش داده می‌شوند، پس باید escape شوند.
+const esc = chatEsc;
+
 /* ---- files ---- */
 async function loadFiles(){
   try{
@@ -277,7 +282,7 @@ async function loadFiles(){
     const b=document.getElementById("filesBody");
     if(!files.length){ b.innerHTML=`<tr><td colspan="6" class="empty">هنوز فایلی آپلود نشده است.</td></tr>`; return; }
     b.innerHTML=files.map(f=>`<tr>
-      <td>${f.filename}${f.error?`<div style="color:var(--danger);font-size:12px">${f.error}</div>`:""}</td>
+      <td>${esc(f.filename)}${f.error?`<div style="color:var(--danger);font-size:12px">${esc(f.error)}</div>`:""}</td>
       <td><span class="tag ${f.status}">${statusFa(f.status)}</span></td>
       <td>${f.pages||"—"}</td><td>${f.chunks||"—"}</td>
       <td>${f.used_ocr?"بله":"خیر"}</td>
@@ -363,7 +368,6 @@ async function saveSettings(){
 
 /* ---- chats (read-only review) ---- */
 let activeChatId=null;
-function chatEsc(t){return String(t==null?"":t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function chatDate(iso){ try{ return new Date(iso).toLocaleString("fa-IR"); }catch(e){ return ""; } }
 async function loadChats(){
   const qs=new URLSearchParams();
@@ -415,7 +419,7 @@ async function loadUsers(){
     b.innerHTML=users.map(u=>{
       const lim = fmt(u.daily_message_limit), tlim = fmt(u.monthly_token_limit);
       return `<tr>
-      <td>${u.username}</td><td>${u.total_messages}</td>
+      <td>${esc(u.username)}</td><td>${esc(u.total_messages)}</td>
       <td><button class="btn-ghost" style="padding:4px 10px;font-size:12px" onclick="setUserLimit(${u.id},'daily_message_limit',${u.daily_message_limit==null?'null':u.daily_message_limit})">${lim} ✎</button></td>
       <td><button class="btn-ghost" style="padding:4px 10px;font-size:12px" onclick="setUserLimit(${u.id},'monthly_token_limit',${u.monthly_token_limit==null?'null':u.monthly_token_limit})">${tlim} ✎</button></td>
       <td>${new Date(u.created_at).toLocaleDateString("fa-IR")}</td>

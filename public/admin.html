@@ -1275,6 +1275,25 @@ let adminQaInterval = null;
 let bannerData = [{},{},{}];
 let currentSupportMode = 'tickets'; // 'tickets' or 'qa'
 
+// ====================================================
+// Escape برای درج امن داده در HTML (جلوگیری از XSS ذخیره‌شده)
+// هر داده‌ای که از API می‌آید و با innerHTML درج می‌شود باید escape شود.
+// ====================================================
+function escHtml(v){
+  if(v===null||v===undefined) return '';
+  return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function safeUrl(v){
+  const u=String(v==null?'':v).trim().replace(/[\u0000-\u0020]/g,'');
+  if(!u) return '';
+  if(/^https?:\/\//i.test(u)) return escHtml(u);
+  if(u.charAt(0)==='/'&&u.charAt(1)!=='/') return escHtml(u);
+  return '';
+}
+// آرگومان JS امن داخل attribute:  onclick="f(${jsArg(v)})"
+function jsArg(v){ return escHtml(JSON.stringify(v==null?'':String(v))); }
+
 async function adminFetch(url, options={}) {
   options.credentials = 'same-origin';
   options.headers = Object.assign({}, options.headers||{});
@@ -1301,7 +1320,7 @@ window.onload = async () => {
     document.getElementById('admin-mobile-header').classList.add('admin-visible');
     loadBooks();
     checkUnreadSupport();
-    setInterval(checkUnreadSupport, 30000);
+    setInterval(()=>{if(document.visibilityState!=='hidden')checkUnreadSupport();}, 30000);
   }
 };
 
@@ -1374,11 +1393,11 @@ function switchTab(tab) {
   if(tab==='audiogallery') loadAudioGalleryAdmin();
   if(tab==='support'){
     loadTickets();
-    adminQaInterval=setInterval(()=>{loadTickets();loadQAUsers();},8000);
+    adminQaInterval=setInterval(()=>{if(document.visibilityState==='hidden')return;loadTickets();loadQAUsers();},20000);
   }
   if(tab==='chatbot'){const f=document.getElementById('chatbot-admin-frame');if(f&&!f.src)f.src=f.dataset.src;}
   if(tab==='broadcast') loadBroadcasts();
-  if(tab==='analytics') { loadAnalytics(); if(analyticsInterval) clearInterval(analyticsInterval); analyticsInterval=setInterval(loadAnalytics, 30000); }
+  if(tab==='analytics') { loadAnalytics(); if(analyticsInterval) clearInterval(analyticsInterval); analyticsInterval=setInterval(()=>{if(document.visibilityState!=='hidden')loadAnalytics();}, 30000); }
   else if(analyticsInterval) { clearInterval(analyticsInterval); analyticsInterval=null; }
   if(tab==='users') loadUsers();
   if(tab==='settings') loadSettings();
@@ -2268,19 +2287,19 @@ async function loadTickets(){
       const act=activeTicketId==t.id&&currentSupportMode==='tickets';
       const copyText=`موضوع: ${t.subject||''}\nکاربر: ${t.username||''}\n${t.last_msg?'پیام: '+t.last_msg:''}`.trim();
       return `<div class="relative border rounded-xl transition ${act?'bg-amber-50 border-amber-200':'bg-white border-gray-100 hover:bg-gray-50'}">
-        <button onclick="selectTicket(${t.id},'${(t.subject||'').replace(/'/g,"\\'")}',' ${t.status}')" class="w-full text-right p-3 flex flex-col gap-1">
+        <button onclick="selectTicket(${t.id},${jsArg(t.subject||'')},${jsArg(t.status||'')})" class="w-full text-right p-3 flex flex-col gap-1">
           <div class="flex items-center justify-between gap-1">
-            <h4 class="font-bold text-xs truncate flex-1">${t.subject}</h4>
+            <h4 class="font-bold text-xs truncate flex-1">${escHtml(t.subject)}</h4>
             <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${s.cls} shrink-0 ml-6">${s.text}</span>
           </div>
           <div class="flex items-center gap-2">
-            <p class="text-[10px] text-gray-400">${t.username||'ناشناس'}</p>
-            ${t.category_name?`<span class="text-[9px] bg-blue-50 text-blue-500 px-1 rounded">${t.category_name}</span>`:''}
-            ${t.tracking_code?`<span class="font-mono text-[9px] text-gray-400">${t.tracking_code}</span>`:''}
+            <p class="text-[10px] text-gray-400">${escHtml(t.username||'ناشناس')}</p>
+            ${t.category_name?`<span class="text-[9px] bg-blue-50 text-blue-500 px-1 rounded">${escHtml(t.category_name)}</span>`:''}
+            ${t.tracking_code?`<span class="font-mono text-[9px] text-gray-400">${escHtml(t.tracking_code)}</span>`:''}
           </div>
-          ${t.last_msg?`<p class="text-[10px] text-gray-500 truncate">${t.last_msg}</p>`:''}
+          ${t.last_msg?`<p class="text-[10px] text-gray-500 truncate">${escHtml(t.last_msg)}</p>`:''}
         </button>
-        <button onclick="copyTicketText(event,${JSON.stringify(copyText)})" title="کپی" class="absolute top-2 left-2 w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-teal-50 hover:text-teal-600 text-gray-400 rounded-lg transition text-[10px]"><i class="fas fa-copy"></i></button>
+        <button onclick="copyTicketText(event,${jsArg(copyText)})" title="کپی" class="absolute top-2 left-2 w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-teal-50 hover:text-teal-600 text-gray-400 rounded-lg transition text-[10px]"><i class="fas fa-copy"></i></button>
       </div>`;
     }).join('');
   }catch(e){}
@@ -2308,17 +2327,18 @@ async function selectTicket(id,subject,status){
     c.innerHTML=msgs.map(m=>{
       const isAdmin=m.sender_type==='admin';
       let attachHtml='';
-      if(m.attachment){
-        if(m.attachment_type==='image') attachHtml=`<a href="${m.attachment}" target="_blank"><img src="${m.attachment}" class="rounded-xl max-h-40 mt-2 cursor-pointer" loading="lazy"></a>`;
-        else if(m.attachment_type==='pdf') attachHtml=`<a href="${m.attachment}" target="_blank" class="inline-flex items-center gap-1 mt-2 bg-red-50 border border-red-100 px-2 py-1 rounded-lg text-[10px] text-red-600 font-bold hover:bg-red-100"><i class="fas fa-file-pdf"></i>مشاهده PDF</a>`;
-        else if(m.attachment_type==='audio') attachHtml=`<audio controls class="mt-2 w-full" style="min-height:40px;" src="${m.attachment}"></audio>`;
+      const attUrl=safeUrl(m.attachment);
+      if(attUrl){
+        if(m.attachment_type==='image') attachHtml=`<a href="${attUrl}" target="_blank"><img src="${attUrl}" class="rounded-xl max-h-40 mt-2 cursor-pointer" loading="lazy"></a>`;
+        else if(m.attachment_type==='pdf') attachHtml=`<a href="${attUrl}" target="_blank" class="inline-flex items-center gap-1 mt-2 bg-red-50 border border-red-100 px-2 py-1 rounded-lg text-[10px] text-red-600 font-bold hover:bg-red-100"><i class="fas fa-file-pdf"></i>مشاهده PDF</a>`;
+        else if(m.attachment_type==='audio') attachHtml=`<audio controls class="mt-2 w-full" style="min-height:40px;" src="${attUrl}"></audio>`;
       }
       const editBtn=isAdmin?`<button onclick="adminEditMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="ویرایش"><i class="fas fa-pen"></i></button>`:'';
       const replyBtn=m.id?`<button onclick="adminReplyToMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="پاسخ"><i class="fas fa-reply"></i></button>`:'';
       return `<div class="flex ${isAdmin?'justify-start':'justify-end'}">
         <div class="${isAdmin?'bg-teal-50 border border-teal-100':'bg-white border border-gray-100'} max-w-[75%] px-4 py-2.5 rounded-2xl text-xs font-medium shadow-sm">
           ${adminReplyQuote(m)}
-          ${m.text?`<p>${m.text}</p>`:''}
+          ${m.text?`<p class="whitespace-pre-wrap">${escHtml(m.text)}</p>`:''}
           ${attachHtml}
           <div class="flex items-center gap-1.5 mt-1">
             <span class="text-[9px] text-gray-400">${new Date(m.created_at).toLocaleString('fa-IR')}${m.edited_at?' (ویرایش شده)':''}</span>
@@ -2553,15 +2573,15 @@ async function loadQAUsers(){
     c.innerHTML=users.map(u=>{
       const act=activeUserId==u.id&&currentSupportMode==='qa';
       const d=new Date(u.last_date).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'});
-      return `<button onclick="selectUser(${u.id},'${u.username}')" class="w-full text-right p-3 border rounded-xl transition ${act?'bg-teal-50 border-teal-200':'bg-white border-gray-100 hover:bg-gray-50'} flex items-center gap-2">
+      return `<button onclick="selectUser(${u.id},${jsArg(u.username)})" class="w-full text-right p-3 border rounded-xl transition ${act?'bg-teal-50 border-teal-200':'bg-white border-gray-100 hover:bg-gray-50'} flex items-center gap-2">
         <div class="w-8 h-8 ${act?'bg-teal-200 text-teal-700':'bg-gray-100 text-gray-400'} rounded-full flex items-center justify-center text-xs shrink-0"><i class="fas fa-user"></i></div>
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-center mb-0.5">
-            <h4 class="font-bold text-xs truncate">${u.username}</h4>
+            <h4 class="font-bold text-xs truncate">${escHtml(u.username)}</h4>
             <span class="text-[10px] text-gray-400 shrink-0">${d}</span>
           </div>
           <div class="flex items-center gap-1">
-            <p class="text-[10px] text-gray-500 truncate flex-1">${u.last_message||'...'}</p>
+            <p class="text-[10px] text-gray-500 truncate flex-1">${escHtml(u.last_message||'...')}</p>
             ${u.unread>0?`<span class="bg-teal-500 text-white text-[9px] px-1.5 py-0.5 rounded-full shrink-0">${u.unread}</span>`:''}
           </div>
         </div>
@@ -2593,7 +2613,7 @@ async function loadAdminMessages(uid){
       const d=new Date(m.created_at).toLocaleString('fa-IR');
       return `<div class="flex ${isAdmin?'justify-start':'justify-end'}">
         <div class="${isAdmin?'bg-teal-50 border border-teal-100':'bg-white border border-gray-100'} max-w-[75%] px-4 py-2.5 rounded-2xl text-xs font-medium shadow-sm">
-          <p>${m.text}</p>
+          <p class="whitespace-pre-wrap">${escHtml(m.text)}</p>
           <span class="text-[9px] text-gray-400 mt-1 block">${d}</span>
         </div>
       </div>`;
@@ -2698,16 +2718,16 @@ async function loadUsers(){
     const r=await adminFetch('/api/admin/users');
     const users=await r.json();
     const tb=document.getElementById('users-tbody');
-    if(!r.ok){tb.innerHTML=`<tr><td colspan="6" class="text-center py-10 text-red-400">خطا: ${users.error||r.status}</td></tr>`;return;}
+    if(!r.ok){tb.innerHTML=`<tr><td colspan="6" class="text-center py-10 text-red-400">خطا: ${escHtml(users.error||r.status)}</td></tr>`;return;}
     if(!Array.isArray(users)||!users.length){tb.innerHTML='<tr><td colspan="6" class="text-center py-10 text-gray-400">کاربری یافت نشد</td></tr>';return;}
     tb.innerHTML=users.map(u=>`
       <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
         <td class="p-4 text-xs text-gray-400">#${u.id}</td>
-        <td class="p-4 font-bold text-sm">${u.username}</td>
+        <td class="p-4 font-bold text-sm">${escHtml(u.username)}</td>
         <td class="p-4 text-xs text-gray-400">${new Date(u.created_at).toLocaleDateString('fa-IR')}</td>
         <td class="p-4 text-xs"><span class="bg-teal-50 text-teal-700 px-2 py-1 rounded-full">${u.msg_count||0} پیام</span></td>
         <td class="p-4 text-xs text-gray-400">${u.last_active?new Date(u.last_active).toLocaleDateString('fa-IR'):'-'}</td>
-        <td class="p-4"><button onclick="deleteUser(${u.id},'${u.username}')" class="text-rose-500 hover:text-rose-700 text-xs font-bold bg-rose-50 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition"><i class="fas fa-trash ml-1"></i>حذف</button></td>
+        <td class="p-4"><button onclick="deleteUser(${u.id},${jsArg(u.username)})" class="text-rose-500 hover:text-rose-700 text-xs font-bold bg-rose-50 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition"><i class="fas fa-trash ml-1"></i>حذف</button></td>
       </tr>
     `).join('');
   }catch(e){}

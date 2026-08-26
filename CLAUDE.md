@@ -85,7 +85,13 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 | `POST /api/auth/login` | ورود — برمی‌گرداند `{id, username, token}` |
 | `GET /api/tickets` | تیکت‌های کاربر |
 | `POST /api/tickets` | ایجاد تیکت |
+| `GET /api/tickets/:id` | یک تیکت — فقط صاحب تیکت |
+| `GET /api/tickets/:id/messages` | پیام‌های تیکت — فقط صاحب تیکت |
 | `GET /api/notifications` | اعلان‌های کاربر |
+
+> `GET /api/tickets/:id` و `/messages` قبلاً عمومی بودند (IDOR: با شمردن id
+> می‌شد تیکت‌های بقیه را خواند). حالا هر دو `userAuth` + بررسی مالکیت دارند،
+> پس کلاینت باید هدر `Authorization` را بفرستد.
 
 احراز هویت کاربر: header `Authorization: Bearer <token>` (JWT)
 
@@ -227,3 +233,31 @@ JWT_SECRET=...
 - **WordPress proxy:** هیچ‌گاه مستقیم به `dastgheibqoba.info` درخواست نزنید؛ همیشه از `/api/wp?path=...` استفاده شود.
 - **ادمین:** احراز هویت با httpOnly cookie `admin_token` (JWT) — نه header.
 - **کاربر:** احراز هویت با `Authorization: Bearer <token>` header (JWT) — نه `x-user-id`.
+
+---
+
+## امنیت — قواعدی که باید رعایت شود
+
+### سمت سرور (`server.js`)
+| تابع | کاربرد |
+|------|--------|
+| `sanText(s)` | **پیش‌فرض** برای هر فیلد متنی (عنوان، نام، متن تیکت، توضیحات). همه تگ‌ها را حذف می‌کند. |
+| `sanUrl(u)` | هر مقداری که در `href`/`src` می‌نشیند. فقط `http(s)://` یا مسیر داخلی. |
+| `san(s)` | **فقط** برای محتوای rich ویرایشگر ادمین (`page_contents.content`). |
+| `failMsg(err)` | پیام خطا برای کلاینت؛ در production جزئیات داخلی را مخفی می‌کند. |
+
+### سمت کلاینت (`utils.js` و بلوک اسکریپت `admin.html`)
+| تابع | کاربرد |
+|------|--------|
+| `escHtml(v)` | هر داده‌ای که با `innerHTML` درج می‌شود. |
+| `safeUrl(v)` | هر URL که در `href`/`src` قرار می‌گیرد. |
+| `jsArg(v)` | آرگومان داخل attribute: `onclick="f(${jsArg(v)})"` — بدون کوتیشن اضافه. |
+
+**قاعده:** هیچ داده‌ای از API نباید بدون `escHtml` وارد `innerHTML` شود. sanitizer
+سمت سرور یک blacklist است و به‌تنهایی کافی نیست.
+
+### متغیرهای محیطی امنیتی
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — اگر خالی باشند کلید موقت ساخته می‌شود
+  و اشتراک‌های push بعد از هر restart باطل می‌شوند.
+- `PROXY_ALLOWED_HOSTS` — خالی یعنی `/api/proxy` غیرفعال (پیش‌فرض و توصیه‌شده).
+- `ALLOWED_ORIGINS` — فقط برای cross-origin؛ درخواست‌های هم‌origin همیشه مجازند.
