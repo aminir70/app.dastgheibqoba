@@ -104,8 +104,10 @@ if timeout 60 rclone copy "$TMP/probe.txt" gcrypt:_selftest "${RC_NET[@]}" >/dev
    && timeout 60 rclone copy gcrypt:_selftest/probe.txt "$TMP/back" "${RC_NET[@]}" >/dev/null 2>&1 \
    && cmp -s "$TMP/probe.txt" "$TMP/back/probe.txt"; then
     echo "  ✓ نوشتن، خواندن و رمزگشایی هر سه درست کار می‌کنند"
-    rclone delete gcrypt:_selftest >/dev/null 2>&1 || true
-    rclone rmdir gcrypt:_selftest >/dev/null 2>&1 || true
+    # پاکسازی هم سقف زمانی دارد: بدون آن، اسکریپت بعد از چاپ پیام موفقیت
+    # روی حذف پوشهٔ تست معلق می‌ماند و کاربر فکر می‌کند کاری ناتمام است.
+    timeout 30 rclone purge gcrypt:_selftest "${RC_NET[@]}" >/dev/null 2>&1 \
+        || echo "  (پوشهٔ تست پاک نشد — بی‌ضرر است: timeout 30 rclone purge gcrypt:_selftest)" 
 else
     echo "  !! تست رفت‌وبرگشت شکست خورد"; rm -rf "$TMP"; exit 1
 fi
