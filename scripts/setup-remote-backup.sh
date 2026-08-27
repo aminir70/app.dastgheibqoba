@@ -73,19 +73,35 @@ chmod 600 "$CONF"
 echo "  ✓ پیکربندی نوشته شد: $CONF"
 echo
 
-echo "۳) تست اتصال…"
-if rclone lsd gdrive: --max-depth 1 >/dev/null 2>&1; then
+# همهٔ فراخوانی‌های شبکه سقف زمانی دارند. بدون آن، اگر توکن رد شود یا شبکه
+# کند باشد rclone با backoff مدت‌ها تلاش می‌کند و اسکریپت بی‌صدا معلق می‌ماند.
+RC_NET=(--timeout 30s --contimeout 15s --retries 1 --low-level-retries 2)
+
+echo "۳) تست اتصال (حداکثر ۴۵ ثانیه)…"
+ERR=$(mktemp)
+if timeout 45 rclone lsd gdrive: --max-depth 1 "${RC_NET[@]}" >/dev/null 2>"$ERR"; then
     echo "  ✓ اتصال به گوگل درایو برقرار است"
 else
-    echo "  !! اتصال برقرار نشد. خروجی کامل:"
-    rclone lsd gdrive: 2>&1 | head -5 | sed 's/^/     /'
-    exit 1
+    rc=$?
+    if [ $rc -eq 124 ]; then
+        echo "  !! تست بعد از ۴۵ ثانیه پاسخی نگرفت."
+        echo "     یعنی درخواست به گوگل به جایی نمی‌رسد یا خیلی کند است."
+    else
+        echo "  !! اتصال برقرار نشد:"
+        grep -viE 'ya29\.|1//|access_token|refresh_token' "$ERR" | tail -5 | sed 's/^/     /'
+    fi
+    echo
+    echo "     برای عیب‌یابی:  rclone lsd gdrive: -vv --timeout 30s"
+    echo "     پیکربندی نوشته شده و از دست نرفته: $CONF"
+    rm -f "$ERR"; exit 1
 fi
+rm -f "$ERR"
 
 # تست رفت‌وبرگشت: نوشتن، خواندن، مقایسه، پاک کردن
+echo "۴) تست رفت‌وبرگشت رمزنگاری (حداکثر ۶۰ ثانیه)…"
 TMP=$(mktemp -d); echo "roundtrip-$(date +%s)" > "$TMP/probe.txt"
-if rclone copy "$TMP/probe.txt" gcrypt:_selftest >/dev/null 2>&1 \
-   && rclone copy gcrypt:_selftest/probe.txt "$TMP/back" >/dev/null 2>&1 \
+if timeout 60 rclone copy "$TMP/probe.txt" gcrypt:_selftest "${RC_NET[@]}" >/dev/null 2>&1 \
+   && timeout 60 rclone copy gcrypt:_selftest/probe.txt "$TMP/back" "${RC_NET[@]}" >/dev/null 2>&1 \
    && cmp -s "$TMP/probe.txt" "$TMP/back/probe.txt"; then
     echo "  ✓ نوشتن، خواندن و رمزگشایی هر سه درست کار می‌کنند"
     rclone delete gcrypt:_selftest >/dev/null 2>&1 || true
