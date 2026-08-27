@@ -37,6 +37,29 @@ bash scripts/backup.sh --install-cron  # هر شب ۳:۱۷
 
 ### پیکربندی — یک بار
 
+روی سرور:
+```bash
+sudo apt install -y rclone
+bash scripts/setup-remote-backup.sh
+```
+
+اسکریپت بستهٔ توکن را می‌گیرد، رمزها را **بدون نمایش روی صفحه** می‌پرسد،
+فایل پیکربندی را می‌نویسد و با یک تست رفت‌وبرگشت (نوشتن → خواندن →
+مقایسه) مطمئن می‌شود رمزگشایی کار می‌کند.
+
+توکن را قبلش روی کامپیوتر خودتان بگیرید:
+```
+rclone authorize "drive" "eyJzY29wZSI6ImRyaXZlLmZpbGUifQ"
+```
+(آن رشته یعنی `{"scope":"drive.file"}` به شکل base64 بدون padding —
+rclone آرگومان دوم را base64 می‌خواهد، نه JSON خام.)
+
+> **چرا `rclone config create` استفاده نمی‌کنیم:** برای بک‌اند drive وارد
+> یک گفتگوی تعاملی OAuth می‌شود و در اسکریپت گیر می‌کند، حتی وقتی توکن
+> معتبر داده شده باشد.
+
+<details><summary>روش دستی (اگر اسکریپت را نخواستید)</summary>
+
 **۱) نصب rclone روی سرور**
 ```bash
 sudo apt install -y rclone
@@ -63,8 +86,9 @@ rclone config create gcrypt crypt remote gdrive:app-backups \
 
 chmod 600 ~/.config/rclone/rclone.conf
 ```
+</details>
 
-**۴) رمز و نمک را بیرون از سرور نگه دارید**
+**رمز و نمک را بیرون از سرور نگه دارید**
 
 این تنها بخشی است که خودکار نمی‌شود و مهم‌ترین بخش است: اگر سرور از بین
 برود و رمز را نداشته باشید، بکاپ‌ها **غیرقابل بازیابی‌اند**. آن دو رشته را
