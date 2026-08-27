@@ -5,6 +5,39 @@
 # سپس: sudo ln -s /etc/nginx/sites-available/nashr-asar /etc/nginx/sites-enabled/
 # و: sudo nginx -t && sudo systemctl reload nginx
 
+# ------------------------------------------------------------------
+# ۱) تنظیمات سراسری — در /etc/nginx/nginx.conf اعمال شوند، نه اینجا
+# ------------------------------------------------------------------
+# پیش‌فرض اوبونتو worker_connections 768 است. با ترافیک ربات‌های اسکنر
+# زود پر می‌شود و nginx شروع به رد کردن اتصال کاربران واقعی می‌کند:
+#     [alert] worker_connections are not enough
+#
+#     worker_processes      auto;
+#     worker_rlimit_nofile  8192;      # هر اتصال پروکسی‌شده ۲ توصیفگر می‌گیرد
+#     events {
+#         worker_connections 4096;
+#         multi_accept       on;
+#     }
+
+# ------------------------------------------------------------------
+# ۲) بستن درِ ورودی برای درخواست‌هایی که دامنه را نمی‌فرستند
+# ------------------------------------------------------------------
+# اسکنرها مستقیم به IP سرور می‌زنند (Host: 1.2.3.4). بدون این بلوک،
+# nginx همه را به اپ Node پروکسی می‌کند و هم اتصال هم CPU مصرف می‌شود.
+# 444 یعنی «اتصال را بدون پاسخ ببند».
+#
+# توجه: اگر جای دیگری از پیکربندی‌تان default_server دارید (مثل سایت
+# پیش‌فرض اوبونتو)، اول آن را بردارید وگرنه nginx -t خطای تکراری می‌دهد.
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;    # نیازمند nginx 1.19.4+
+    return 444;
+}
+
 server {
     listen 80;
     server_name YOUR_DOMAIN.com www.YOUR_DOMAIN.com;
