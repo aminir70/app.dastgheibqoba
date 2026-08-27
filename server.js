@@ -2793,15 +2793,30 @@ app.get('/',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')))
 app.get('/sw.js',(req,res)=>{res.setHeader('Content-Type','application/javascript');res.sendFile(path.join(__dirname,'public','sw.js'));});
 app.use((req,res)=>{if(req.path.startsWith('/api/')) return res.status(404).json({error:'مسیر یافت نشد'});res.sendFile(path.join(__dirname,'public','index.html'));});
 app.use((err,req,res,next)=>{
-    console.error('Error:', err.code, err.message, err.stack);
-    if(err && err.message && err.message.startsWith('CORS')) return res.status(403).json({error:'CORS blocked'});
-    if(err.code==='LIMIT_FILE_SIZE') return res.status(413).json({error:'حجم فایل بیش از حد مجاز است (تصاویر حداکثر ۵۰ مگابایت، صوت حداکثر ۱۰۰ مگابایت)'});
-    if(err.code==='LIMIT_UNEXPECTED_FILE') return res.status(400).json({error:'فیلد آپلود نامعتبر'});
-    if(err.code==='ENOENT') return res.status(500).json({error:'خطا در ذخیره فایل - لطفاً با مدیر تماس بگیرید'});
-    if(err.type==='entity.too.large') return res.status(413).json({error:'حجم درخواست بیش از حد مجاز'});
-    // در production هیچ جزییاتی لو نرود
-    const showDetails = process.env.NODE_ENV !== 'production';
-    res.status(500).json({ error: showDetails ? ('خطای داخلی سرور: '+(err.message||'')) : 'خطای داخلی سرور' });
+    if (!err) return next();
+    // خطاهای سمت کلاینت (بدنهٔ نامعتبر، فایل بزرگ و ...) نباید 500 بدهند و
+    // نباید stack کامل لاگ شود؛ وگرنه اسکنرها و باگ‌های کلاینت شبیه خرابی
+    // سرور به نظر می‌رسند و لاگ را پر می‌کنند.
+    const clientErr =
+        err.type === 'entity.parse.failed'  ? { status: 400, msg: 'بدنهٔ درخواست JSON معتبر نیست' } :
+        err.type === 'entity.too.large'     ? { status: 413, msg: 'حجم درخواست بیش از حد مجاز' } :
+        err.type === 'encoding.unsupported' ? { status: 415, msg: 'رمزگذاری پشتیبانی نمی‌شود' } :
+        err.code === 'LIMIT_FILE_SIZE'      ? { status: 413, msg: 'حجم فایل بیش از حد مجاز است' } :
+        err.code === 'LIMIT_UNEXPECTED_FILE'? { status: 400, msg: 'فیلد آپلود نامعتبر' } :
+        err.code === 'LIMIT_FILE_COUNT'     ? { status: 400, msg: 'تعداد فایل بیش از حد مجاز' } :
+        (err.message && err.message.startsWith('CORS')) ? { status: 403, msg: 'CORS blocked' } :
+        (Number.isInteger(err.status || err.statusCode) && (err.status || err.statusCode) >= 400 && (err.status || err.statusCode) < 500)
+            ? { status: err.status || err.statusCode, msg: 'درخواست نامعتبر' } : null;
+
+    if (clientErr) {
+        console.warn(`[${clientErr.status}] ${req.method} ${req.path} — ${err.type || err.code || err.message}`);
+        return res.status(clientErr.status).json({ error: clientErr.msg });
+    }
+
+    // از اینجا به بعد واقعاً خطای سرور است
+    console.error(`[500] ${req.method} ${req.path} —`, err.message, '\n', err.stack);
+    if (err.code === 'ENOENT') return res.status(500).json({error:'خطا در ذخیره فایل - لطفاً با مدیر تماس بگیرید'});
+    res.status(500).json({ error: failMsg(err) });
 });
 
 // تولید خودکار آیکون‌های maskable هنگام راه‌اندازی سرور
