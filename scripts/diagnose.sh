@@ -52,11 +52,17 @@ hr "nginx — خطاها"
 # تازه‌اند یا فقط خطوط قدیمیِ باقی‌مانده در فایل لاگ.
 NGX=/var/log/nginx/error.log
 echo "  اکنون                    : $(date '+%Y/%m/%d %H:%M:%S')"
-echo "  آخرین reload نگین‌اکس     : $(systemctl show nginx --property=ActiveEnterTimestamp --value 2>/dev/null)"
+# ActiveEnterTimestamp زمان آخرین start است، نه reload — با reload عوض نمی‌شود.
+# زمان تغییر خود فایل پیکربندی معیار درست‌تری است برای «کی اصلاح کردیم».
+echo "  آخرین start نگین‌اکس      : $(systemctl show nginx --property=ActiveEnterTimestamp --value 2>/dev/null)"
+echo "  آخرین تغییر nginx.conf   : $(stat -c '%y' /etc/nginx/nginx.conf 2>/dev/null | cut -c1-19)"
 for pat in "worker_connections" "upstream timed out" "connect() failed" "no live upstreams" "SSL_"; do
+  # grep -c هم «0» چاپ می‌کند و هم با کد ۱ خارج می‌شود؛ || echo 0 صفر دوم اضافه می‌کرد
+  cnt=$(sudo grep -Fc "$pat" "$NGX" 2>/dev/null | head -1)
+  case "${cnt:-0}" in ''|*[!0-9]*) cnt=0 ;; esac
+  [ "$cnt" -gt 0 ] || continue
   last=$(sudo grep -F "$pat" "$NGX" 2>/dev/null | tail -1 | awk '{print $1, $2}')
-  cnt=$(sudo grep -Fc "$pat" "$NGX" 2>/dev/null || echo 0)
-  [ "${cnt:-0}" -gt 0 ] && printf "  %-24s : %s بار، آخرین %s\n" "$pat" "$cnt" "${last:-؟}"
+  printf "  %-24s : %s بار، آخرین %s\n" "$pat" "$cnt" "${last:-؟}"
 done
 echo "  ── امضاها ──"
 sudo tail -300 "$NGX" 2>/dev/null \
