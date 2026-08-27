@@ -29,6 +29,7 @@ let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{
 JSON.parse(s).forEach(p=>console.log(\`\${p.name}: \${p.pm2_env.status} | restarts=\${p.pm2_env.restart_time} | mem=\${Math.round(p.monit.memory/1048576)}MB | uptime=\${Math.round((Date.now()-p.pm2_env.pm_uptime)/60000)}min\`));}catch(e){}});" 2>/dev/null
 
 hr "خطاهای Node — امضاهای یکتا با تعداد تکرار"
+echo "  (اگر خالی است یعنی هیچ خطایی در ۱۵۰۰ خط آخر نیست)"
 pm2 logs myapp --err --lines 1500 --nostream 2>/dev/null \
  | sed -E 's/^[0-9]+\|[^|]*\| ?//' \
  | grep -vE '^\s*at |^\s*$|^\[TAILING\]|^/home/.*logs' \
@@ -47,9 +48,20 @@ echo "(وضعیت کانتینرها)"
 sudo docker compose -f "$APP/chatbot/docker-compose.yml" ps --format "  {{.Service}}: {{.State}} {{.Status}}" 2>/dev/null
 
 hr "nginx — خطاها"
-sudo tail -300 /var/log/nginx/error.log 2>/dev/null \
+# مهم: زمان آخرین رخداد را جدا نشان می‌دهیم. بدون آن نمی‌شود فهمید خطاها
+# تازه‌اند یا فقط خطوط قدیمیِ باقی‌مانده در فایل لاگ.
+NGX=/var/log/nginx/error.log
+echo "  اکنون                    : $(date '+%Y/%m/%d %H:%M:%S')"
+echo "  آخرین reload نگین‌اکس     : $(systemctl show nginx --property=ActiveEnterTimestamp --value 2>/dev/null)"
+for pat in "worker_connections" "upstream timed out" "connect() failed" "no live upstreams" "SSL_"; do
+  last=$(sudo grep -F "$pat" "$NGX" 2>/dev/null | tail -1 | awk '{print $1, $2}')
+  cnt=$(sudo grep -Fc "$pat" "$NGX" 2>/dev/null || echo 0)
+  [ "${cnt:-0}" -gt 0 ] && printf "  %-24s : %s بار، آخرین %s\n" "$pat" "$cnt" "${last:-؟}"
+done
+echo "  ── امضاها ──"
+sudo tail -300 "$NGX" 2>/dev/null \
  | sed -E 's/^[0-9\/]+ [0-9:]+//; s/client: [0-9.]+/client: x.x.x.x/g; s/\b[0-9]{3,}\b/N/g' \
- | redact | sort | uniq -c | sort -rn | head -12
+ | redact | sort | uniq -c | sort -rn | head -8
 
 hr "سلامت اندپوینت‌ها (کد وضعیت)"
 H=https://app.dastgheibqoba.info
