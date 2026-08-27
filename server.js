@@ -1,4 +1,20 @@
-require('dotenv').config({ override: true });
+// متغیرهای محیطی واقعی باید بر .env اولویت داشته باشند — رفتار استاندارد
+// dotenv. قبلاً override:true بود که برعکس عمل می‌کرد: .env همیشه برنده
+// می‌شد، پس نه می‌شد مقداری را موقت با متغیر محیطی عوض کرد (مثل
+// PORT=3999 برای تست) و نه تزریق env در systemd/docker اثری داشت.
+//
+// اگر کلیدی هم در محیط و هم در .env باشد، نام آن هنگام راه‌اندازی چاپ
+// می‌شود (فقط نام، نه مقدار) تا اگر جایی مقدار قدیمی مانده باشد بی‌صدا
+// اعمال نشود.
+const _envBefore = new Set(Object.keys(process.env));
+const _dotenvResult = require('dotenv').config();
+{
+    const fileKeys = _dotenvResult.parsed ? Object.keys(_dotenvResult.parsed) : [];
+    const shadowed = fileKeys.filter(k => _envBefore.has(k));
+    if (shadowed.length) {
+        console.log('ℹ️  از محیط گرفته شد (مقدار .env نادیده گرفته شد): ' + shadowed.join(', '));
+    }
+}
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
@@ -311,6 +327,9 @@ app.use((req, res, next) => {
     }
     next();
 });
+// پیوست تیکت‌ها نباید از مسیر استاتیک قابل دریافت باشند — فقط از طریق
+// /api/ticket-files/:name با امضای معتبر.
+app.use('/ticket-files', (req, res) => res.status(403).end());
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true, dotfiles: 'deny' }));
 
 // DB
@@ -1391,7 +1410,7 @@ app.get('/api/tickets/:id/messages',userAuth,(req,res)=>{
                     FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
                     WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err2,rows)=>{
             if(err2) return res.status(500).json({error:'خطای داخلی'});
-            res.json(rows||[]);
+            res.json(withSignedAttachments(rows));
         });
     });
 });
@@ -1401,6 +1420,58 @@ app.get('/api/tickets/:id',userAuth,(req,res)=>{
         if(err||!row) return res.status(404).json({error:'یافت نشد'});
         res.json(row);
     });
+});
+
+// ---------------------------------------------------------------------------
+// پیوست تیکت‌ها — دسترسی با URL امضاشدهٔ کوتاه‌مدت
+//
+// این فایل‌ها زیر public/ ذخیره می‌شوند و قبلاً express.static آن‌ها را بدون
+// هیچ کنترل دسترسی سرو می‌کرد؛ یعنی هر کسی که آدرس را داشت (یا حدس می‌زد)
+// می‌توانست پیوست خصوصی کاربران — از جمله پیام صوتی — را باز کند.
+//
+// حالا مسیر استاتیک بسته است و فقط از طریق /api/ticket-files/:name با یک
+// امضای HMAC معتبر قابل دریافت است. امضا هنگام خواندن پیام‌های تیکت تولید
+// می‌شود (که خودش احراز هویت دارد) و بعد از TICKET_FILE_TTL منقضی می‌شود.
+// ---------------------------------------------------------------------------
+const TICKET_FILE_TTL = 6 * 60 * 60;   // ۶ ساعت
+function signTicketFile(name) {
+    const exp = Math.floor(Date.now() / 1000) + TICKET_FILE_TTL;
+    const base = path.basename(String(name || ''));
+    const sig = crypto.createHmac('sha256', JWT_SECRET).update(`tf:${base}:${exp}`).digest('base64url');
+    return `${exp}.${sig}`;
+}
+function verifyTicketFile(name, token) {
+    if (!token || typeof token !== 'string') return false;
+    const i = token.indexOf('.');
+    if (i < 1) return false;
+    const exp = parseInt(token.slice(0, i), 10);
+    if (!Number.isFinite(exp) || exp < Math.floor(Date.now() / 1000)) return false;
+    const base = path.basename(String(name || ''));
+    const expected = crypto.createHmac('sha256', JWT_SECRET).update(`tf:${base}:${exp}`).digest('base64url');
+    const a = Buffer.from(token.slice(i + 1)), b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    try { return crypto.timingSafeEqual(a, b); } catch (e) { return false; }
+}
+// مسیر ذخیره‌شده در دیتابیس ('/ticket-files/abc.jpg') را به URL امضاشده تبدیل
+// می‌کند. ردیف‌های بدون پیوست دست‌نخورده می‌مانند.
+function withSignedAttachments(rows) {
+    return (rows || []).map(r => {
+        if (!r || !r.attachment) return r;
+        const m = String(r.attachment).match(/^\/ticket-files\/([^/]+)$/);
+        if (!m) return r;                       // مقادیر قدیمی/غیرمنتظره دست نخورند
+        return Object.assign({}, r, { attachment: `/api/ticket-files/${m[1]}?t=${signTicketFile(m[1])}` });
+    });
+}
+app.get('/api/ticket-files/:name', (req, res) => {
+    const name = path.basename(req.params.name || '');
+    if (!verifyTicketFile(name, req.query.t)) return res.status(403).end();
+    const fp = safePath(path.join(__dirname, 'public', 'ticket-files'), name);
+    if (!fp || !fs.existsSync(fp)) return res.status(404).end();
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    // فایل هرگز به‌عنوان صفحه اجرا نشود، حتی اگر محتوایش HTML باشد
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    res.sendFile(fp, err => { if (err && !res.headersSent) res.status(404).end(); });
 });
 
 // === ANALYTICS (lightweight visitor tracking) ===
@@ -2125,7 +2196,7 @@ app.get('/api/admin/tickets/:id/messages',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     mainDb.all(`SELECT m.*, r.text as reply_text, r.sender_type as reply_sender, r.attachment_type as reply_attachment_type
                 FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
-                WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err,rows)=>res.json(rows||[]));
+                WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err,rows)=>res.json(withSignedAttachments(rows)));
 });
 app.post('/api/admin/tickets/:id/reply',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});

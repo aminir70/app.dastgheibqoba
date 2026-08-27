@@ -26,3 +26,4 @@ npm-debug.log
 __pycache__/
 *.py[cod]
 chatbot/.env
+public/ticket-files/
