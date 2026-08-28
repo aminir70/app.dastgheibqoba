@@ -17,8 +17,8 @@
 
 :root { --safe-bottom: 20px; --title-color: inherit; --text-color: inherit; --line-height: 2.2; --home-gap: 16px; --banner-gap: 0px;
         /* تیتر بخش‌های کتاب — از پنل تنظیمات ریدر قابل تغییر.
-           اندازهٔ پیش‌فرض ۲۸px است (قبلاً text-3xl یعنی ۳۰px بود). */
-        --title-font: inherit; --title-size: 28px; }
+           اندازهٔ پیش‌فرض ۱۸px است (قبلاً کلاس ثابت text-3xl یعنی ۳۰px بود). */
+        --title-font: inherit; --title-size: 18px; }
 #home-scroll-content > div { margin-bottom: var(--home-gap) !important; }
 [id^="home-banner-"]:empty { display: none !important; margin: 0 !important; padding: 0 !important; }
 [id^="home-banner-"]:not(:empty) { padding-top: var(--banner-gap) !important; padding-bottom: var(--banner-gap) !important; }

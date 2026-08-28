@@ -3,7 +3,7 @@
 // ====================================================
 let allBooks=[], currentBookId=null, bookData=[], currentIndex=0;
 let fontSize=16, currentTheme='light', currentFont='vazir', lineHeight=2.2;
-let titleFont='inherit', titleSize=28;
+let titleFont='inherit', titleSize=18;
 let uiVisible=true, bookmarks=[], notes={};
 let _searchHighlightQuery = null;
 let touchStartX=0, touchEndX=0;
@@ -650,7 +650,7 @@ function updateTitleColorUI(c) {
 
 // ── تیتر بخش‌های کتاب: فونت و اندازه ──────────────────────────────
 // پیش‌فرض ۲۸px؛ قبلاً کلاس text-3xl (۳۰px) روی تیتر ثابت بود.
-const TITLE_SIZE_DEFAULT = 28, TITLE_SIZE_MIN = 16, TITLE_SIZE_MAX = 48;
+const TITLE_SIZE_DEFAULT = 18, TITLE_SIZE_MIN = 12, TITLE_SIZE_MAX = 48;
 const TITLE_FONTS = { inherit: 'inherit', vazir: "'Vazir', sans-serif",
                       shabnam: "'Shabnam', sans-serif", tahoma: "'Tahoma', sans-serif" };
 
