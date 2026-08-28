@@ -22,7 +22,7 @@ if not defined SCRIPT (
 )
 
 echo اسکریپت: !SCRIPT!
-powershell -NoProfile -ExecutionPolicy Bypass -File "!SCRIPT!" %*
+powershell -NoProfile -STA -ExecutionPolicy Bypass -File "!SCRIPT!" %*
 echo.
 echo ---------------------------------------------------------------
 echo برای بستن این پنجره یک کلید بزنید.

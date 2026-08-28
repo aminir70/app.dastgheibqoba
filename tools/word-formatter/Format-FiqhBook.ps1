@@ -95,7 +95,10 @@ $CFG = @{
     TOCLevels       = 3
     AddHeaderFooter = $true
     PageNumberStyle = 0       # 0 = ۱۲۳ لاتین ، 51 = ١٢٣ عربی‌هندی
-    RemoveEmptyParas= $true   # حذف پاراگراف‌های خالیِ فایل خام
+    RemoveEmptyParas= $false  # حذف واقعیِ پاراگراف‌های خالی (هزاران فراخوانی
+                              # به ورد؛ خاموش که باشد به‌جایش با استایلی به
+                              # ارتفاع ۱ نقطه عملاً نامرئی می‌شوند — سریع‌تر
+                              # و بدون هیچ ریسکی)
     UseFindReplace  = $false  # پاک‌سازی فاصله‌ها با Find/Replace ورد.
                               # روی بعضی سیستم‌ها Find باعث بی‌پاسخ شدن ورد
                               # می‌شود؛ خاموش که باشد فقط پاراگراف‌های خالی
@@ -146,6 +149,7 @@ $STY = @{
     List  = 'K-فهرست بخش'
     Head  = 'K-سرفصل'
     Colo  = 'K-خاتمه'
+    Empty = 'K-خالی'
     TocT  = 'K-عنوان فهرست'
 }
 
@@ -171,6 +175,69 @@ $RX_FNDEF   = '^\s*([0-9]{1,5})\s*\)\s*(.*)$'
 $RX_COLO    = '^(و\s+)?هذا\s+تمام\s+الكلام'
 # کاراکترهای بی‌اثر که باید در مقایسه نادیده گرفته شوند
 $RX_INVIS   = '[\u200B-\u200F\u202A-\u202E\u0640]'
+
+# =============================================================================
+#  ۳.۵) OLE Message Filter — راه‌حل رسمی مایکروسافت برای RPC_E_CALL_REJECTED
+# -----------------------------------------------------------------------------
+#  ورد یک سرور COM تک‌نخی است. وقتی مشغول است فراخوانی تازه را رد می‌کند و
+#  خطای «Call was rejected by callee» می‌دهد. تکرار در سطح PowerShell کافی
+#  نیست، چون خودِ فراخوانی از قبل شکست خورده. با ثبت یک Message Filter،
+#  ویندوز فراخوانیِ رد شده را در سطح COM و پیش از رسیدن خطا به ما، خودکار
+#  دوباره می‌فرستد.
+# =============================================================================
+function Register-ComRetryFilter {
+    if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
+        Write-Log "PowerShell در حالت STA نیست؛ فیلتر COM ثبت نمی‌شود." 'WARN'
+        return $false
+    }
+    if (-not ('ComRetryFilter' -as [type])) {
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+[ComImport, Guid("00000016-0000-0000-C000-000000000046"),
+ InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface IOleMessageFilter {
+    [PreserveSig] int HandleInComingCall(int dwCallType, IntPtr hTaskCaller,
+                                         int dwTickCount, IntPtr lpInterfaceInfo);
+    [PreserveSig] int RetryRejectedCall(IntPtr hTaskCallee, int dwTickCount, int dwRejectType);
+    [PreserveSig] int MessagePending(IntPtr hTaskCallee, int dwTickCount, int dwPendingType);
+}
+
+public class ComRetryFilter : IOleMessageFilter {
+    [DllImport("Ole32.dll")]
+    private static extern int CoRegisterMessageFilter(IOleMessageFilter newFilter,
+                                                      out IOleMessageFilter oldFilter);
+    public static int TimeoutMs = 120000;
+
+    public static void Register() {
+        IOleMessageFilter old = null;
+        CoRegisterMessageFilter(new ComRetryFilter(), out old);
+    }
+    public static void Revoke() {
+        IOleMessageFilter old = null;
+        CoRegisterMessageFilter(null, out old);
+    }
+    int IOleMessageFilter.HandleInComingCall(int dwCallType, IntPtr hTaskCaller,
+                                             int dwTickCount, IntPtr lpInterfaceInfo) {
+        return 0;                       // SERVERCALL_ISHANDLED
+    }
+    int IOleMessageFilter.RetryRejectedCall(IntPtr hTaskCallee, int dwTickCount, int dwRejectType) {
+        // 0 = SERVERCALL_REJECTED ، 2 = SERVERCALL_RETRYLATER
+        if ((dwRejectType == 0 || dwRejectType == 2) && dwTickCount < TimeoutMs) {
+            return 150;                 // ۱۵۰ میلی‌ثانیه بعد دوباره تلاش کن
+        }
+        return -1;                      // تسلیم؛ خطا به فراخوان برگردد
+    }
+    int IOleMessageFilter.MessagePending(IntPtr hTaskCallee, int dwTickCount, int dwPendingType) {
+        return 2;                       // PENDINGMSG_WAITDEFPROCESS
+    }
+}
+"@ -ErrorAction Stop
+    }
+    [ComRetryFilter]::Register()
+    return $true
+}
 
 # =============================================================================
 #  ۴) توابع کمکی
@@ -428,7 +495,7 @@ function Get-ParagraphClasses {
 
         # خاتمه‌ی کتاب
         if ($inColo) { $cls[$i] = 'COLO'; continue }
-        if (($i -ge $Lines.Count - 25) -and ($s -match $RX_COLO)) { $inColo = $true; $cls[$i] = 'COLO'; continue }
+        if (($i -ge $Lines.Count - 45) -and ($s -match $RX_COLO)) { $inColo = $true; $cls[$i] = 'COLO'; continue }
 
         # متن مسأله
         if ($s -match $RX_MATN) { $cls[$i] = 'MATN'; $inClist = $false; continue }
@@ -478,8 +545,9 @@ function Get-ParagraphClasses {
     for ($i = 1; $i -lt $Lines.Count; $i++) {
         if ($cls[$i] -ne 'LABEL') { continue }
         if ((Clean-Line $Lines[$i]) -notmatch '^(الشرح|شرح)\s*:') { continue }
-        for ($j = $i - 1; ($j -ge 0) -and (($i - $j) -le 6); $j--) {
-            if ($cls[$j] -ne 'BODY') { break }
+        for ($j = $i - 1; ($j -ge 0) -and (($i - $j) -le 8); $j--) {
+            if ($cls[$j] -eq 'EMPTY') { continue }       # از خالی‌ها رد شو
+            if ($cls[$j] -ne 'BODY')  { break }
             $cls[$j] = 'MATN'
         }
     }
@@ -754,6 +822,14 @@ function Convert-Book {
     Set-StyleLook -Style (Get-OrAddStyle $doc $STY.Colo) -Font $fH -Size $CFG.SizeH3 -Bold $true `
         -Align $wdAlignCenter -SpBefore 8 -SpAfter 8 -LineMul 1.0 -Color $CFG.ColorHead
 
+    # پاراگراف‌های خالیِ فایل خام: ارتفاع ۱ نقطه، عملاً نامرئی
+    $stEmpty = Get-OrAddStyle $doc $STY.Empty
+    Set-StyleLook -Style $stEmpty -Font $fB -Size 1 -Align $wdAlignRight
+    try {
+        $stEmpty.ParagraphFormat.LineSpacingRule = 4     # wdLineSpaceExactly
+        $stEmpty.ParagraphFormat.LineSpacing     = 1
+    } catch {}
+
     Set-StyleLook -Style (Get-OrAddStyle $doc $STY.TocT) -Font $fH -Size $CFG.SizeH1 -Bold $true `
         -Align $wdAlignCenter -SpBefore 12 -SpAfter 20 -LineMul 1.0 -PageBreak $true -Color $CFG.ColorHead
 
@@ -776,7 +852,7 @@ function Convert-Book {
     $styleOf = @{
         'TITLE' = $STY.Title; 'BODY' = $STY.Body;  'MATN' = $STY.Matn;  'ITEM' = $STY.Item
         'QUOTE' = $STY.Quote; 'LABEL'= $STY.Label; 'HEAD' = $STY.Head;  'CLIST'= $STY.List
-        'COLO'  = $STY.Colo;  'EMPTY'= $STY.Body
+        'COLO'  = $STY.Colo;  'EMPTY'= $STY.Empty
         'H1' = $sH1; 'H2' = $sH2; 'H3' = $sH3
     }
 
@@ -991,6 +1067,10 @@ if ($stuck.Count -gt 0 -and -not $Force) {
     }
 }
 
+try {
+    if (Register-ComRetryFilter) { Write-Log "فیلتر تکرار خودکار COM ثبت شد" 'OK' }
+} catch { Write-Log ("ثبت فیلتر COM نشد: {0}" -f $_.Exception.Message) 'WARN' }
+
 $word = $null
 try {
     $word = New-Object -ComObject Word.Application
@@ -1042,6 +1122,7 @@ foreach ($f in $files) {
 
 $word.Quit()
 [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word)
+try { if ('ComRetryFilter' -as [type]) { [ComRetryFilter]::Revoke() } } catch {}
 [GC]::Collect(); [GC]::WaitForPendingFinalizers()
 
 Write-Host ""
