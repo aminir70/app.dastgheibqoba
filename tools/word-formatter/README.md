@@ -130,3 +130,28 @@ PageBreakOnH2  = $false # هر فصل از صفحه جدید شروع شود؟
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File "مسیرِ کامل\Format-FiqhBook.ps1"
 ```
+
+---
+
+## اگر اجرا گیر کرد (پنجره باز می‌ماند و پیش نمی‌رود)
+
+`diagnose.bat` را اجرا کنید. این ابزار Word را **قابل مشاهده** باز می‌کند و
+مرحله‌به‌مرحله زمان می‌گیرد؛ اگر Word پشت صحنه منتظر یک پنجره باشد، آن پنجره را
+می‌بینید.
+
+سه علتِ رایج که نسخه‌ی جدید همه را رفع می‌کند:
+
+| علت | توضیح |
+|---|---|
+| **Mark of the Web** | فایل دانلود/ایمیل‌شده را ویندوز علامت می‌زند و Word در Protected View بازش می‌کند؛ در حالت نامرئی همان‌جا قفل می‌شود. اسکریپت حالا قبل از باز کردن `Unblock-File` می‌زند. |
+| **ماکرو داخل `.dot`** | یک ماکروی `AutoNew`/`AutoOpen` می‌تواند اجرا را معلق کند. حالا `AutomationSecurity = ForceDisable` ست می‌شود. |
+| **صفحه‌بندی پس‌زمینه** | روی سند ۱۰۰ صفحه‌ای با ۱۳۰۰ پاورقی، Word مدام repaginate می‌کند. حالا `Options.Pagination` در حین کار خاموش است. |
+
+اگر باز هم گیر کرد: Task Manager را باز کنید و ببینید `WINWORD.EXE` وجود دارد یا نه.
+اگر هست، ببندیدش و اسکریپت را با سوییچ `-ShowWord` اجرا کنید تا پنجره‌ی Word را ببینید:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Format-FiqhBook.ps1 -ShowWord
+```
+
+نسخه‌ی جدید در هر مرحله زمان چاپ می‌کند، پس دقیقاً معلوم می‌شود کجا متوقف شده.

@@ -34,6 +34,12 @@ param(
     [switch] $ShowWord
 )
 
+# خروجی کنسول را UTF-8 کن وگرنه متن فارسی ???? دیده می‌شود
+try {
+    [Console]::OutputEncoding = [Text.Encoding]::UTF8
+    $OutputEncoding           = [Text.Encoding]::UTF8
+} catch {}
+
 # =============================================================================
 #  ۱) تنظیمات ظاهری — هرچه لازم بود همین‌جا عوض کنید
 # =============================================================================
@@ -158,6 +164,12 @@ function Write-Log {
     param([string]$Msg, [string]$Level = 'INFO')
     $color = switch ($Level) { 'OK'{'Green'} 'WARN'{'Yellow'} 'ERR'{'Red'} default{'Gray'} }
     Write-Host ("  [{0}] {1}" -f $Level.PadRight(4), $Msg) -ForegroundColor $color
+}
+
+$script:StepWatch = [Diagnostics.Stopwatch]::StartNew()
+function Write-Step {
+    param([string]$Msg)
+    Write-Host ("  [{0,6:N1}s] {1}" -f $script:StepWatch.Elapsed.TotalSeconds, $Msg) -ForegroundColor DarkCyan
 }
 
 function Cm2Pt { param([double]$cm) return [math]::Round($cm * 28.3464567, 2) }
@@ -345,24 +357,41 @@ function Convert-Book {
     Write-Host ("  " + $name) -ForegroundColor Cyan
     Write-Host ("=" * 70) -ForegroundColor DarkCyan
 
+    $script:StepWatch.Restart()
+
+    # --- برداشتن قفل «فایل از اینترنت» --------------------------------------
+    # اگر فایل دانلود یا ایمیل شده باشد ویندوز آن را علامت می‌زند و ورد در
+    # «Protected View» بازش می‌کند؛ در حالت نامرئی همان‌جا قفل می‌کند.
+    try { Unblock-File -Path $SrcPath -ErrorAction SilentlyContinue } catch {}
+
     # --- باز کردن ---------------------------------------------------------
+    Write-Step "در حال باز کردن فایل با Word ..."
     $doc = $null
     if ($ext -in @('.dot', '.dotx', '.dotm')) {
         # از روی قالب یک سند تازه می‌سازیم تا فایل اصلی دست‌نخورده بماند
-        try { $doc = $Word.Documents.Add($SrcPath, $false, 0, $false) } catch { $doc = $null }
+        try { $doc = $Word.Documents.Add($SrcPath, $false, 0, $false) }
+        catch { Write-Log ("Documents.Add نشد: {0}" -f $_.Exception.Message) 'WARN'; $doc = $null }
         if ($null -ne $doc -and $doc.Content.End -lt 100) {
             # قالب محتوایش را منتقل نکرد؛ خود فایل را باز می‌کنیم
             $doc.Close($wdDoNotSaveChanges); $doc = $null
         }
     }
-    if ($null -eq $doc) { $doc = $Word.Documents.Open($SrcPath, $false, $false, $false) }
-    $doc.TrackRevisions   = $false
+    if ($null -eq $doc) {
+        Write-Step "با Documents.Open باز می‌کنیم ..."
+        $doc = $Word.Documents.Open($SrcPath, $false, $false, $false)
+    }
+    Write-Step ("باز شد — {0:N0} کاراکتر" -f $doc.Content.End)
+
+    $doc.TrackRevisions = $false
     try { $doc.ShowSpellingErrors = $false; $doc.ShowGrammaticalErrors = $false } catch {}
+    # صفحه‌بندی خودکار را خاموش کن؛ روی سند ۱۰۰ صفحه‌ای سرعت را چند برابر می‌کند
+    try { $doc.Application.Options.Pagination = $false } catch {}
 
     if (Test-Path $dst) { Remove-Item $dst -Force }
+    Write-Step "ذخیره به docx ..."
     try { $doc.SaveAs2($dst, $wdFormatDocx) } catch { $doc.SaveAs($dst, $wdFormatDocx) }
-    try { if ($doc.CompatibilityMode -lt 15) { $doc.Convert() } } catch {}
-    Write-Log "باز شد و به docx تبدیل شد"
+    try { if ($doc.CompatibilityMode -lt 15) { Write-Step "تبدیل از حالت سازگاری ..."; $doc.Convert() } } catch {}
+    Write-Step "به docx تبدیل شد"
 
     # --- زبان و جهت کلی ---------------------------------------------------
     $doc.Content.LanguageIDOther = $wdArabic
@@ -430,6 +459,7 @@ function Convert-Book {
     # =====================================================================
     #  مرحله ۲ — پاک‌سازی متن
     # =====================================================================
+    Write-Step "پاک‌سازی فاصله‌ها و پاراگراف‌های خالی ..."
     Invoke-Replace $doc "^13 {1,}" "^p" $true 1      # فاصله ابتدای پاراگراف
     Invoke-Replace $doc " {1,}^13" "^p" $true 1      # فاصله انتهای پاراگراف
     Invoke-Replace $doc "  {1,}"   " "  $true 1      # فاصله‌های تکراری وسط خط
@@ -443,6 +473,7 @@ function Convert-Book {
     #     «الفصل الأوّل»  +  «في غسل مسّ الميّت»  →  یک تیتر دو سطری
     #     (از آخر به اول، تا شماره پاراگراف‌ها به‌هم نریزد)
     # =====================================================================
+    Write-Step "چسباندن خط عنوان به تیترها ..."
     $P = Get-Paragraphs $doc
     $merged = 0
     for ($i = $P.Count - 2; $i -ge 0; $i--) {
@@ -464,6 +495,7 @@ function Convert-Book {
     # =====================================================================
     #  مرحله ۴ — ساخت استایل‌ها
     # =====================================================================
+    Write-Step "ساخت استایل‌ها ..."
     $fB = Get-InstalledFont $CFG.FontBodyList
     $fH = Get-InstalledFont $CFG.FontHeadList
     Write-Log ("فونت متن: {0}   |   فونت تیتر: {1}" -f $fB, $fH)
@@ -543,6 +575,7 @@ function Convert-Book {
 
     # اعمال استایل به‌صورت «بازه‌ای» (سریع‌تر از پاراگراف‌به‌پاراگراف)
     if ($P.Count -eq 0) { throw 'سند خالی است.' }
+    Write-Step ("اعمال استایل روی {0:N0} پاراگراف ..." -f $P.Count)
     $applied = 0
     $runStart = 0
     for ($i = 0; $i -le $P.Count; $i++) {
@@ -564,6 +597,7 @@ function Convert-Book {
     #  مرحله ۶ — تبدیل ارجاع‌های (۱) به پاورقی واقعی
     # =====================================================================
     if ($footnotes.Count -gt 0) {
+        Write-Step ("ساخت {0:N0} پاورقی (طولانی‌ترین مرحله) ..." -f $footnotes.Count)
         $doc.Footnotes.Location      = $wdFootnoteBottom
         $doc.Footnotes.NumberingRule = $wdRestartContinuous
         $doc.Footnotes.StartingNumber = 1
@@ -595,6 +629,7 @@ function Convert-Book {
     # =====================================================================
     #  مرحله ۷ — صفحه‌آرایی، سربرگ/پابرگ، فهرست خودکار
     # =====================================================================
+    Write-Step "صفحه‌آرایی، سربرگ و فهرست ..."
     $sec = $doc.Sections.Item(1)
     $ps  = $sec.PageSetup
     try { $ps.SectionDirection = $wdSectionDirectionRtl } catch {}
@@ -649,6 +684,8 @@ function Convert-Book {
     # =====================================================================
     #  مرحله ۸ — به‌روزرسانی و ذخیره
     # =====================================================================
+    Write-Step "به‌روزرسانی فهرست و ذخیره نهایی ..."
+    try { $doc.Application.Options.Pagination = $true } catch {}
     try { $doc.Fields.Update() | Out-Null } catch {}
     try { if ($doc.TablesOfContents.Count -gt 0) { $doc.TablesOfContents.Item(1).Update() } } catch {}
     try { $doc.Repaginate() } catch {}
@@ -724,6 +761,15 @@ try {
 }
 $word.Visible       = [bool]$ShowWord
 $word.DisplayAlerts = $wdAlertsNone
+# ماکروهای داخل قالب را کامل غیرفعال کن (msoAutomationSecurityForceDisable)
+# وگرنه یک ماکروی AutoNew/AutoOpen می‌تواند اجرا را برای همیشه معلق کند.
+try { $word.AutomationSecurity = 3 } catch {}
+try { $word.Options.ConfirmConversions      = $false } catch {}
+try { $word.Options.Pagination              = $false } catch {}
+try { $word.Options.CheckSpellingAsYouType  = $false } catch {}
+try { $word.Options.CheckGrammarAsYouType   = $false } catch {}
+try { $word.Options.SaveInterval            = 0      } catch {}
+try { $word.Options.AnimateScreenMovements  = $false } catch {}
 try { $word.ScreenUpdating = $false } catch {}
 $swAll = [Diagnostics.Stopwatch]::StartNew()
 $ok = 0; $fail = 0
