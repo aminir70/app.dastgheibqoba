@@ -96,6 +96,10 @@ $CFG = @{
     AddHeaderFooter = $true
     PageNumberStyle = 0       # 0 = ۱۲۳ لاتین ، 51 = ١٢٣ عربی‌هندی
     RemoveEmptyParas= $true   # حذف پاراگراف‌های خالیِ فایل خام
+    UseFindReplace  = $false  # پاک‌سازی فاصله‌ها با Find/Replace ورد.
+                              # روی بعضی سیستم‌ها Find باعث بی‌پاسخ شدن ورد
+                              # می‌شود؛ خاموش که باشد فقط پاراگراف‌های خالی
+                              # حذف می‌شوند (با روش مستقیم و مطمئن).
     NormalizeFonts  = $false  # اجرای Font.Reset روی کل سند پیش از پردازش.
                               # عملیات سنگینی است و ورد را مدتی مشغول می‌کند.
     SaveFormat      = 16      # 16 = .docx  |  0 = .doc (اگر ذخیره‌ی docx گیر کرد)
@@ -211,8 +215,9 @@ function Wait-WordReady {
             $c = $Doc.Paragraphs.Count
             if ($c -gt 0) { return [int]$c }
         } catch { }
-        if (-not $warned -and $t.Elapsed.TotalSeconds -gt 2) {
-            Write-Host "    (ورد هنوز مشغول است؛ منتظر می‌مانیم ...)" -ForegroundColor Yellow
+        if (-not $warned -and $t.Elapsed.TotalSeconds -gt 3) {
+            Write-Host "    (ورد پاسخ نمی‌دهد؛ منتظر می‌مانیم ...)" -ForegroundColor Yellow
+            Write-Host "     پنجره‌ی Word را از نوار وظیفه باز کنید — اگر پیامی نشان می‌دهد، همان علت است." -ForegroundColor Yellow
             $warned = $true
         }
         Start-Sleep -Milliseconds 300
@@ -634,25 +639,27 @@ function Convert-Book {
     #  مرحله ۲ — پاک‌سازی متن
     # =====================================================================
     Write-Step "پاک‌سازی فاصله‌ها و پاراگراف‌های خالی ..."
-    $before = $doc.Paragraphs.Count
-    # بدون wildcard انجام می‌شود: ورد الگوی ^13 را در حالت wildcard رد می‌کند.
-    # هر بار یک فاصله برداشته می‌شود، پس چند بار تکرار می‌کنیم.
+    $before = Wait-WordReady $doc
     $findOk = $true
-    try {
-        Invoke-Replace $doc "^p " "^p" $false 8      # فاصله ابتدای پاراگراف
-        Invoke-Replace $doc " ^p" "^p" $false 8      # فاصله انتهای پاراگراف
-        Invoke-Replace $doc "  "  " "  $false 8      # فاصله‌های تکراری وسط خط
-        Invoke-Replace $doc " ،" "،" $false 1
-        Invoke-Replace $doc " ." "." $false 1
-        if ($CFG.RemoveEmptyParas) { Invoke-Replace $doc "^p^p" "^p" $false 14 }
-    } catch {
-        $findOk = $false
-        Write-Log ("جست‌وجو/جایگزینی ورد کار نکرد: {0}" -f $_.Exception.Message) 'WARN'
-    }
+    if ($CFG.UseFindReplace) {
+        # هر بار یک فاصله برداشته می‌شود، پس چند بار تکرار می‌کنیم.
+        # نکته: wildcard استفاده نمی‌کنیم، ورد الگوی ^13 را در آن حالت رد می‌کند.
+        try {
+            Invoke-Replace $doc "^p " "^p" $false 8  # فاصله ابتدای پاراگراف
+            Invoke-Replace $doc " ^p" "^p" $false 8  # فاصله انتهای پاراگراف
+            Invoke-Replace $doc "  "  " "  $false 8  # فاصله‌های تکراری وسط خط
+            Invoke-Replace $doc " ،" "،" $false 1
+            Invoke-Replace $doc " ." "." $false 1
+            if ($CFG.RemoveEmptyParas) { Invoke-Replace $doc "^p^p" "^p" $false 14 }
+        } catch {
+            $findOk = $false
+            Write-Log ("جست‌وجو/جایگزینی ورد کار نکرد: {0}" -f $_.Exception.Message) 'WARN'
+        }
+    } else { $findOk = $false }
 
-    # اگر Find کار نکرد یا اثری نداشت، از روش پشتیبان استفاده کن
-    if ($CFG.RemoveEmptyParas -and ((-not $findOk) -or ($doc.Paragraphs.Count -eq $before))) {
-        Write-Step "حذف پاراگراف‌های خالی با روش پشتیبان ..."
+    # روش مستقیم (بدون Find) برای حذف پاراگراف‌های خالی
+    if ($CFG.RemoveEmptyParas -and ((-not $findOk) -or ((Wait-WordReady $doc) -eq $before))) {
+        Write-Step "حذف پاراگراف‌های خالی ..."
         $n = Remove-EmptyParagraphs $doc
         Write-Log ("{0:N0} پاراگراف خالی حذف شد" -f $n)
     }
@@ -664,7 +671,7 @@ function Convert-Book {
         while ($lead -lt $head.Length -and $head[$lead] -eq ' ') { $lead++ }
         if ($lead -gt 0) { $doc.Range(0, $lead).Delete() | Out-Null }
     }
-    Write-Log ("پاک‌سازی شد — {0:N0} ← {1:N0} پاراگراف" -f $doc.Paragraphs.Count, $before)
+    Write-Log ("پاک‌سازی شد — {0:N0} ← {1:N0} پاراگراف" -f (Wait-WordReady $doc), $before)
 
     # =====================================================================
     #  مرحله ۳ — چسباندن خطِ عنوان به تیتر بالایش
@@ -803,28 +810,34 @@ function Convert-Book {
         $doc.Footnotes.NumberingRule = $wdRestartContinuous
         $doc.Footnotes.StartingNumber = 1
 
-        $pos = 0
-        $done = 0; $skipped = 0
-        for ($n = 1; $n -le $fnMax; $n++) {
-            if (-not $footnotes.ContainsKey($n)) { $skipped++; continue }
-            $rng = $doc.Range($pos, $doc.Content.End)
-            $f = $rng.Find
-            $f.ClearFormatting()
-            $f.MatchWildcards = $false      # گزینه‌های Find در ورد چسبنده‌اند
-            $f.Format = $false
-            $found = $f.Execute("($n)", $false, $false, $false, $false, $false,
-                                $true, $wdFindStop, $false)
-            if (-not $found) { $skipped++; continue }
-            $at = $rng.Start
-            $rng.Text = ''                       # حذف «(۱)»
-            $ref = $doc.Range($at, $at)
-            $fn  = $doc.Footnotes.Add($ref)
-            $fn.Range.Text = $footnotes[$n]
-            $pos = $at + 1
-            $done++
-            if ($done % 200 -eq 0) { Write-Host ("      ... {0} پاورقی" -f $done) -ForegroundColor DarkGray }
+        # بدون Find: محل هر ارجاع را از روی متنی که خوانده‌ایم حساب می‌کنیم.
+        $txt  = Get-DocText $doc
+        $seen = @{}
+        $hits = New-Object System.Collections.ArrayList
+        foreach ($m in [regex]::Matches($txt, '\((\d{1,5})\)')) {
+            $n = [int]$m.Groups[1].Value
+            if (-not $footnotes.ContainsKey($n)) { continue }
+            if ($seen.ContainsKey($n)) { continue }     # فقط اولین ارجاع هر شماره
+            $seen[$n] = $true
+            [void]$hits.Add([pscustomobject]@{ N = $n; At = $m.Index; Len = $m.Length })
         }
-        Write-Log ("{0} پاورقی ساخته شد (ناموفق: {1})" -f $done, $skipped) $(if ($skipped -gt 0) {'WARN'} else {'OK'})
+        Write-Log ("{0:N0} ارجاع در متن پیدا شد" -f $hits.Count)
+
+        # از آخر به اول، تا آفست ارجاع‌های قبلی به‌هم نریزد
+        $done = 0
+        for ($k = $hits.Count - 1; $k -ge 0; $k--) {
+            $h = $hits[$k]
+            $r = Invoke-Com { $doc.Range($h.At, $h.At + $h.Len) } -What 'یافتن ارجاع'
+            $r.Text = ''                                # حذف «(۱)»
+            $fn = Invoke-Com { $doc.Footnotes.Add($doc.Range($h.At, $h.At)) } -What 'افزودن پاورقی'
+            $fn.Range.Text = $footnotes[$h.N]
+            $done++
+            if ($done % 200 -eq 0) {
+                Write-Host ("      ... {0:N0} از {1:N0}" -f $done, $hits.Count) -ForegroundColor DarkGray
+            }
+        }
+        $missing = $footnotes.Count - $done
+        Write-Log ("{0:N0} پاورقی ساخته شد (بدون ارجاع: {1})" -f $done, $missing) $(if ($missing -gt 0) {'WARN'} else {'OK'})
       } catch { Write-Log ("ساخت پاورقی‌ها ناتمام ماند: {0}" -f $_.Exception.Message) 'WARN' }
     }
 
