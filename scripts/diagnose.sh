@@ -98,6 +98,72 @@ else
   echo "sqlite3 نصب نیست"
 fi
 
+hr "بکاپ"
+BK="${BACKUP_DIR:-$HOME/backups}"
+if [ -d "$BK" ]; then
+  echo "  حجم کل محلی            : $(du -sh "$BK" 2>/dev/null | cut -f1)"
+  echo "  نسخه‌های دیتابیس       : $(ls -1 "$BK"/db/*.gz 2>/dev/null | wc -l) (سقف ۱۴)"
+  echo "  اسنپ‌شات فایل‌ها        : $(ls -1d "$BK"/files/20* 2>/dev/null | wc -l) (سقف ۷)"
+  echo "  تاریخ‌های موجود        : $(ls -1d "$BK"/files/20* 2>/dev/null | xargs -r -n1 basename | tr '\n' ' ')"
+  # آیا روزی جا افتاده؟ هر شب باید یک نسخهٔ دیتابیس ساخته شود.
+  echo "  ── روزهای بدون بکاپ دیتابیس (۷ روز اخیر) ──"
+  miss=0
+  for i in 0 1 2 3 4 5 6; do
+    d=$(date -d "-$i day" +%F 2>/dev/null) || break
+    [ -f "$BK/db/app-$d.sqlite.gz" ] || { echo "    ✗ $d"; miss=$((miss+1)); }
+  done
+  [ "$miss" = 0 ] && echo "    ✓ هیچ روزی جا نیفتاده"
+  # سالم بودن تازه‌ترین بکاپ — بکاپی که تست نشده، بکاپ نیست
+  # بر اساس تاریخِ داخل نام مرتب می‌شود، نه mtime — چند فایل می‌توانند
+  # زمان یکسان داشته باشند و ترتیب mtime دلبخواه شود.
+  NEWEST=$(ls -1 "$BK"/db/app-*.sqlite.gz 2>/dev/null | sort | tail -1)
+  if [ -n "$NEWEST" ]; then
+    if gunzip -t "$NEWEST" 2>/dev/null; then
+      echo "  تازه‌ترین بکاپ         : $(basename "$NEWEST") → gzip سالم"
+      if command -v sqlite3 >/dev/null; then
+        TMPDB=$(mktemp); gunzip -c "$NEWEST" > "$TMPDB" 2>/dev/null
+        chk=$(sqlite3 "$TMPDB" "PRAGMA integrity_check;" 2>/dev/null | head -1)
+        cnt=$(sqlite3 "$TMPDB" "SELECT COUNT(*) FROM books;" 2>/dev/null)
+        echo "    باز و خوانده شد      : integrity=${chk:-؟}، تعداد کتاب=${cnt:-؟}"
+        rm -f "$TMPDB"
+      else
+        echo "    (sqlite3 نیست — محتوای دیتابیس بررسی نشد)"
+      fi
+    else
+      echo "  !! تازه‌ترین بکاپ خراب است: $(basename "$NEWEST")"
+    fi
+  fi
+else
+  echo "  !! پوشهٔ بکاپ یافت نشد: $BK"
+fi
+echo "  ── cron ──"
+CRONLINE=$(crontab -l 2>/dev/null | grep -E "backup" || true)
+if [ -n "$CRONLINE" ]; then echo "$CRONLINE" | sed 's/^/    ✓ /'; else echo "    ✗ cron بکاپ تنظیم نشده"; fi
+if [ -f "$HOME/backup.log" ]; then
+  echo "    اجراهای کامل ثبت‌شده در لاگ: $(grep -c 'پایان —' "$HOME/backup.log" 2>/dev/null)"
+  echo "    ── ۴ خط آخر لاگ ──"
+  tail -4 "$HOME/backup.log" | sed 's/^/      /'
+else
+  echo "    (~/backup.log هنوز ساخته نشده — یعنی cron هیچ‌وقت اجرا نشده)"
+fi
+echo "  ── فضای ابری ──"
+if command -v rclone >/dev/null && rclone config show gcrypt >/dev/null 2>&1; then
+  RSZ=$(timeout 45 rclone size gcrypt: --json --timeout 20s --retries 1 2>/dev/null)
+  if [ -n "$RSZ" ]; then
+    b=$(echo "$RSZ" | grep -o '"bytes":[0-9]*' | cut -d: -f2)
+    c=$(echo "$RSZ" | grep -o '"count":[0-9]*' | cut -d: -f2)
+    echo "    ✓ روی مقصد: $(numfmt --to=iec "${b:-0}" 2>/dev/null || echo "$b بایت") در ${c:-؟} فایل"
+    echo "    تازه‌ترین دیتابیس روی مقصد:"
+    timeout 30 rclone lsl gcrypt:db --timeout 20s --retries 1 2>/dev/null | sort -k2 | tail -2 | sed 's/^/      /'
+  else
+    echo "    !! پاسخی از مقصد نگرفت — توکن یا شبکه را بررسی کنید:"
+    echo "       rclone lsd gdrive: -vv --timeout 30s --retries 1"
+  fi
+  [ -f "$HOME/backup-remote.log" ] && tail -3 "$HOME/backup-remote.log" | sed 's/^/    /'
+else
+  echo "    (بکاپ ابری پیکربندی نشده)"
+fi
+
 hr "فایل‌های آپلود"
 for d in public/gallery public/audio public/covers books public/ticket-files public/content; do
   printf "  %-22s %s فایل، %s\n" "$d" "$(ls -1 $d 2>/dev/null|wc -l)" "$(du -sh $d 2>/dev/null|cut -f1)"
