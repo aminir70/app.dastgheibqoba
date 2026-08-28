@@ -105,6 +105,8 @@ $CFG = @{
                               # حذف می‌شوند (با روش مستقیم و مطمئن).
     NormalizeFonts  = $false  # اجرای Font.Reset روی کل سند پیش از پردازش.
                               # عملیات سنگینی است و ورد را مدتی مشغول می‌کند.
+    SaveEarly       = $true   # بعد از اعمال استایل‌ها یک بار ذخیره کن، تا اگر
+                              # مرحله‌ی پاورقی‌ها به مشکل خورد فایل از دست نرود
     SaveFormat      = 16      # 16 = .docx  |  0 = .doc (اگر ذخیره‌ی docx گیر کرد)
     ConvertCompatMode = $false # ارتقا از «حالت سازگاری» ورد ۹۷.
                                # لازم نیست (docx سالم بدون آن هم ساخته می‌شود)
@@ -304,6 +306,13 @@ function Remove-DocRange {
         $end = $start
     }
     $null = Wait-WordReady $Doc
+}
+
+# تاریخچه‌ی Undo ورد با هزاران تغییر پر می‌شود و حافظه را تا مرز کرش بالا
+# می‌برد. دوره‌ای خالی‌اش می‌کنیم (کاربر که Undo نمی‌خواهد).
+function Clear-Undo {
+    param($Doc)
+    try { $Doc.UndoClear() } catch { }
 }
 
 $script:StepWatch = [Diagnostics.Stopwatch]::StartNew()
@@ -826,15 +835,21 @@ function Convert-Book {
 
     Set-StyleLook -Style (Get-BuiltinStyle $doc $sNormal) -Font $fB -Size $CFG.SizeBody -Align $J -LineMul $LS
 
-    Set-StyleLook -Style (Get-BuiltinStyle $doc $sH1) -Font $fH -Size $CFG.SizeH1 -Bold $true `
+    # شیء استایل را نگه می‌داریم؛ نسبت دادن شماره‌ی استایل به Range.Style
+    # روی بعضی نسخه‌های ورد کار نمی‌کند ولی نسبت دادن خودِ شیء کار می‌کند.
+    $styH1 = Get-BuiltinStyle $doc $sH1
+    $styH2 = Get-BuiltinStyle $doc $sH2
+    $styH3 = Get-BuiltinStyle $doc $sH3
+
+    Set-StyleLook -Style $styH1 -Font $fH -Size $CFG.SizeH1 -Bold $true `
         -Align $wdAlignCenter -SpBefore 24 -SpAfter 20 -LineMul 1.0 `
         -PageBreak $CFG.PageBreakOnH1 -KeepNext $true -Outline 1 -Color $CFG.ColorHead
 
-    Set-StyleLook -Style (Get-BuiltinStyle $doc $sH2) -Font $fH -Size $CFG.SizeH2 -Bold $true `
+    Set-StyleLook -Style $styH2 -Font $fH -Size $CFG.SizeH2 -Bold $true `
         -Align $wdAlignCenter -SpBefore 20 -SpAfter 14 -LineMul 1.0 `
         -PageBreak $CFG.PageBreakOnH2 -KeepNext $true -Outline 2 -Color $CFG.ColorHead
 
-    Set-StyleLook -Style (Get-BuiltinStyle $doc $sH3) -Font $fH -Size $CFG.SizeH3 -Bold $true `
+    Set-StyleLook -Style $styH3 -Font $fH -Size $CFG.SizeH3 -Bold $true `
         -Align $wdAlignCenter -SpBefore 14 -SpAfter 10 -LineMul 1.0 `
         -KeepNext $true -Outline 3 -Color $CFG.ColorHead
 
@@ -903,7 +918,11 @@ function Convert-Book {
         'TITLE' = $STY.Title; 'BODY' = $STY.Body;  'MATN' = $STY.Matn;  'ITEM' = $STY.Item
         'QUOTE' = $STY.Quote; 'LABEL'= $STY.Label; 'HEAD' = $STY.Head;  'CLIST'= $STY.List
         'COLO'  = $STY.Colo;  'EMPTY'= $STY.Empty
-        'H1' = $sH1; 'H2' = $sH2; 'H3' = $sH3
+        'H1' = $styH1; 'H2' = $styH2; 'H3' = $styH3
+    }
+    # اگر ورد استایل داخلی تیتر را نداد، دست‌کم ظاهر تیتر را داشته باشند
+    foreach ($k in @('H1','H2','H3')) {
+        if ($null -eq $styleOf[$k]) { $styleOf[$k] = $STY.Head }
     }
 
     # اعمال استایل به‌صورت «بازه‌ای» (سریع‌تر از پاراگراف‌به‌پاراگراف)
@@ -923,8 +942,19 @@ function Convert-Book {
     }
     $stat = ($cls | Group-Object | Sort-Object Count -Descending |
              ForEach-Object { "{0}={1}" -f $_.Name, $_.Count }) -join '  '
+    Clear-Undo $doc
     Write-Log ("استایل‌ها اعمال شد ({0} بازه)" -f $applied)
     Write-Log ("آمار: {0}" -f $stat)
+
+    # ذخیره‌ی میانی: از اینجا به بعد یک فایل قالب‌بندی‌شده روی دیسک هست
+    if ($CFG.SaveEarly) {
+        try {
+            if (Test-Path $dst) { Remove-Item $dst -Force }
+            Write-Step "ذخیره‌ی میانی ..."
+            $doc.SaveAs2($dst, $CFG.SaveFormat, $false, '', $false)
+            Write-Log ("ذخیره شد: {0}" -f $dst) 'OK'
+        } catch { Write-Log ("ذخیره‌ی میانی نشد: {0}" -f $_.Exception.Message) 'WARN' }
+    }
 
     # =====================================================================
     #  مرحله ۶ — تبدیل ارجاع‌های (۱) به پاورقی واقعی
@@ -958,6 +988,8 @@ function Convert-Book {
             $fn = Invoke-Com { $doc.Footnotes.Add($doc.Range($h.At, $h.At)) } -What 'افزودن پاورقی'
             $fn.Range.Text = $footnotes[$h.N]
             $done++
+            # بدون این، حافظه‌ی ورد بعد از چند صد پاورقی پر می‌شود و کرش می‌کند
+            if ($done % 50 -eq 0) { Clear-Undo $doc }
             if ($done % 200 -eq 0) {
                 Write-Host ("      ... {0:N0} از {1:N0}" -f $done, $hits.Count) -ForegroundColor DarkGray
             }
@@ -971,7 +1003,9 @@ function Convert-Book {
     #  مرحله ۷ — صفحه‌آرایی، سربرگ/پابرگ، فهرست خودکار
     # =====================================================================
     Write-Step "صفحه‌آرایی، سربرگ و فهرست ..."
+    Clear-Undo $doc
     $sec = $doc.Sections.Item(1)
+    if ($null -eq $sec) { throw "بخش اول سند در دسترس نیست (احتمالاً ورد بسته شده)." }
     $ps  = $sec.PageSetup
     try { $ps.SectionDirection = $wdSectionDirectionRtl } catch {}
     Set-Prop $ps 'PageWidth'    (Cm2Pt $CFG.PageWidth)
@@ -1035,11 +1069,17 @@ function Convert-Book {
     try { if ($doc.TablesOfContents.Count -gt 0) { $doc.TablesOfContents.Item(1).Update() } } catch {}
     try { $doc.Repaginate() } catch {}
 
-    if (Test-Path $dst) { Remove-Item $dst -Force }
     Write-Step ("ذخیره در {0} ..." -f $dst)
-    try   { $doc.SaveAs2($dst, $CFG.SaveFormat, $false, '', $false) }
-    catch { $doc.SaveAs($dst,  $CFG.SaveFormat, $false, '', $false) }
-    Write-Log ("ذخیره شد: {0}  ({1} صفحه)" -f $dst, $doc.ComputeStatistics(2)) 'OK'
+    try {
+        if (Test-Path $dst) { Remove-Item $dst -Force }
+        $doc.SaveAs2($dst, $CFG.SaveFormat, $false, '', $false)
+    } catch {
+        try { $doc.SaveAs($dst, $CFG.SaveFormat, $false, '', $false) }
+        catch { throw ("ذخیره نشد: {0}" -f $_.Exception.Message) }
+    }
+    $pages = '?'
+    try { $pages = $doc.ComputeStatistics(2) } catch {}
+    Write-Log ("ذخیره شد: {0}  ({1} صفحه)" -f $dst, $pages) 'OK'
 
     if ($AlsoPdf) {
         $pdf = Join-Path $OutDir ($name + '.pdf')
@@ -1170,8 +1210,8 @@ foreach ($f in $files) {
     }
 }
 
-$word.Quit()
-[void][Runtime.InteropServices.Marshal]::ReleaseComObject($word)
+try { $word.Quit() } catch { Write-Host "  (ورد از قبل بسته شده بود)" -ForegroundColor DarkGray }
+try { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word) } catch {}
 try { if ('ComRetryFilter' -as [type]) { [ComRetryFilter]::Revoke() } } catch {}
 [GC]::Collect(); [GC]::WaitForPendingFinalizers()
 
