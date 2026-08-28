@@ -30,8 +30,11 @@ param(
     [switch] $KeepOriginalIndex,
     # پاورقی‌های انتهای فایل را به پاورقی واقعیِ ورد تبدیل نکن
     [switch] $NoFootnotes,
-    # پنجره ورد را نمایش بده (برای عیب‌یابی)
-    [switch] $ShowWord
+    # پنجره ورد را کامل نمایش بده (پیش‌فرض: باز ولی مینیمایز)
+    [switch] $ShowWord,
+    # ورد را کاملاً نامرئی اجرا کن — سریع‌تر است ولی روی بعضی سیستم‌ها
+    # عملیات ذخیره پشت یک پنجره‌ی نامرئی قفل می‌کند
+    [switch] $HideWord
 )
 
 # خروجی کنسول را UTF-8 کن وگرنه متن فارسی ???? دیده می‌شود
@@ -387,6 +390,8 @@ function Convert-Book {
         $doc = $Word.Documents.Open($SrcPath, $false, $false, $false)
     }
     Write-Step ("باز شد — {0:N0} کاراکتر، {1} پنجره" -f $doc.Content.End, $doc.Windows.Count)
+    # حالا که سند پنجره دارد، دوباره مینیمایز کن تا جلوی چشم نباشد
+    if (-not $ShowWord -and -not $HideWord) { try { $Word.WindowState = 2 } catch {} }
     if ($doc.Windows.Count -eq 0) {
         # بدون پنجره، SaveAs قفل می‌کند — یکی می‌سازیم
         Write-Log "سند پنجره نداشت؛ یک پنجره ساخته شد." 'WARN'
@@ -403,9 +408,14 @@ function Convert-Book {
     try { $doc.ShowGrammaticalErrors = $false } catch {}
     try { $doc.Application.Options.Pagination = $false } catch {}
 
+    # قالبِ .dot را از سند جدا کن؛ وگرنه هنگام ذخیره در قالب بدون‌ماکرو
+    # ورد ممکن است درباره‌ی پروژه‌ی VBAی داخل قالب سؤال بپرسد.
+    try { $doc.AttachedTemplate = $Word.NormalTemplate.FullName } catch {}
+
     if (Test-Path $dst) { Remove-Item $dst -Force }
     Write-Step "ذخیره به docx ..."
-    try { $doc.SaveAs2($dst, $wdFormatDocx) } catch { $doc.SaveAs($dst, $wdFormatDocx) }
+    try   { $doc.SaveAs2($dst, $wdFormatDocx, $false, '', $false) }
+    catch { $doc.SaveAs($dst,  $wdFormatDocx, $false, '', $false) }
     Write-Step "ذخیره شد"
 
     if ($CFG.ConvertCompatMode) {
@@ -793,7 +803,13 @@ try {
     return
 }
 
-$word.Visible       = [bool]$ShowWord
+# ورد را باز ولی مینیمایز اجرا می‌کنیم.
+# در حالت کاملاً نامرئی، اگر ورد بخواهد پنجره‌ای نشان دهد (مثلاً هنگام ذخیره)
+# آن پنجره دیده نمی‌شود و اجرا برای همیشه قفل می‌ماند.
+$word.Visible = -not $HideWord
+if ($word.Visible -and -not $ShowWord) {
+    try { $word.WindowState = 2 } catch {}      # wdWindowStateMinimize
+}
 $word.DisplayAlerts = $wdAlertsNone
 # ماکروهای داخل قالب را کامل غیرفعال کن (msoAutomationSecurityForceDisable)
 # وگرنه یک ماکروی AutoNew/AutoOpen می‌تواند اجرا را برای همیشه معلق کند.
@@ -804,7 +820,8 @@ try { $word.Options.CheckSpellingAsYouType  = $false } catch {}
 try { $word.Options.CheckGrammarAsYouType   = $false } catch {}
 try { $word.Options.SaveInterval            = 0      } catch {}
 try { $word.Options.AnimateScreenMovements  = $false } catch {}
-try { $word.ScreenUpdating = $false } catch {}
+# ScreenUpdating را عمداً خاموش نمی‌کنیم: ترکیب آن با پنجره‌ی نامرئی
+# باعث قفل شدن SaveAs می‌شود و وقتی پنجره مینیمایز است سودی هم ندارد.
 $swAll = [Diagnostics.Stopwatch]::StartNew()
 $ok = 0; $fail = 0
 
@@ -823,7 +840,6 @@ foreach ($f in $files) {
     }
 }
 
-try { $word.ScreenUpdating = $true } catch {}
 $word.Quit()
 [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word)
 [GC]::Collect(); [GC]::WaitForPendingFinalizers()
