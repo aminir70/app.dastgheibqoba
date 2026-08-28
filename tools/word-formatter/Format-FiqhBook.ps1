@@ -245,6 +245,11 @@ function Invoke-Replace {
     for ($k = 0; $k -lt $Times; $k++) {
         $f = $Doc.Content.Find
         $f.ClearFormatting(); $f.Replacement.ClearFormatting()
+        # گزینه‌های Find در ورد بین فراخوانی‌ها می‌مانند؛ صریح ست می‌کنیم
+        $f.MatchWildcards = $Wildcards
+        $f.Format = $false
+        $f.Forward = $true
+        $f.Wrap = $wdFindContinue
         $null = $f.Execute($Find, $false, $false, $Wildcards, $false, $false,
                            $true, $wdFindContinue, $false, $Replace, $wdReplaceAll)
     }
@@ -489,12 +494,20 @@ function Convert-Book {
     #  مرحله ۲ — پاک‌سازی متن
     # =====================================================================
     Write-Step "پاک‌سازی فاصله‌ها و پاراگراف‌های خالی ..."
-    Invoke-Replace $doc "^13 {1,}" "^p" $true 1      # فاصله ابتدای پاراگراف
-    Invoke-Replace $doc " {1,}^13" "^p" $true 1      # فاصله انتهای پاراگراف
-    Invoke-Replace $doc "  {1,}"   " "  $true 1      # فاصله‌های تکراری وسط خط
+    # بدون wildcard انجام می‌شود: ورد الگوی ^13 را در حالت wildcard رد می‌کند.
+    # هر بار یک فاصله برداشته می‌شود، پس چند بار تکرار می‌کنیم.
+    Invoke-Replace $doc "^p " "^p" $false 8          # فاصله ابتدای پاراگراف
+    Invoke-Replace $doc " ^p" "^p" $false 8          # فاصله انتهای پاراگراف
+    Invoke-Replace $doc "  "  " "  $false 8          # فاصله‌های تکراری وسط خط
     Invoke-Replace $doc " ،" "،" $false 1
     Invoke-Replace $doc " ." "." $false 1
     if ($CFG.RemoveEmptyParas) { Invoke-Replace $doc "^p^p" "^p" $false 14 }
+
+    # فاصله‌های ابتدای اولین پاراگراف که علامت پاراگراف قبلش ندارد
+    $head = $doc.Range(0, [Math]::Min(60, $doc.Content.End)).Text
+    $lead = 0
+    while ($lead -lt $head.Length -and $head[$lead] -eq ' ') { $lead++ }
+    if ($lead -gt 0) { $doc.Range(0, $lead).Delete() | Out-Null }
     Write-Log "فاصله‌ها و پاراگراف‌های خالی پاک‌سازی شد"
 
     # =====================================================================
