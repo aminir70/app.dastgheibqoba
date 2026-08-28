@@ -106,13 +106,21 @@ if [ -d "$BK" ]; then
   echo "  اسنپ‌شات فایل‌ها        : $(ls -1d "$BK"/files/20* 2>/dev/null | wc -l) (سقف ۷)"
   echo "  تاریخ‌های موجود        : $(ls -1d "$BK"/files/20* 2>/dev/null | xargs -r -n1 basename | tr '\n' ' ')"
   # آیا روزی جا افتاده؟ هر شب باید یک نسخهٔ دیتابیس ساخته شود.
-  echo "  ── روزهای بدون بکاپ دیتابیس (۷ روز اخیر) ──"
-  miss=0
-  for i in 0 1 2 3 4 5 6; do
-    d=$(date -d "-$i day" +%F 2>/dev/null) || break
-    [ -f "$BK/db/app-$d.sqlite.gz" ] || { echo "    ✗ $d"; miss=$((miss+1)); }
-  done
-  [ "$miss" = 0 ] && echo "    ✓ هیچ روزی جا نیفتاده"
+  # فقط روزهای بعد از اولین بکاپ بررسی می‌شوند. قبل از آن طبیعتاً چیزی
+  # وجود ندارد و شمردنشان به‌عنوان «جاافتاده» هشدار کاذب می‌داد.
+  FIRST=$(ls -1 "$BK"/db/app-*.sqlite.gz 2>/dev/null | sort | head -1 \
+          | sed -E 's/.*app-([0-9-]{10})\.sqlite\.gz/\1/')
+  if [ -n "$FIRST" ]; then
+    echo "  اولین بکاپ             : $FIRST"
+    echo "  ── روزهای جاافتاده از آن تاریخ به بعد ──"
+    miss=0
+    for i in 0 1 2 3 4 5 6; do
+      d=$(date -d "-$i day" +%F 2>/dev/null) || break
+      [ "$d" \< "$FIRST" ] && continue          # قبل از شروع بکاپ‌گیری
+      [ -f "$BK/db/app-$d.sqlite.gz" ] || { echo "    ✗ $d"; miss=$((miss+1)); }
+    done
+    [ "$miss" = 0 ] && echo "    ✓ هیچ روزی جا نیفتاده"
+  fi
   # سالم بودن تازه‌ترین بکاپ — بکاپی که تست نشده، بکاپ نیست
   # بر اساس تاریخِ داخل نام مرتب می‌شود، نه mtime — چند فایل می‌توانند
   # زمان یکسان داشته باشند و ترتیب mtime دلبخواه شود.
@@ -138,7 +146,14 @@ else
 fi
 echo "  ── cron ──"
 CRONLINE=$(crontab -l 2>/dev/null | grep -E "backup" || true)
-if [ -n "$CRONLINE" ]; then echo "$CRONLINE" | sed 's/^/    ✓ /'; else echo "    ✗ cron بکاپ تنظیم نشده"; fi
+if [ -n "$CRONLINE" ]; then
+  echo "$CRONLINE" | sed 's/^/    ✓ /'
+  # بیش از یک ورودی یعنی احتمالاً یک نسخهٔ قدیمی هنوز مانده و کار تکراری می‌کند
+  [ "$(echo "$CRONLINE" | wc -l)" -gt 1 ] && \
+    echo "    ⚠️  بیش از یک cron بکاپ فعال است — احتمالاً یکی قدیمی و اضافی است"
+else
+  echo "    ✗ cron بکاپ تنظیم نشده"
+fi
 if [ -f "$HOME/backup.log" ]; then
   echo "    اجراهای کامل ثبت‌شده در لاگ: $(grep -c 'پایان —' "$HOME/backup.log" 2>/dev/null)"
   echo "    ── ۴ خط آخر لاگ ──"
@@ -148,13 +163,20 @@ else
 fi
 echo "  ── فضای ابری ──"
 if command -v rclone >/dev/null && rclone config show gcrypt >/dev/null 2>&1; then
-  RSZ=$(timeout 45 rclone size gcrypt: --json --timeout 20s --retries 1 2>/dev/null)
-  if [ -n "$RSZ" ]; then
-    b=$(echo "$RSZ" | grep -o '"bytes":[0-9]*' | cut -d: -f2)
-    c=$(echo "$RSZ" | grep -o '"count":[0-9]*' | cut -d: -f2)
-    echo "    ✓ روی مقصد: $(numfmt --to=iec "${b:-0}" 2>/dev/null || echo "$b بایت") در ${c:-؟} فایل"
-    echo "    تازه‌ترین دیتابیس روی مقصد:"
-    timeout 30 rclone lsl gcrypt:db --timeout 20s --retries 1 2>/dev/null | sort -k2 | tail -2 | sed 's/^/      /'
+  # اول یک بررسی سریع: فهرست پوشهٔ db چند فایل کوچک است و در چند ثانیه
+  # جواب می‌دهد. شمردن حجم کل نیاز به فهرست کردن ~۹۰۰ فایل دارد و از
+  # اتصال کند دقایقی طول می‌کشد، پس اختیاری و با سقف بلندتر انجام می‌شود.
+  DBLIST=$(timeout 60 rclone lsl gcrypt:db --timeout 25s --retries 1 2>/dev/null)
+  if [ -n "$DBLIST" ]; then
+    echo "    ✓ مقصد در دسترس است — $(echo "$DBLIST" | wc -l) نسخهٔ دیتابیس آنجاست"
+    echo "    تازه‌ترین نسخه‌های آپلودشده:"
+    echo "$DBLIST" | awk '{print $2, $4}' | sort | tail -2 | sed 's/^/      /'
+    if [ "${DIAG_FULL_SIZE:-0}" = "1" ]; then
+      echo "    در حال شمردن حجم کل (ممکن است طول بکشد)…"
+      timeout 300 rclone size gcrypt: --timeout 60s --retries 1 2>/dev/null | sed 's/^/      /'
+    else
+      echo "    (حجم کل شمرده نشد — برای شمردن: DIAG_FULL_SIZE=1 bash scripts/diagnose.sh)"
+    fi
   else
     echo "    !! پاسخی از مقصد نگرفت — توکن یا شبکه را بررسی کنید:"
     echo "       rclone lsd gdrive: -vv --timeout 30s --retries 1"
