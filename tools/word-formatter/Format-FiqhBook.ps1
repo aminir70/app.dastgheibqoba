@@ -91,6 +91,9 @@ $CFG = @{
     AddHeaderFooter = $true
     PageNumberStyle = 0       # 0 = ۱۲۳ لاتین ، 51 = ١٢٣ عربی‌هندی
     RemoveEmptyParas= $true   # حذف پاراگراف‌های خالیِ فایل خام
+    ConvertCompatMode = $false # ارتقا از «حالت سازگاری» ورد ۹۷.
+                               # لازم نیست (docx سالم بدون آن هم ساخته می‌شود)
+                               # و روی بعضی سیستم‌ها باعث معلق شدن ورد می‌شود.
     JustifyMode     = 3       # 3=تراز عادی ، 7=کشیده(کشش کامل) ، 5=کشیده متوسط
 }
 
@@ -382,16 +385,30 @@ function Convert-Book {
     }
     Write-Step ("باز شد — {0:N0} کاراکتر" -f $doc.Content.End)
 
+    Write-Step "خاموش کردن بازبینی املا و گرامر ..."
     $doc.TrackRevisions = $false
-    try { $doc.ShowSpellingErrors = $false; $doc.ShowGrammaticalErrors = $false } catch {}
-    # صفحه‌بندی خودکار را خاموش کن؛ روی سند ۱۰۰ صفحه‌ای سرعت را چند برابر می‌کند
+    # به ورد بگو سند قبلاً بازبینی شده؛ وگرنه روی ۷۳۰ هزار کاراکترِ عربی
+    # بازبینی پس‌زمینه راه می‌افتد و اجرا عملاً معلق می‌شود.
+    try { $doc.SpellingChecked = $true } catch {}
+    try { $doc.GrammarChecked  = $true } catch {}
+    try { $doc.ShowSpellingErrors = $false } catch {}
+    try { $doc.ShowGrammaticalErrors = $false } catch {}
     try { $doc.Application.Options.Pagination = $false } catch {}
 
     if (Test-Path $dst) { Remove-Item $dst -Force }
     Write-Step "ذخیره به docx ..."
     try { $doc.SaveAs2($dst, $wdFormatDocx) } catch { $doc.SaveAs($dst, $wdFormatDocx) }
-    try { if ($doc.CompatibilityMode -lt 15) { Write-Step "تبدیل از حالت سازگاری ..."; $doc.Convert() } } catch {}
-    Write-Step "به docx تبدیل شد"
+    Write-Step "ذخیره شد"
+
+    if ($CFG.ConvertCompatMode) {
+        try {
+            if ($doc.CompatibilityMode -lt 15) {
+                Write-Step "تبدیل از حالت سازگاری ..."
+                $doc.Convert()
+                Write-Step "تبدیل شد"
+            }
+        } catch { Write-Log ("Convert نشد: {0}" -f $_.Exception.Message) 'WARN' }
+    }
 
     # --- زبان و جهت کلی ---------------------------------------------------
     $doc.Content.LanguageIDOther = $wdArabic
@@ -752,6 +769,14 @@ Write-Host ""
 Write-Host "  تعداد فایل: $($files.Count)" -ForegroundColor White
 Write-Host "  خروجی    : $OutputPath" -ForegroundColor White
 
+# نمونه‌های باز مانده را قبل از ساختن نمونه‌ی خودمان بشمار
+$stuck = @(Get-Process WINWORD -ErrorAction SilentlyContinue)
+if ($stuck.Count -gt 0) {
+    Write-Host ("`n  توجه: {0} نمونه‌ی WINWORD از قبل باز است (PID: {1})." -f `
+                $stuck.Count, ($stuck.Id -join ', ')) -ForegroundColor Yellow
+    Write-Host "  اگر از اجرای گیرکرده‌ی قبلی مانده‌اند، از Task Manager ببندیدشان.`n" -ForegroundColor Yellow
+}
+
 $word = $null
 try {
     $word = New-Object -ComObject Word.Application
@@ -759,6 +784,7 @@ try {
     Write-Host "`nMicrosoft Word نصب نیست یا قابل اجرا نیست.`n" -ForegroundColor Red
     return
 }
+
 $word.Visible       = [bool]$ShowWord
 $word.DisplayAlerts = $wdAlertsNone
 # ماکروهای داخل قالب را کامل غیرفعال کن (msoAutomationSecurityForceDisable)
