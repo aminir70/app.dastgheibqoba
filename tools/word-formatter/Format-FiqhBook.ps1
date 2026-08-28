@@ -94,6 +94,7 @@ $CFG = @{
     AddHeaderFooter = $true
     PageNumberStyle = 0       # 0 = ۱۲۳ لاتین ، 51 = ١٢٣ عربی‌هندی
     RemoveEmptyParas= $true   # حذف پاراگراف‌های خالیِ فایل خام
+    SaveFormat      = 16      # 16 = .docx  |  0 = .doc (اگر ذخیره‌ی docx گیر کرد)
     ConvertCompatMode = $false # ارتقا از «حالت سازگاری» ورد ۹۷.
                                # لازم نیست (docx سالم بدون آن هم ساخته می‌شود)
                                # و روی بعضی سیستم‌ها باعث معلق شدن ورد می‌شود.
@@ -356,7 +357,8 @@ function Convert-Book {
 
     $name = [IO.Path]::GetFileNameWithoutExtension($SrcPath)
     $ext  = [IO.Path]::GetExtension($SrcPath).ToLower()
-    $dst  = Join-Path $OutDir ($name + '.docx')
+    $dstExt = if ($CFG.SaveFormat -eq 0) { '.doc' } else { '.docx' }
+    $dst  = Join-Path $OutDir ($name + $dstExt)
 
     Write-Host ""
     Write-Host ("=" * 70) -ForegroundColor DarkCyan
@@ -412,21 +414,13 @@ function Convert-Book {
     # ورد ممکن است درباره‌ی پروژه‌ی VBAی داخل قالب سؤال بپرسد.
     try { $doc.AttachedTemplate = $Word.NormalTemplate.FullName } catch {}
 
-    if (Test-Path $dst) { Remove-Item $dst -Force }
-    Write-Step "ذخیره به docx ..."
-    try   { $doc.SaveAs2($dst, $wdFormatDocx, $false, '', $false) }
-    catch { $doc.SaveAs($dst,  $wdFormatDocx, $false, '', $false) }
-    Write-Step "ذخیره شد"
+    # فایل خام هیچ قالب‌بندی کاراکتری ندارد؛ یک‌دست کردنش قبل از پردازش،
+    # ساختار run های سند را سالم می‌کند و ذخیره‌ی نهایی را سبک نگه می‌دارد.
+    Write-Step "یک‌دست کردن قالب‌بندی کاراکترها ..."
+    try { $doc.Content.Font.Reset() } catch {}
+    Write-Step "آماده‌ی پردازش"
 
-    if ($CFG.ConvertCompatMode) {
-        try {
-            if ($doc.CompatibilityMode -lt 15) {
-                Write-Step "تبدیل از حالت سازگاری ..."
-                $doc.Convert()
-                Write-Step "تبدیل شد"
-            }
-        } catch { Write-Log ("Convert نشد: {0}" -f $_.Exception.Message) 'WARN' }
-    }
+    # نکته: ذخیره فقط یک بار و در انتهای کار انجام می‌شود.
 
     # --- زبان و جهت کلی ---------------------------------------------------
     $doc.Content.LanguageIDOther = $wdArabic
@@ -725,7 +719,10 @@ function Convert-Book {
     try { if ($doc.TablesOfContents.Count -gt 0) { $doc.TablesOfContents.Item(1).Update() } } catch {}
     try { $doc.Repaginate() } catch {}
 
-    $doc.Save()
+    if (Test-Path $dst) { Remove-Item $dst -Force }
+    Write-Step ("ذخیره در {0} ..." -f $dst)
+    try   { $doc.SaveAs2($dst, $CFG.SaveFormat, $false, '', $false) }
+    catch { $doc.SaveAs($dst,  $CFG.SaveFormat, $false, '', $false) }
     Write-Log ("ذخیره شد: {0}  ({1} صفحه)" -f $dst, $doc.ComputeStatistics(2)) 'OK'
 
     if ($AlsoPdf) {
