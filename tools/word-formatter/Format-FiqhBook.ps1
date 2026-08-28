@@ -96,6 +96,8 @@ $CFG = @{
     AddHeaderFooter = $true
     PageNumberStyle = 0       # 0 = ۱۲۳ لاتین ، 51 = ١٢٣ عربی‌هندی
     RemoveEmptyParas= $true   # حذف پاراگراف‌های خالیِ فایل خام
+    NormalizeFonts  = $false  # اجرای Font.Reset روی کل سند پیش از پردازش.
+                              # عملیات سنگینی است و ورد را مدتی مشغول می‌کند.
     SaveFormat      = 16      # 16 = .docx  |  0 = .doc (اگر ذخیره‌ی docx گیر کرد)
     ConvertCompatMode = $false # ارتقا از «حالت سازگاری» ورد ۹۷.
                                # لازم نیست (docx سالم بدون آن هم ساخته می‌شود)
@@ -197,6 +199,41 @@ function Invoke-Com {
            "سپس Word را ببندید و دوباره اجرا کنید.")
 }
 
+# بعد از عملیات سنگین (حذف چند هزار پاراگراف) ورد تا مدتی مشغول است:
+# هم فراخوانی‌ها را رد می‌کند، هم مقدارهای بی‌معنا مثل «۰ پاراگراف» برمی‌گرداند.
+# قبل از ادامه صبر می‌کنیم تا واقعاً آماده شود.
+function Wait-WordReady {
+    param($Doc, [int]$TimeoutSec = 90)
+    $t = [Diagnostics.Stopwatch]::StartNew()
+    $warned = $false
+    while ($t.Elapsed.TotalSeconds -lt $TimeoutSec) {
+        try {
+            $c = $Doc.Paragraphs.Count
+            if ($c -gt 0) { return [int]$c }
+        } catch { }
+        if (-not $warned -and $t.Elapsed.TotalSeconds -gt 2) {
+            Write-Host "    (ورد هنوز مشغول است؛ منتظر می‌مانیم ...)" -ForegroundColor Yellow
+            $warned = $true
+        }
+        Start-Sleep -Milliseconds 300
+    }
+    throw ("ورد بعد از {0} ثانیه هنوز پاسخ درستی نمی‌دهد. " -f $TimeoutSec +
+           "reset-word.bat را اجرا کنید و دوباره امتحان کنید.")
+}
+
+# حذف یک بازه به‌صورت تکه‌تکه و از آخر به اول.
+# حذف یکجای چند هزار پاراگراف ورد را برای مدت طولانی مشغول می‌کند.
+function Remove-DocRange {
+    param($Doc, [int]$From, [int]$To, [int]$Chunk = 40000)
+    $end = $To
+    while ($end -gt $From) {
+        $start = [Math]::Max($From, $end - $Chunk)
+        $null = Invoke-Com { $Doc.Range($start, $end).Delete() } -What 'حذف بخش'
+        $end = $start
+    }
+    $null = Wait-WordReady $Doc
+}
+
 $script:StepWatch = [Diagnostics.Stopwatch]::StartNew()
 function Write-Step {
     param([string]$Msg)
@@ -282,9 +319,12 @@ function Invoke-Replace {
         $f.MatchWholeWord = $false
         $f.MatchWildcards = $Wildcards
         $f.Wrap           = $wdFindContinue
-        $null = $f.Execute($FindText, $false, $false, $Wildcards, $false, $false,
-                           $true, $wdFindContinue, $false, $ReplaceText, $wdReplaceAll)
+        $null = Invoke-Com {
+            $f.Execute($FindText, $false, $false, $Wildcards, $false, $false,
+                       $true, $wdFindContinue, $false, $ReplaceText, $wdReplaceAll)
+        } -What 'جست‌وجو و جایگزینی'
     }
+    $null = Wait-WordReady $Doc
 }
 
 # حذف پاراگراف‌های خالی بدون استفاده از Find — روش پشتیبان.
@@ -301,11 +341,12 @@ function Remove-EmptyParagraphs {
         $from = $P.Start[$j + 1]
         $to   = $P.End[$i]
         if ($to -gt $from) {
-            $Doc.Range($from, $to).Delete() | Out-Null
+            $null = Invoke-Com { $Doc.Range($from, $to).Delete() } -What 'حذف پاراگراف خالی'
             $removed += ($i - $j)
         }
         $i = $j
     }
+    $null = Wait-WordReady $Doc
     return $removed
 }
 
@@ -344,7 +385,7 @@ function Get-Paragraphs {
         $parts = $parts[0..($parts.Count-2)]
     }
     # اعتبارسنجی: تعداد پاراگراف‌های شمرده‌شده باید با خودِ ورد بخواند
-    $real = $Doc.Paragraphs.Count
+    $real = Wait-WordReady $Doc
     if ([Math]::Abs($parts.Count - $real) -gt 1) {
         throw ("ناسازگاری در شمارش پاراگراف‌ها: {0:N0} در برابر {1:N0} در خود ورد. " -f $parts.Count, $real +
                "همه‌ی نمونه‌های Word را ببندید و دوباره اجرا کنید.")
@@ -515,8 +556,11 @@ function Convert-Book {
 
     # فایل خام هیچ قالب‌بندی کاراکتری ندارد؛ یک‌دست کردنش قبل از پردازش،
     # ساختار run های سند را سالم می‌کند و ذخیره‌ی نهایی را سبک نگه می‌دارد.
-    Write-Step "یک‌دست کردن قالب‌بندی کاراکترها ..."
-    try { $doc.Content.Font.Reset() } catch {}
+    if ($CFG.NormalizeFonts) {
+        Write-Step "یک‌دست کردن قالب‌بندی کاراکترها ..."
+        try { $doc.Content.Font.Reset() } catch {}
+        $null = Wait-WordReady $doc
+    }
     Write-Step "آماده‌ی پردازش"
 
     # نکته: ذخیره فقط یک بار و در انتهای کار انجام می‌شود.
@@ -576,11 +620,13 @@ function Convert-Book {
 
     # --- ۱-ج: حذف (اول انتهای سند، بعد ابتدای سند تا آفست‌ها به‌هم نریزد) ---
     if ($annotIdx -ge 0) {
-        $doc.Range($P.Start[$annotIdx], $doc.Content.End).Delete() | Out-Null
+        Write-Step "حذف بخش خام پاورقی‌ها ..."
+        Remove-DocRange $doc $P.Start[$annotIdx] (Invoke-Com { [int]$doc.Content.End })
         Write-Log "بخش خام پاورقی‌ها از متن حذف شد"
     }
     if ($idxStart -ge 0 -and -not $KeepOriginalIndex) {
-        $doc.Range($P.Start[$idxStart], $P.End[$idxEnd]).Delete() | Out-Null
+        Write-Step "حذف فهرست خام ..."
+        Remove-DocRange $doc $P.Start[$idxStart] $P.End[$idxEnd]
         Write-Log "فهرست خام حذف شد (به‌جایش فهرست خودکار ساخته می‌شود)"
     }
 
