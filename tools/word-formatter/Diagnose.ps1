@@ -62,8 +62,9 @@ if ($ext -in @('.dot','.dotx','.dotm')) {
     Step "۵-الف) Documents.Add (ساخت سند از روی قالب)"
     $sw.Restart()
     try {
-        $doc = $word.Documents.Add($File, $false, 0, $false)
-        OK ("موفق در {0:N1} ثانیه — {1:N0} کاراکتر" -f $sw.Elapsed.TotalSeconds, $doc.Content.End)
+        # آرگومان چهارم Visible: با $false سند بی‌پنجره ساخته می‌شود و SaveAs قفل می‌کند
+        $doc = $word.Documents.Add($File, $false, 0, $true)
+        OK ("موفق در {0:N1} ثانیه — {1:N0} کاراکتر، {2} پنجره" -f $sw.Elapsed.TotalSeconds, $doc.Content.End, $doc.Windows.Count)
         if ($doc.Content.End -lt 100) { Note "محتوا منتقل نشد؛ سراغ Documents.Open می‌رویم."; $doc.Close(0); $doc = $null }
     } catch { Bad ("نشد: " + $_.Exception.Message); $doc = $null }
 }
@@ -104,6 +105,16 @@ for ($n = 1; $n -le 10; $n++) {
 }
 OK ("{0:N1} ثانیه برای ۱۰ پاورقی  →  تخمین کل ۱۳۳۰ تا: {1:N0} ثانیه" -f `
     $sw.Elapsed.TotalSeconds, ($sw.Elapsed.TotalSeconds * 133))
+
+Step "۹) تست SaveAs به docx (همان‌جایی که قبلاً قفل می‌کرد)"
+OK ("تعداد پنجره‌های سند: {0}  (اگر صفر باشد SaveAs قفل می‌کند)" -f $doc.Windows.Count)
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ("saveas-test-{0}.docx" -f (Get-Random))
+$sw.Restart()
+try {
+    $doc.SaveAs2($tmp, 16)
+    OK ("موفق در {0:N1} ثانیه" -f $sw.Elapsed.TotalSeconds)
+} catch { Bad ("نشد: " + $_.Exception.Message) }
+Remove-Item $tmp -Force -EA SilentlyContinue
 
 Step "پایان — سند بدون ذخیره بسته می‌شود"
 $doc.Close(0)

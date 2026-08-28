@@ -371,8 +371,11 @@ function Convert-Book {
     Write-Step "در حال باز کردن فایل با Word ..."
     $doc = $null
     if ($ext -in @('.dot', '.dotx', '.dotm')) {
-        # از روی قالب یک سند تازه می‌سازیم تا فایل اصلی دست‌نخورده بماند
-        try { $doc = $Word.Documents.Add($SrcPath, $false, 0, $false) }
+        # از روی قالب یک سند تازه می‌سازیم تا فایل اصلی دست‌نخورده بماند.
+        # آرگومان چهارم Visible است و به سند پنجره می‌دهد — نه به خودِ ورد.
+        # با $false سند «بی‌پنجره» ساخته می‌شود و SaveAs روی آن قفل می‌کند.
+        # خودِ برنامه‌ی ورد همچنان نامرئی است، پس چیزی روی صفحه ظاهر نمی‌شود.
+        try { $doc = $Word.Documents.Add($SrcPath, $false, 0, $true) }
         catch { Write-Log ("Documents.Add نشد: {0}" -f $_.Exception.Message) 'WARN'; $doc = $null }
         if ($null -ne $doc -and $doc.Content.End -lt 100) {
             # قالب محتوایش را منتقل نکرد؛ خود فایل را باز می‌کنیم
@@ -383,7 +386,12 @@ function Convert-Book {
         Write-Step "با Documents.Open باز می‌کنیم ..."
         $doc = $Word.Documents.Open($SrcPath, $false, $false, $false)
     }
-    Write-Step ("باز شد — {0:N0} کاراکتر" -f $doc.Content.End)
+    Write-Step ("باز شد — {0:N0} کاراکتر، {1} پنجره" -f $doc.Content.End, $doc.Windows.Count)
+    if ($doc.Windows.Count -eq 0) {
+        # بدون پنجره، SaveAs قفل می‌کند — یکی می‌سازیم
+        Write-Log "سند پنجره نداشت؛ یک پنجره ساخته شد." 'WARN'
+        $null = $doc.ActiveWindow
+    }
 
     Write-Step "خاموش کردن بازبینی املا و گرامر ..."
     $doc.TrackRevisions = $false
