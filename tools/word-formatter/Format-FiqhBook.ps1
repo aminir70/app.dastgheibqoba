@@ -175,6 +175,28 @@ function Write-Log {
     Write-Host ("  [{0}] {1}" -f $Level.PadRight(4), $Msg) -ForegroundColor $color
 }
 
+# ورد وقتی مشغول است (پنجره‌ی بازیابی، در حال راه‌اندازی، ...) فراخوانی COM را
+# با خطای RPC_E_CALL_REJECTED رد می‌کند. راه درست، تلاش مجدد است.
+function Invoke-Com {
+    param([scriptblock]$Action, [string]$What = 'عملیات ورد',
+          [int]$Retries = 40, [int]$DelayMs = 500)
+    for ($i = 0; $i -lt $Retries; $i++) {
+        try { return (& $Action) }
+        catch {
+            $m = $_.Exception.Message
+            if ($m -match '0x80010001|0x8001010A|0x80010005|rejected by callee|RPC_E_|busy|مشغول') {
+                if ($i -eq 4) { Write-Host "    (ورد مشغول است؛ منتظر می‌مانیم ...)" -ForegroundColor Yellow }
+                Start-Sleep -Milliseconds $DelayMs
+                continue
+            }
+            throw
+        }
+    }
+    throw ("{0}: ورد بعد از {1} ثانیه پاسخ نداد (Call was rejected by callee). " -f $What, [int]($Retries*$DelayMs/1000) +
+           "یک بار Word را دستی باز کنید، پنجره‌ی بازیابی فایل‌ها (Document Recovery) را ببندید، " +
+           "سپس Word را ببندید و دوباره اجرا کنید.")
+}
+
 $script:StepWatch = [Diagnostics.Stopwatch]::StartNew()
 function Write-Step {
     param([string]$Msg)
@@ -292,12 +314,12 @@ function Remove-EmptyParagraphs {
 # (به‌ویژه وقتی نمونه‌ی دیگری از Word فایل را باز نگه داشته باشد).
 function Get-DocText {
     param($Doc)
-    $total = $Doc.Content.End
+    $total = Invoke-Com { [int]$Doc.Content.End } -What 'خواندن طول سند'
     $sb    = New-Object System.Text.StringBuilder
     $pos   = 0
     while ($pos -lt $total) {
         $to = [Math]::Min($pos + 50000, $total)
-        $t  = $Doc.Range($pos, $to).Text
+        $t  = Invoke-Com { $Doc.Range($pos, $to).Text } -What 'خواندن متن سند'
         if ($null -eq $t) {
             throw ("ورد متنِ بازه‌ی {0} تا {1} را برنگرداند. " -f $pos, $to +
                    "معمولاً یعنی نمونه‌ی دیگری از Word باز است — همه را از Task Manager ببندید.")
@@ -312,8 +334,9 @@ function Get-DocText {
 function Get-Paragraphs {
     param($Doc)
     $txt = Get-DocText $Doc
-    if ([Math]::Abs($txt.Length - $Doc.Content.End) -gt 1) {
-        throw ("متن ناقص خوانده شد: {0:N0} کاراکتر به‌جای {1:N0}. " -f $txt.Length, $Doc.Content.End +
+    $expect = Invoke-Com { [int]$Doc.Content.End } -What 'خواندن طول سند'
+    if ([Math]::Abs($txt.Length - $expect) -gt 1) {
+        throw ("متن ناقص خوانده شد: {0:N0} کاراکتر به‌جای {1:N0}. " -f $txt.Length, $expect +
                "همه‌ی نمونه‌های Word را ببندید و دوباره اجرا کنید.")
     }
     $parts = $txt -split "`r"
@@ -449,21 +472,28 @@ function Convert-Book {
         # آرگومان چهارم Visible است و به سند پنجره می‌دهد — نه به خودِ ورد.
         # با $false سند «بی‌پنجره» ساخته می‌شود و SaveAs روی آن قفل می‌کند.
         # خودِ برنامه‌ی ورد همچنان نامرئی است، پس چیزی روی صفحه ظاهر نمی‌شود.
-        try { $doc = $Word.Documents.Add($SrcPath, $false, 0, $true) }
+        try { $doc = Invoke-Com { $Word.Documents.Add($SrcPath, $false, 0, $true) } -What 'باز کردن قالب' }
         catch { Write-Log ("Documents.Add نشد: {0}" -f $_.Exception.Message) 'WARN'; $doc = $null }
-        if ($null -ne $doc -and $doc.Content.End -lt 100) {
+        if ($null -ne $doc -and (Invoke-Com { [int]$doc.Content.End } -What 'خواندن طول سند') -lt 100) {
             # قالب محتوایش را منتقل نکرد؛ خود فایل را باز می‌کنیم
             $doc.Close($wdDoNotSaveChanges); $doc = $null
         }
     }
     if ($null -eq $doc) {
         Write-Step "با Documents.Open باز می‌کنیم ..."
-        $doc = $Word.Documents.Open($SrcPath, $false, $false, $false)
+        $doc = Invoke-Com { $Word.Documents.Open($SrcPath, $false, $false, $false) } -What 'باز کردن فایل'
     }
-    Write-Step ("باز شد — {0:N0} کاراکتر، {1} پنجره" -f $doc.Content.End, $doc.Windows.Count)
+    $docLen = Invoke-Com { [int]$doc.Content.End } -What 'خواندن طول سند'
+    $docWin = Invoke-Com { [int]$doc.Windows.Count } -What 'خواندن پنجره‌های سند'
+    Write-Step ("باز شد — {0:N0} کاراکتر، {1} پنجره" -f $docLen, $docWin)
+    if ($docLen -lt 100) {
+        throw ("سند تقریباً خالی برگشت ({0} کاراکتر). " -f $docLen +
+               "معمولاً یعنی Word درست پاسخ نمی‌دهد — یک بار Word را دستی باز کنید، " +
+               "پنجره‌ی بازیابی را ببندید، Word را ببندید و دوباره اجرا کنید.")
+    }
     # حالا که سند پنجره دارد، دوباره مینیمایز کن تا جلوی چشم نباشد
     if (-not $ShowWord -and -not $HideWord) { try { $Word.WindowState = 2 } catch {} }
-    if ($doc.Windows.Count -eq 0) {
+    if ($docWin -eq 0) {
         # بدون پنجره، SaveAs قفل می‌کند — یکی می‌سازیم
         Write-Log "سند پنجره نداشت؛ یک پنجره ساخته شد." 'WARN'
         $null = $doc.ActiveWindow
@@ -910,10 +940,14 @@ try {
     return
 }
 
+# اول صبر کن تا ورد واقعاً آماده‌ی پاسخ‌گویی به COM شود.
+# اگر پنجره‌ی بازیابی فایل‌ها باز باشد، ورد همه‌ی فراخوانی‌ها را رد می‌کند.
+$null = Invoke-Com { $word.Documents.Count } -What 'آماده شدن ورد'
+
 # ورد را باز ولی مینیمایز اجرا می‌کنیم.
 # در حالت کاملاً نامرئی، اگر ورد بخواهد پنجره‌ای نشان دهد (مثلاً هنگام ذخیره)
 # آن پنجره دیده نمی‌شود و اجرا برای همیشه قفل می‌ماند.
-$word.Visible = -not $HideWord
+Invoke-Com { $word.Visible = -not $HideWord } -What 'نمایش ورد'
 if ($word.Visible -and -not $ShowWord) {
     try { $word.WindowState = 2 } catch {}      # wdWindowStateMinimize
 }
