@@ -109,7 +109,7 @@ $wdExportPDF         = 17
 $wdDoNotSaveChanges  = 0
 $wdAlertsNone        = 0
 $wdStyleTypeParagraph= 1
-$wdReadingOrderRtl   = 2
+$wdReadingOrderRtl   = 0    # WdReadingOrder: Rtl=0 ، Ltr=1  (نه 2)
 $wdAlignCenter       = 1
 $wdAlignRight        = 2
 $wdLineSpaceMultiple = 5
