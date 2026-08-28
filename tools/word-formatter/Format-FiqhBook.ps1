@@ -327,10 +327,45 @@ function Get-InstalledFont {
     return $Candidates[0]
 }
 
+# استایل‌های داخلی ورد. اگر شماره‌ی داخلی کار نکرد، با نام هم امتحان می‌کنیم
+# (نام‌ها در نسخه‌های غیرانگلیسی ورد فرق می‌کنند).
+$script:BuiltinNames = @{
+    '-1'  = @('Normal','عادی','عادي')
+    '-2'  = @('Heading 1','عنوان 1','العنوان 1')
+    '-3'  = @('Heading 2','عنوان 2','العنوان 2')
+    '-4'  = @('Heading 3','عنوان 3','العنوان 3')
+    '-20' = @('TOC 1','فهرست مطالب 1')
+    '-21' = @('TOC 2','فهرست مطالب 2')
+    '-22' = @('TOC 3','فهرست مطالب 3')
+    '-31' = @('Footnote Text','متن پانویس','نص حاشية سفلية')
+    '-34' = @('Header','سرصفحه','رأس الصفحة')
+    '-35' = @('Footer','پاصفحه','تذييل الصفحة')
+}
+function Get-BuiltinStyle {
+    param($Doc, [int]$Id)
+    try { $st = $Doc.Styles.Item($Id); if ($null -ne $st) { return $st } } catch { }
+    foreach ($n in @($script:BuiltinNames["$Id"])) {
+        if (-not $n) { continue }
+        try { $st = $Doc.Styles.Item($n); if ($null -ne $st) { return $st } } catch { }
+    }
+    Write-Log ("استایل داخلی {0} پیدا نشد؛ از آن می‌گذریم." -f $Id) 'WARN'
+    return $null
+}
+
 function Get-OrAddStyle {
     param($Doc, [string]$Name)
     try   { return $Doc.Styles.Item($Name) }
     catch { return $Doc.Styles.Add($Name, $wdStyleTypeParagraph) }
+}
+
+# هر ویژگی جدا ست می‌شود؛ اگر ورد یکی را نپذیرد بقیه اعمال می‌شوند
+# و نامش برای گزارش نگه داشته می‌شود.
+$script:StyleFails = @{}
+function Set-Prop {
+    param($Obj, [string]$Name, $Value)
+    if ($null -eq $Obj) { return }
+    try { $Obj.$Name = $Value }
+    catch { $script:StyleFails[$Name] = 1 }
 }
 
 function Set-StyleLook {
@@ -345,32 +380,43 @@ function Set-StyleLook {
         [int]$Outline = 10,
         $Color = $null, $Shade = $null
     )
+    if ($null -eq $Style) { return }
     $f = $Style.Font
-    $f.Name = $Font; $f.NameBi = $Font; $f.NameAscii = $Font; $f.NameOther = $Font
-    $f.Size = $Size; $f.SizeBi = $Size
-    $f.Bold = [int]$Bold; $f.BoldBi = [int]$Bold
-    $f.Italic = 0; $f.ItalicBi = 0
-    if ($null -ne $Color) { $f.Color = (RGB $Color[0] $Color[1] $Color[2]) }
+    # فونت‌ها: NameBi برای متن عربی/فارسی، Name برای لاتین
+    Set-Prop $f 'NameBi'    $Font
+    Set-Prop $f 'Name'      $Font
+    Set-Prop $f 'NameAscii' $Font
+    Set-Prop $f 'NameOther' $Font
+    Set-Prop $f 'SizeBi'    $Size
+    Set-Prop $f 'Size'      $Size
+    # مقادیر منطقی را به‌صورت bool می‌دهیم نه عدد؛ ورد به عدد ۱ ایراد می‌گیرد
+    Set-Prop $f 'BoldBi'    $Bold
+    Set-Prop $f 'Bold'      $Bold
+    Set-Prop $f 'ItalicBi'  $false
+    Set-Prop $f 'Italic'    $false
+    if ($null -ne $Color) { Set-Prop $f 'Color' (RGB $Color[0] $Color[1] $Color[2]) }
 
     $p = $Style.ParagraphFormat
-    $p.ReadingOrder   = $wdReadingOrderRtl
-    $p.Alignment      = $Align
-    $p.RightIndent    = (Cm2Pt $IndRight)
-    $p.LeftIndent     = (Cm2Pt $IndLeft)
-    $p.FirstLineIndent= (Cm2Pt $FirstLine)
-    $p.SpaceBefore    = $SpBefore
-    $p.SpaceAfter     = $SpAfter
+    Set-Prop $p 'ReadingOrder'    $wdReadingOrderRtl
+    Set-Prop $p 'Alignment'       $Align
+    Set-Prop $p 'RightIndent'     (Cm2Pt $IndRight)
+    Set-Prop $p 'LeftIndent'      (Cm2Pt $IndLeft)
+    Set-Prop $p 'FirstLineIndent' (Cm2Pt $FirstLine)
+    Set-Prop $p 'SpaceBefore'     $SpBefore
+    Set-Prop $p 'SpaceAfter'      $SpAfter
     if ($LineMul -gt 0) {
-        $p.LineSpacingRule = $wdLineSpaceMultiple
-        $p.LineSpacing     = [math]::Round(12 * $LineMul, 2)
+        Set-Prop $p 'LineSpacingRule' $wdLineSpaceMultiple
+        Set-Prop $p 'LineSpacing'     ([math]::Round(12 * $LineMul, 2))
     }
-    $p.PageBreakBefore = [int]$PageBreak
-    $p.KeepWithNext    = [int]$KeepNext
-    $p.KeepTogether    = [int]$KeepLines
-    $p.WidowControl    = 1
-    $p.OutlineLevel    = $Outline
-    if ($null -ne $Shade) { $p.Shading.BackgroundPatternColor = (RGB $Shade[0] $Shade[1] $Shade[2]) }
-    else { try { $p.Shading.BackgroundPatternColor = -16777216 } catch {} }   # wdColorAutomatic
+    Set-Prop $p 'PageBreakBefore' $PageBreak
+    Set-Prop $p 'KeepWithNext'    $KeepNext
+    Set-Prop $p 'KeepTogether'    $KeepLines
+    Set-Prop $p 'WidowControl'    $true
+    Set-Prop $p 'OutlineLevel'    $Outline
+    if ($null -ne $Shade) {
+        try { $p.Shading.BackgroundPatternColor = (RGB $Shade[0] $Shade[1] $Shade[2]) }
+        catch { $script:StyleFails['Shading'] = 1 }
+    }
 }
 
 function Invoke-Replace {
@@ -639,8 +685,8 @@ function Convert-Book {
     # نکته: ذخیره فقط یک بار و در انتهای کار انجام می‌شود.
 
     # --- زبان و جهت کلی ---------------------------------------------------
-    $doc.Content.LanguageIDOther = $wdArabic
-    $doc.Content.ParagraphFormat.ReadingOrder = $wdReadingOrderRtl
+    try { $doc.Content.LanguageIDOther = $wdArabic } catch {}
+    try { $doc.Content.ParagraphFormat.ReadingOrder = $wdReadingOrderRtl } catch {}
 
     # =====================================================================
     #  مرحله ۱ — خواندن ساختار، جدا کردن پاورقی‌ها و فهرستِ خام
@@ -778,17 +824,17 @@ function Convert-Book {
     $J = $CFG.JustifyMode
     $LS = $CFG.LineSpacing
 
-    Set-StyleLook -Style $doc.Styles.Item($sNormal) -Font $fB -Size $CFG.SizeBody -Align $J -LineMul $LS
+    Set-StyleLook -Style (Get-BuiltinStyle $doc $sNormal) -Font $fB -Size $CFG.SizeBody -Align $J -LineMul $LS
 
-    Set-StyleLook -Style $doc.Styles.Item($sH1) -Font $fH -Size $CFG.SizeH1 -Bold $true `
+    Set-StyleLook -Style (Get-BuiltinStyle $doc $sH1) -Font $fH -Size $CFG.SizeH1 -Bold $true `
         -Align $wdAlignCenter -SpBefore 24 -SpAfter 20 -LineMul 1.0 `
         -PageBreak $CFG.PageBreakOnH1 -KeepNext $true -Outline 1 -Color $CFG.ColorHead
 
-    Set-StyleLook -Style $doc.Styles.Item($sH2) -Font $fH -Size $CFG.SizeH2 -Bold $true `
+    Set-StyleLook -Style (Get-BuiltinStyle $doc $sH2) -Font $fH -Size $CFG.SizeH2 -Bold $true `
         -Align $wdAlignCenter -SpBefore 20 -SpAfter 14 -LineMul 1.0 `
         -PageBreak $CFG.PageBreakOnH2 -KeepNext $true -Outline 2 -Color $CFG.ColorHead
 
-    Set-StyleLook -Style $doc.Styles.Item($sH3) -Font $fH -Size $CFG.SizeH3 -Bold $true `
+    Set-StyleLook -Style (Get-BuiltinStyle $doc $sH3) -Font $fH -Size $CFG.SizeH3 -Bold $true `
         -Align $wdAlignCenter -SpBefore 14 -SpAfter 10 -LineMul 1.0 `
         -KeepNext $true -Outline 3 -Color $CFG.ColorHead
 
@@ -833,11 +879,15 @@ function Convert-Book {
     Set-StyleLook -Style (Get-OrAddStyle $doc $STY.TocT) -Font $fH -Size $CFG.SizeH1 -Bold $true `
         -Align $wdAlignCenter -SpBefore 12 -SpAfter 20 -LineMul 1.0 -PageBreak $true -Color $CFG.ColorHead
 
-    Set-StyleLook -Style $doc.Styles.Item($sFootnoteText) -Font $fB -Size $CFG.SizeFootnote -Align $J -LineMul 1.0
-    Set-StyleLook -Style $doc.Styles.Item($sHeader) -Font $fH -Size $CFG.SizeHeaderFooter -Align $wdAlignCenter -LineMul 1.0
-    Set-StyleLook -Style $doc.Styles.Item($sFooter) -Font $fH -Size $CFG.SizeHeaderFooter -Align $wdAlignCenter -LineMul 1.0
+    Set-StyleLook -Style (Get-BuiltinStyle $doc $sFootnoteText) -Font $fB -Size $CFG.SizeFootnote -Align $J -LineMul 1.0
+    Set-StyleLook -Style (Get-BuiltinStyle $doc $sHeader) -Font $fH -Size $CFG.SizeHeaderFooter -Align $wdAlignCenter -LineMul 1.0
+    Set-StyleLook -Style (Get-BuiltinStyle $doc $sFooter) -Font $fH -Size $CFG.SizeHeaderFooter -Align $wdAlignCenter -LineMul 1.0
     foreach ($ts in @($sTOC1, $sTOC2, $sTOC3)) {
-        try { Set-StyleLook -Style $doc.Styles.Item($ts) -Font $fB -Size ($CFG.SizeBody - 2) -Align $wdAlignRight -LineMul 1.0 } catch {}
+        try { Set-StyleLook -Style (Get-BuiltinStyle $doc $ts) -Font $fB -Size ($CFG.SizeBody - 2) -Align $wdAlignRight -LineMul 1.0 } catch {}
+    }
+    if ($script:StyleFails.Count -gt 0) {
+        Write-Log ("این ویژگی‌ها را ورد نپذیرفت (بی‌اهمیت): {0}" -f `
+                   (($script:StyleFails.Keys | Sort-Object) -join '، ')) 'WARN'
     }
     Write-Log "استایل‌ها ساخته شد"
 
@@ -924,14 +974,14 @@ function Convert-Book {
     $sec = $doc.Sections.Item(1)
     $ps  = $sec.PageSetup
     try { $ps.SectionDirection = $wdSectionDirectionRtl } catch {}
-    $ps.PageWidth    = (Cm2Pt $CFG.PageWidth)
-    $ps.PageHeight   = (Cm2Pt $CFG.PageHeight)
-    $ps.TopMargin    = (Cm2Pt $CFG.MarginTop)
-    $ps.BottomMargin = (Cm2Pt $CFG.MarginBottom)
-    $ps.RightMargin  = (Cm2Pt $CFG.MarginInside)
-    $ps.LeftMargin   = (Cm2Pt $CFG.MarginOutside)
-    $ps.MirrorMargins = $true
-    $ps.DifferentFirstPageHeaderFooter = $true
+    Set-Prop $ps 'PageWidth'    (Cm2Pt $CFG.PageWidth)
+    Set-Prop $ps 'PageHeight'   (Cm2Pt $CFG.PageHeight)
+    Set-Prop $ps 'TopMargin'    (Cm2Pt $CFG.MarginTop)
+    Set-Prop $ps 'BottomMargin' (Cm2Pt $CFG.MarginBottom)
+    Set-Prop $ps 'RightMargin'  (Cm2Pt $CFG.MarginInside)
+    Set-Prop $ps 'LeftMargin'   (Cm2Pt $CFG.MarginOutside)
+    Set-Prop $ps 'MirrorMargins' $true
+    Set-Prop $ps 'DifferentFirstPageHeaderFooter' $true
 
     # عنوان کتاب = اولین پاراگراف غیرخالی
     $bookTitle = $name
@@ -941,14 +991,14 @@ function Convert-Book {
       try {
         $hdr = $sec.Headers.Item($wdHeaderFooterPrimary)
         $hdr.Range.Text = $bookTitle
-        $hdr.Range.Style = $doc.Styles.Item($sHeader)
+        $hdr.Range.Style = (Get-BuiltinStyle $doc $sHeader)
         $hdr.Range.ParagraphFormat.ReadingOrder = $wdReadingOrderRtl
         $hdr.Range.ParagraphFormat.Alignment = $wdAlignCenter
         try { $hdr.Range.Borders.Item(-3).LineStyle = 1 } catch {}   # wdBorderBottom
 
         $ftr = $sec.Footers.Item($wdHeaderFooterPrimary)
         $ftr.Range.Text = ''
-        $ftr.Range.Style = $doc.Styles.Item($sFooter)
+        $ftr.Range.Style = (Get-BuiltinStyle $doc $sFooter)
         $ftr.Range.ParagraphFormat.Alignment = $wdAlignCenter
         $null = $ftr.Range.Fields.Add($ftr.Range, $wdFieldPage)
         try { $ftr.PageNumbers.NumberStyle = $CFG.PageNumberStyle } catch {}
