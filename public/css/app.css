@@ -15,7 +15,10 @@
 @font-face { font-family: Shabnam; src: url('/vendor/fonts/shabnam/Shabnam-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
 @font-face { font-family: Shabnam; src: url('/vendor/fonts/shabnam/Shabnam-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
 
-:root { --safe-bottom: 20px; --title-color: inherit; --text-color: inherit; --line-height: 2.2; --home-gap: 16px; --banner-gap: 0px; }
+:root { --safe-bottom: 20px; --title-color: inherit; --text-color: inherit; --line-height: 2.2; --home-gap: 16px; --banner-gap: 0px;
+        /* تیتر بخش‌های کتاب — از پنل تنظیمات ریدر قابل تغییر.
+           اندازهٔ پیش‌فرض ۲۸px است (قبلاً text-3xl یعنی ۳۰px بود). */
+        --title-font: inherit; --title-size: 28px; }
 #home-scroll-content > div { margin-bottom: var(--home-gap) !important; }
 [id^="home-banner-"]:empty { display: none !important; margin: 0 !important; padding: 0 !important; }
 [id^="home-banner-"]:not(:empty) { padding-top: var(--banner-gap) !important; padding-bottom: var(--banner-gap) !important; }
@@ -54,7 +57,9 @@ body { overflow: hidden; overscroll-behavior-y: none; background: #f1f5f9; margi
 .theme-dark .glass{background:rgba(30,41,59,0.92)}
 .theme-sepia .glass{background:rgba(244,236,216,0.92)}
 .reader-text{line-height:var(--line-height)!important;user-select:text;text-align:justify;color:var(--text-color)!important}
-.reader-text h2{color:var(--title-color)!important}
+.reader-text h2{color:var(--title-color)!important;
+                font-family:var(--title-font)!important;
+                font-size:var(--title-size)!important}
 .color-swatch{cursor:pointer;}
 .fade-transform{transition:transform .4s cubic-bezier(.16,1,.3,1),opacity .4s ease}
 .slide-up-hide{transform:translateY(-100%);opacity:0}

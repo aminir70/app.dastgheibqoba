@@ -1150,6 +1150,26 @@
             </div>
         </div>
         <div class="mb-6">
+            <span class="text-sm font-bold text-gray-800 block mb-3">قلم تیترها</span>
+            <div class="flex bg-gray-50 p-1 rounded-xl">
+                <button data-title-font="inherit" onclick="setTitleFont('inherit')" class="flex-1 py-2 text-sm rounded-lg text-gray-500">مثل متن</button>
+                <button data-title-font="vazir"   onclick="setTitleFont('vazir')"   class="flex-1 py-2 text-sm rounded-lg font-vazir text-gray-500">وزیر</button>
+                <button data-title-font="shabnam" onclick="setTitleFont('shabnam')" class="flex-1 py-2 text-sm rounded-lg font-shabnam text-gray-500">شبنم</button>
+                <button data-title-font="tahoma"  onclick="setTitleFont('tahoma')"  class="flex-1 py-2 text-sm rounded-lg font-tahoma text-gray-500">تاهوما</button>
+            </div>
+        </div>
+        <div class="mb-6">
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-sm font-bold text-gray-800">اندازه تیترها</span>
+                <span id="title-size-display" class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">۲۸px</span>
+            </div>
+            <div class="flex items-center bg-gray-50 p-1.5 rounded-2xl">
+                <button onclick="changeTitleSize(1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
+                <div class="w-2"></div>
+                <button onclick="changeTitleSize(-1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
+            </div>
+        </div>
+        <div class="mb-6">
             <span class="text-sm font-bold text-gray-800 block mb-3">رنگ تیترها</span>
             <div class="flex flex-wrap gap-3">
                 <button data-title-color="inherit" onclick="setTitleColor('inherit')" class="color-swatch w-10 h-10 rounded-full bg-gray-800 shadow-sm border-2 border-white transition-transform"></button>

@@ -3,6 +3,7 @@
 // ====================================================
 let allBooks=[], currentBookId=null, bookData=[], currentIndex=0;
 let fontSize=16, currentTheme='light', currentFont='vazir', lineHeight=2.2;
+let titleFont='inherit', titleSize=28;
 let uiVisible=true, bookmarks=[], notes={};
 let _searchHighlightQuery = null;
 let touchStartX=0, touchEndX=0;
@@ -55,8 +56,8 @@ function renderLibrary() {
 
         return `<div onclick="${book.book_type==='pdf'?`openPdfBook(${book.id})`:`openBook(${book.id})`}" class="${widthClass} relative cursor-pointer book-card active:scale-95 transition-transform${unavailable ? ' opacity-40' : ''}">
             <div class="rounded-2xl overflow-hidden aspect-[2/3] relative book-cover-wrap shadow-md">
-                ${book.cover?`<img src="${book.cover}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
-                <div class="absolute inset-0 bg-gradient-to-br ${colors[i%colors.length]} flex items-end justify-center pb-3 px-2" style="${book.cover?'display:none':''}"><span class="text-white text-center font-black text-[9px] leading-tight drop-shadow">${book.title}</span></div>
+                ${book.cover?`<img src="${safeUrl(book.cover)}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+                <div class="absolute inset-0 bg-gradient-to-br ${colors[i%colors.length]} flex items-end justify-center pb-3 px-2" style="${book.cover?'display:none':''}"><span class="text-white text-center font-black text-[9px] leading-tight drop-shadow">${escHtml(book.title)}</span></div>
                 ${progress>0?`<div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent pt-4 pb-1.5 px-2"><div class="w-full bg-white/30 rounded-full h-1 overflow-hidden"><div class="bg-white h-full rounded-full" style="width:${progress}%"></div></div><span class="text-[8px] text-white/80 block text-center mt-0.5">${toFa(progress)}٪</span></div>`:''}
                 ${!isOffline ? `<button onclick="event.stopPropagation();toggleOfflineBook(${book.id})" id="dl-btn-${book.id}"
                     class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center shadow-md z-20 ${offline ? 'bg-brand-500 text-white' : 'bg-white/90 text-gray-500'}"
@@ -64,8 +65,8 @@ function renderLibrary() {
                     <i class="fas ${offline ? 'fa-check' : 'fa-download'} text-[9px]"></i>
                 </button>` : offline ? `<span class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center shadow-md z-20 bg-brand-500 text-white" title="آفلاین"><i class="fas fa-check text-[9px]"></i></span>` : ''}
             </div>
-            <h3 class="book-title font-bold text-[10px] text-gray-800 line-clamp-2 mt-1 leading-tight transition-all duration-200">${book.title}</h3>
-            <p class="text-[9px] text-gray-400 truncate">${book.author||''}</p>
+            <h3 class="book-title font-bold text-[10px] text-gray-800 line-clamp-2 mt-1 leading-tight transition-all duration-200">${escHtml(book.title)}</h3>
+            <p class="text-[9px] text-gray-400 truncate">${escHtml(book.author||'')}</p>
         </div>`;
     };
 
@@ -333,7 +334,7 @@ function goToPage(index) {
     let htmlText=page.text;
     if(!htmlText.includes('<p>')&&!htmlText.includes('<br>')) htmlText=htmlText.replace(/\n/g,'<br><br>');
     htmlText=htmlText.replace(/\[(\d+)\]/g,'<sup class="text-brand-600 font-bold mx-0.5">[$1]</sup>');
-    let finalHTML=`<h2 class="text-3xl font-black mb-8 pb-4 border-b-2 border-brand-100 leading-snug">${page.name}</h2>`+htmlText;
+    let finalHTML=`<h2 class="font-black mb-8 pb-4 border-b-2 border-brand-100 leading-snug">${escHtml(page.name)}</h2>`+htmlText;
     if(notes[currentIndex]) finalHTML+=`<div class="mt-12 pt-6 border-t border-dashed border-gray-300 bg-gray-50 p-4 rounded-2xl"><h3 class="text-sm font-bold text-gray-500 mb-2"><i class="fas fa-pen-alt ml-1"></i> یادداشت:</h3><p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">${notes[currentIndex]}</p></div>`;
     const tc=document.getElementById('text-content');
     if(tc){tc.innerHTML=finalHTML;tc.style.fontSize=fontSize+'px';convertDOMNumbers(tc);applySearchHighlight();applyHighlightsToPage();}
@@ -453,6 +454,9 @@ function loadSettings() {
     currentFont = localStorage.getItem('reader_font') || 'vazir';
     const sc = localStorage.getItem('reader_titleColor');
     if (sc) document.documentElement.style.setProperty('--title-color', sc);
+    titleFont = localStorage.getItem('reader_titleFont') || 'inherit';
+    titleSize = parseInt(localStorage.getItem('reader_titleSize') || String(TITLE_SIZE_DEFAULT));
+    applyTitleFont(); applyTitleSize();
     const tc = localStorage.getItem('reader_textColor');
     if (tc) document.documentElement.style.setProperty('--text-color', tc);
     setTimeout(() => {
@@ -642,6 +646,37 @@ function updateTitleColorUI(c) {
             btn.style.transform = '';
         }
     });
+}
+
+// ── تیتر بخش‌های کتاب: فونت و اندازه ──────────────────────────────
+// پیش‌فرض ۲۸px؛ قبلاً کلاس text-3xl (۳۰px) روی تیتر ثابت بود.
+const TITLE_SIZE_DEFAULT = 28, TITLE_SIZE_MIN = 16, TITLE_SIZE_MAX = 48;
+const TITLE_FONTS = { inherit: 'inherit', vazir: "'Vazir', sans-serif",
+                      shabnam: "'Shabnam', sans-serif", tahoma: "'Tahoma', sans-serif" };
+
+function applyTitleFont() {
+    const v = TITLE_FONTS[titleFont] || 'inherit';
+    document.documentElement.style.setProperty('--title-font', v);
+    document.querySelectorAll('[data-title-font]').forEach(b => {
+        const on = b.dataset.titleFont === titleFont;
+        b.className = b.className.replace(/\s*(bg-white shadow-sm font-bold text-brand-600|text-gray-500)/g, '')
+                    + (on ? ' bg-white shadow-sm font-bold text-brand-600' : ' text-gray-500');
+    });
+}
+function setTitleFont(f) {
+    titleFont = TITLE_FONTS[f] ? f : 'inherit';
+    localStorage.setItem('reader_titleFont', titleFont);
+    applyTitleFont();
+}
+function applyTitleSize() {
+    document.documentElement.style.setProperty('--title-size', titleSize + 'px');
+    const d = document.getElementById('title-size-display');
+    if (d) d.textContent = toFa(titleSize) + 'px';
+}
+function changeTitleSize(d) {
+    titleSize = Math.max(TITLE_SIZE_MIN, Math.min(TITLE_SIZE_MAX, titleSize + d * 2));
+    localStorage.setItem('reader_titleSize', titleSize);
+    applyTitleSize();
 }
 
 function setTitleColor(c) {
