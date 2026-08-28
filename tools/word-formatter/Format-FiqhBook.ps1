@@ -34,7 +34,9 @@ param(
     [switch] $ShowWord,
     # ورد را کاملاً نامرئی اجرا کن — سریع‌تر است ولی روی بعضی سیستم‌ها
     # عملیات ذخیره پشت یک پنجره‌ی نامرئی قفل می‌کند
-    [switch] $HideWord
+    [switch] $HideWord,
+    # حتی اگر نمونه‌ی دیگری از Word باز است ادامه بده
+    [switch] $Force
 )
 
 # خروجی کنسول را UTF-8 کن وگرنه متن فارسی ???? دیده می‌شود
@@ -255,14 +257,46 @@ function Invoke-Replace {
     }
 }
 
+# متن کل سند را تکه‌تکه می‌خواند.
+# Range.Text روی بازه‌های خیلی بزرگ گاهی متن ناقص یا null برمی‌گرداند
+# (به‌ویژه وقتی نمونه‌ی دیگری از Word فایل را باز نگه داشته باشد).
+function Get-DocText {
+    param($Doc)
+    $total = $Doc.Content.End
+    $sb    = New-Object System.Text.StringBuilder
+    $pos   = 0
+    while ($pos -lt $total) {
+        $to = [Math]::Min($pos + 50000, $total)
+        $t  = $Doc.Range($pos, $to).Text
+        if ($null -eq $t) {
+            throw ("ورد متنِ بازه‌ی {0} تا {1} را برنگرداند. " -f $pos, $to +
+                   "معمولاً یعنی نمونه‌ی دیگری از Word باز است — همه را از Task Manager ببندید.")
+        }
+        [void]$sb.Append($t)
+        $pos = $to
+    }
+    return $sb.ToString()
+}
+
 # متن پاراگراف‌ها + آفستِ کاراکتریِ هرکدام (برای Range گرفتن سریع)
 function Get-Paragraphs {
     param($Doc)
-    $txt   = $Doc.Content.Text
+    $txt = Get-DocText $Doc
+    if ([Math]::Abs($txt.Length - $Doc.Content.End) -gt 1) {
+        throw ("متن ناقص خوانده شد: {0:N0} کاراکتر به‌جای {1:N0}. " -f $txt.Length, $Doc.Content.End +
+               "همه‌ی نمونه‌های Word را ببندید و دوباره اجرا کنید.")
+    }
     $parts = $txt -split "`r"
     if ($parts.Count -gt 0 -and $parts[$parts.Count-1] -eq '') {
         $parts = $parts[0..($parts.Count-2)]
     }
+    # اعتبارسنجی: تعداد پاراگراف‌های شمرده‌شده باید با خودِ ورد بخواند
+    $real = $Doc.Paragraphs.Count
+    if ([Math]::Abs($parts.Count - $real) -gt 1) {
+        throw ("ناسازگاری در شمارش پاراگراف‌ها: {0:N0} در برابر {1:N0} در خود ورد. " -f $parts.Count, $real +
+               "همه‌ی نمونه‌های Word را ببندید و دوباره اجرا کنید.")
+    }
+
     $starts = New-Object int[] $parts.Count
     $ends   = New-Object int[] $parts.Count
     $pos = 0
@@ -505,9 +539,11 @@ function Convert-Book {
 
     # فاصله‌های ابتدای اولین پاراگراف که علامت پاراگراف قبلش ندارد
     $head = $doc.Range(0, [Math]::Min(60, $doc.Content.End)).Text
-    $lead = 0
-    while ($lead -lt $head.Length -and $head[$lead] -eq ' ') { $lead++ }
-    if ($lead -gt 0) { $doc.Range(0, $lead).Delete() | Out-Null }
+    if ($head) {
+        $lead = 0
+        while ($lead -lt $head.Length -and $head[$lead] -eq ' ') { $lead++ }
+        if ($lead -gt 0) { $doc.Range(0, $lead).Delete() | Out-Null }
+    }
     Write-Log "فاصله‌ها و پاراگراف‌های خالی پاک‌سازی شد"
 
     # =====================================================================
@@ -797,12 +833,21 @@ Write-Host ""
 Write-Host "  تعداد فایل: $($files.Count)" -ForegroundColor White
 Write-Host "  خروجی    : $OutputPath" -ForegroundColor White
 
-# نمونه‌های باز مانده را قبل از ساختن نمونه‌ی خودمان بشمار
+# نمونه‌های باز مانده را قبل از ساختن نمونه‌ی خودمان بشمار.
+# یک نمونه‌ی گیرکرده فایل را باز نگه می‌دارد و باعث می‌شود ورد متن ناقص بدهد.
 $stuck = @(Get-Process WINWORD -ErrorAction SilentlyContinue)
-if ($stuck.Count -gt 0) {
-    Write-Host ("`n  توجه: {0} نمونه‌ی WINWORD از قبل باز است (PID: {1})." -f `
-                $stuck.Count, ($stuck.Id -join ', ')) -ForegroundColor Yellow
-    Write-Host "  اگر از اجرای گیرکرده‌ی قبلی مانده‌اند، از Task Manager ببندیدشان.`n" -ForegroundColor Yellow
+if ($stuck.Count -gt 0 -and -not $Force) {
+    Write-Host ("`n  {0} نمونه‌ی Word از قبل باز است (PID: {1})." -f `
+                $stuck.Count, ($stuck.Id -join ', ')) -ForegroundColor Red
+    Write-Host "  تا وقتی این‌ها باز باشند، ورد ممکن است متن ناقص برگرداند." -ForegroundColor Yellow
+    Write-Host "  همه‌ی پنجره‌های Word را ببندید (یا در Task Manager به WINWORD.EXE پایان دهید)." -ForegroundColor Yellow
+    Write-Host "  برای بستن خودکارشان B و بعد Enter بزنید، یا فقط Enter برای ادامه." -ForegroundColor Yellow
+    $ans = Read-Host "  انتخاب"
+    if ($ans -match '^[bBبی]') {
+        $stuck | ForEach-Object { try { $_.Kill() } catch {} }
+        Start-Sleep -Seconds 2
+        Write-Host "  بسته شدند.`n" -ForegroundColor Green
+    }
 }
 
 $word = $null
