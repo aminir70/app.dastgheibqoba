@@ -669,26 +669,47 @@ function Convert-Book {
 #  ۶) اجرای اصلی
 # =============================================================================
 $root = Split-Path -Parent $MyInvocation.MyCommand.Definition
-if ([string]::IsNullOrWhiteSpace($InputPath))  { $InputPath  = Join-Path $root 'input'  }
+$RX_WORD = '^\.(dot|dotx|dotm|doc|docx|docm)$'
+
+function Get-WordFiles {
+    param([string]$Dir)
+    if (-not (Test-Path $Dir)) { return @() }
+    return @(Get-ChildItem -Path $Dir -File -ErrorAction SilentlyContinue |
+             Where-Object { $_.Extension -match $RX_WORD } | Sort-Object Name)
+}
+
+# اگر ورودی داده نشده: اول پوشه‌ی input، وگرنه خودِ پوشه‌ی اسکریپت
+if ([string]::IsNullOrWhiteSpace($InputPath)) {
+    $dirInput = Join-Path $root 'input'
+    if ((Get-WordFiles $dirInput).Count -gt 0) {
+        $InputPath = $dirInput
+    } elseif ((Get-WordFiles $root).Count -gt 0) {
+        $InputPath = $root
+        Write-Host "`nفایل‌های ورد کنار خودِ اسکریپت پیدا شدند؛ از همین پوشه خوانده می‌شود." -ForegroundColor Yellow
+    } else {
+        $InputPath = $dirInput
+    }
+}
 if ([string]::IsNullOrWhiteSpace($OutputPath)) { $OutputPath = Join-Path $root 'output' }
 
 if (-not (Test-Path $InputPath)) {
     New-Item -ItemType Directory -Path $InputPath -Force | Out-Null
     Write-Host "`nپوشه‌ی ورودی ساخته شد: $InputPath" -ForegroundColor Yellow
-    Write-Host "فایل‌های .dot / .doc / .docx را داخل آن بریزید و دوباره اجرا کنید.`n" -ForegroundColor Yellow
+    Write-Host "فایل‌های .dot / .doc / .docx را داخل آن (یا کنار خود اسکریپت) بریزید و دوباره اجرا کنید.`n" -ForegroundColor Yellow
     return
 }
-if (-not (Test-Path $OutputPath)) { New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null }
 
-if (Test-Path $InputPath -PathType Leaf) {
-    $files = @(Get-Item $InputPath)
-} else {
-    $files = @(Get-ChildItem -Path $InputPath -File |
-               Where-Object { $_.Extension -match '^\.(dot|dotx|dotm|doc|docx|docm)$' } |
-               Sort-Object Name)
+if (Test-Path $InputPath -PathType Leaf) { $files = @(Get-Item $InputPath) }
+else                                     { $files = Get-WordFiles $InputPath }
+
+if ($files.Count -eq 0) {
+    Write-Host "`nهیچ فایل وردی (.dot/.doc/.docx) در این مسیر پیدا نشد:" -ForegroundColor Red
+    Write-Host "   $InputPath" -ForegroundColor Red
+    Write-Host "فایل‌ها را داخل این پوشه یا کنار خودِ اسکریپت بگذارید.`n" -ForegroundColor Yellow
+    return
 }
 
-if ($files.Count -eq 0) { Write-Host "`nهیچ فایل وردی در '$InputPath' پیدا نشد.`n" -ForegroundColor Red; return }
+if (-not (Test-Path $OutputPath)) { New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null }
 
 Write-Host ""
 Write-Host "  تعداد فایل: $($files.Count)" -ForegroundColor White
