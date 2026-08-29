@@ -280,7 +280,7 @@ function buildTOC() {
                 <span class="text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">${toFa(pages.length)}</span>
             </button>
             <div id="${sid}" class="${isOpen?'':'hidden'}">`;
-        pages.forEach(p=>{ html+=`<button onclick="goToPage(${p.originalIndex})" class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 truncate shadow-sm"><span class="text-gray-300 text-xs ml-2">${toFa(p.originalIndex+1)}.</span> ${p.name}</button>`; });
+        pages.forEach(p=>{ html+=`<button onclick="goToPage(${p.originalIndex})" class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 truncate shadow-sm"><span class="text-gray-300 text-xs ml-2">${toFa(p.originalIndex+1)}.</span> ${escHtml(toFa(p.name))}</button>`; });
         html+=`</div></div>`;
         seasonIndex++;
     });
@@ -338,7 +338,7 @@ function goToPage(index) {
     if(notes[currentIndex]) finalHTML+=`<div class="mt-12 pt-6 border-t border-dashed border-gray-300 bg-gray-50 p-4 rounded-2xl"><h3 class="text-sm font-bold text-gray-500 mb-2"><i class="fas fa-pen-alt ml-1"></i> یادداشت:</h3><p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">${notes[currentIndex]}</p></div>`;
     const tc=document.getElementById('text-content');
     if(tc){tc.innerHTML=finalHTML;tc.style.fontSize=fontSize+'px';convertDOMNumbers(tc);applySearchHighlight();applyHighlightsToPage();}
-    document.getElementById('header-title').textContent=page.name;
+    document.getElementById('header-title').textContent=toFa(page.name);
     document.getElementById('chapter-title').textContent=page.season||'';
     document.getElementById('page-counter').textContent=toFa(currentIndex+1)+' / '+toFa(bookData.length);
     const slider=document.getElementById('page-slider'); if(slider) slider.value=currentIndex;
@@ -396,7 +396,7 @@ function buildBookmarksTab(){
     }
     c.innerHTML=bookmarks.sort((a,b)=>a-b).map(idx=>{
         const p=bookData[idx];if(!p)return'';
-        return`<button onclick="goToPage(${idx})" class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 flex items-center shadow-sm"><i class="fas fa-bookmark text-brand-500 ml-3 text-xs"></i><span class="truncate">${p.name}</span><span class="text-xs text-gray-300 mr-auto">صفحه ${toFa(idx+1)}</span></button>`;
+        return`<button onclick="goToPage(${idx})" class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 flex items-center shadow-sm"><i class="fas fa-bookmark text-brand-500 ml-3 text-xs"></i><span class="truncate">${escHtml(toFa(p.name))}</span><span class="text-xs text-gray-300 mr-auto">صفحه ${toFa(idx+1)}</span></button>`;
     }).join('');
 }
 
@@ -413,10 +413,10 @@ function buildNotesTab() {
         return `<button onclick="goToPage(${idx})" class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 flex flex-col shadow-sm">
                     <div class="flex items-center w-full mb-2">
                         <i class="fas fa-pen-alt text-brand-500 ml-2 text-xs"></i>
-                        <span class="font-bold truncate">${p.name}</span>
+                        <span class="font-bold truncate">${escHtml(toFa(p.name))}</span>
                         <span class="text-[10px] text-gray-300 mr-auto">صفحه ${toFa(idx+1)}</span>
                     </div>
-                    <p class="text-xs text-gray-500 leading-relaxed text-right line-clamp-2">${noteText}</p>
+                    <p class="text-xs text-gray-500 leading-relaxed text-right line-clamp-2">${escHtml(toFa(noteText))}</p>
                 </button>`;
     }).join('');
 }
@@ -442,7 +442,7 @@ function saveSelectionToNote() {
 // ====================================================
 function openSearch(){document.getElementById('search-modal').classList.remove('hidden');document.getElementById('search-modal').classList.add('flex');document.getElementById('search-input').focus();}
 function closeSearch(){document.getElementById('search-modal').classList.add('hidden');document.getElementById('search-modal').classList.remove('flex');}
-function performSearch(){const q=document.getElementById('search-input').value.trim().toLowerCase();if(!q)return;const results=bookData.filter(p=>p.name.toLowerCase().includes(q)||p.text.toLowerCase().includes(q));const c=document.getElementById('search-results');if(!results.length){c.innerHTML='<div class="text-center py-12 text-gray-400"><p>نتیجه‌ای یافت نشد</p></div>';return;}c.innerHTML=results.map(p=>{const s=p.text.replace(/<[^>]*>/g,'').substring(0,100);return`<button onclick="goToPage(${p.index});closeSearch()" class="w-full text-right p-4 bg-white rounded-xl border border-gray-100 hover:bg-brand-50 transition shadow-sm"><h4 class="font-bold text-sm text-gray-800 mb-1">${p.name}</h4><p class="text-xs text-gray-400 line-clamp-2">${s}...</p></button>`;}).join('');}
+function performSearch(){const q=document.getElementById('search-input').value.trim().toLowerCase();if(!q)return;const results=bookData.filter(p=>p.name.toLowerCase().includes(q)||p.text.toLowerCase().includes(q));const c=document.getElementById('search-results');if(!results.length){c.innerHTML='<div class="text-center py-12 text-gray-400"><p>نتیجه‌ای یافت نشد</p></div>';return;}c.innerHTML=results.map(p=>{const s=p.text.replace(/<[^>]*>/g,'').substring(0,100);return`<button onclick="goToPage(${p.index});closeSearch()" class="w-full text-right p-4 bg-white rounded-xl border border-gray-100 hover:bg-brand-50 transition shadow-sm"><h4 class="font-bold text-sm text-gray-800 mb-1">${escHtml(toFa(p.name))}</h4><p class="text-xs text-gray-400 line-clamp-2">${escHtml(toFa(s))}...</p></button>`;}).join('');}
 
 // ====================================================
 // تنظیمات خواندن
