@@ -45,7 +45,7 @@ try {
     $OutputEncoding           = [Text.Encoding]::UTF8
 } catch {}
 
-$SCRIPT_VERSION = 'v13 (1405/06/07)'
+$SCRIPT_VERSION = 'v14 (1405/06/08)'
 
 # =============================================================================
 #  ۱) تنظیمات ظاهری — هرچه لازم بود همین‌جا عوض کنید
@@ -109,7 +109,12 @@ $CFG = @{
                               # عملیات سنگینی است و ورد را مدتی مشغول می‌کند.
     SaveEarly       = $true   # بعد از اعمال استایل‌ها یک بار ذخیره کن، تا اگر
                               # مرحله‌ی پاورقی‌ها به مشکل خورد فایل از دست نرود
-    SaveFormat      = 16      # 16 = .docx  |  0 = .doc (اگر ذخیره‌ی docx گیر کرد)
+    # قالب ذخیره:  0 = .doc  |  16 = .docx
+    # پیش‌فرض .doc است چون فایل ورودی خودش قالب Word 97 است و ذخیره در همان
+    # قالب هیچ تبدیلی لازم ندارد؛ تبدیل به .docx روی بعضی سیستم‌ها گیر می‌کند.
+    # فایل .doc همه‌ی قالب‌بندی، پاورقی و فهرست را دارد و با هر ورژنی باز می‌شود.
+    SaveFormat      = 0
+    AlsoDocx        = $false  # بعد از .doc یک نسخه‌ی .docx هم بساز (ممکن است کند باشد)
     ConvertCompatMode = $false # ارتقا از «حالت سازگاری» ورد ۹۷.
                                # لازم نیست (docx سالم بدون آن هم ساخته می‌شود)
                                # و روی بعضی سیستم‌ها باعث معلق شدن ورد می‌شود.
@@ -686,6 +691,7 @@ function Convert-Book {
     $doc.TrackRevisions = $false
     # به ورد بگو سند قبلاً بازبینی شده؛ وگرنه روی ۷۳۰ هزار کاراکترِ عربی
     # بازبینی پس‌زمینه راه می‌افتد و اجرا عملاً معلق می‌شود.
+    try { $doc.UpdateStylesOnOpen = $false } catch {}
     try { $doc.SpellingChecked = $true } catch {}
     try { $doc.GrammarChecked  = $true } catch {}
     try { $doc.ShowSpellingErrors = $false } catch {}
@@ -970,8 +976,8 @@ function Convert-Book {
     if ($CFG.SaveEarly) {
         try {
             if (Test-Path $dst) { Remove-Item $dst -Force }
-            Write-Step "ذخیره‌ی میانی ..."
-            $doc.SaveAs2($dst, $CFG.SaveFormat, $false, '', $false)
+            Write-Step ("ذخیره‌ی میانی در {0} ..." -f $dst)
+            $doc.SaveAs2($dst, $CFG.SaveFormat)
             Write-Log ("ذخیره شد: {0}" -f $dst) 'OK'
         } catch { Write-Log ("ذخیره‌ی میانی نشد: {0}" -f $_.Exception.Message) 'WARN' }
     }
@@ -1086,17 +1092,27 @@ function Convert-Book {
     # اول ذخیره می‌کنیم و بعد سراغ کارهای سنگینِ صفحه‌بندی می‌رویم،
     # تا در هر حال یک فایل سالم روی دیسک باشد.
     Write-Step ("ذخیره در {0} ..." -f $dst)
+    Write-Host "     (اگر بیش از دو دقیقه اینجا ماند، پنجره‌ی Word را از نوار وظیفه باز کنید)" -ForegroundColor DarkGray
     try {
         if (Test-Path $dst) { Remove-Item $dst -Force }
-        $doc.SaveAs2($dst, $CFG.SaveFormat, $false, '', $false)
+        $doc.SaveAs2($dst, $CFG.SaveFormat)
     } catch {
-        try { $doc.SaveAs($dst, $CFG.SaveFormat, $false, '', $false) }
+        try { $doc.SaveAs($dst, $CFG.SaveFormat) }
         catch { throw ("ذخیره نشد: {0}" -f $_.Exception.Message) }
     }
     if (Test-Path $dst) {
         Write-Log ("ذخیره شد: {0}  ({1:N0} کیلوبایت)" -f $dst, ((Get-Item $dst).Length/1KB)) 'OK'
     } else {
         Write-Log "ورد خطا نداد ولی فایلی ساخته نشد!" 'ERR'
+    }
+
+    if ($CFG.AlsoDocx -and $CFG.SaveFormat -eq 0) {
+        try {
+            $dx = [IO.Path]::ChangeExtension($dst, '.docx')
+            Write-Step ("ساخت نسخه‌ی docx ..." )
+            $doc.SaveAs2($dx, 16)
+            Write-Log ("ساخته شد: {0}" -f $dx) 'OK'
+        } catch { Write-Log ("نسخه‌ی docx ساخته نشد: {0}" -f $_.Exception.Message) 'WARN' }
     }
 
     # شماره‌ی صفحه‌های فهرست به صفحه‌بندی نیاز دارد و کند است؛ جدا و اختیاری
@@ -1223,6 +1239,8 @@ try { $word.Options.CheckSpellingAsYouType  = $false } catch {}
 try { $word.Options.CheckGrammarAsYouType   = $false } catch {}
 try { $word.Options.SaveInterval            = 0      } catch {}
 try { $word.Options.AnimateScreenMovements  = $false } catch {}
+# ما استایل‌های داخلی را عوض می‌کنیم؛ ورد نباید بخواهد Normal.dotm را ذخیره کند
+try { $word.Options.SaveNormalPrompt         = $false } catch {}
 # ScreenUpdating را عمداً خاموش نمی‌کنیم: ترکیب آن با پنجره‌ی نامرئی
 # باعث قفل شدن SaveAs می‌شود و وقتی پنجره مینیمایز است سودی هم ندارد.
 $swAll = [Diagnostics.Stopwatch]::StartNew()
