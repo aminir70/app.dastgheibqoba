@@ -814,8 +814,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
         </div>
         <!-- پاسخ آماده -->
         <div id="canned-picker" class="hidden max-h-48 overflow-y-auto border-b border-gray-100 p-2 flex flex-col gap-1 bg-gray-50"></div>
+        <!-- پیش‌نمایش پیوست پاسخ ادمین (فایل انتخاب‌شده یا ویس ضبط‌شده) -->
+        <div id="support-attach-bar" class="hidden mx-3 mt-2 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
+          <i id="support-attach-icon" class="fas fa-paperclip text-teal-600 text-xs shrink-0"></i>
+          <span id="support-attach-name" class="text-[11px] text-gray-600 flex-1 truncate"></span>
+          <audio id="support-attach-player" controls class="hidden h-7" style="max-width:180px;"></audio>
+          <button onclick="supportClearAttachment()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="حذف پیوست"><i class="fas fa-times text-xs"></i></button>
+        </div>
         <div class="p-3 flex gap-2 items-center">
           <button onclick="toggleCannedPicker()" title="پاسخ آماده" class="w-9 h-9 shrink-0 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 hover:bg-amber-100 transition flex items-center justify-center text-sm"><i class="fas fa-bolt"></i></button>
+          <input type="file" id="support-attach-input" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.mp3,.wav,.ogg,.aac,.m4a,.webm,.flac" onchange="supportPickFile()">
+          <button id="support-attach-btn" onclick="document.getElementById('support-attach-input').click()" title="پیوست فایل (تصویر، PDF یا صوت)" class="w-9 h-9 shrink-0 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center text-sm" disabled><i class="fas fa-paperclip"></i></button>
+          <button id="support-voice-btn" onclick="supportToggleVoice()" title="ضبط پاسخ صوتی" class="w-9 h-9 shrink-0 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center text-sm" disabled><i class="fas fa-microphone"></i></button>
+          <span id="support-record-timer" class="hidden text-xs font-bold text-red-500 shrink-0"></span>
           <input type="text" id="support-reply-input" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-teal-500 text-sm" placeholder="پاسخ..." disabled onkeypress="if(event.key==='Enter')sendSupportReply()">
           <button id="support-reply-send" onclick="sendSupportReply()" class="bg-teal-600 hover:bg-teal-700 text-white px-5 rounded-xl font-bold text-sm opacity-50 cursor-not-allowed transition" disabled>ارسال</button>
         </div>
@@ -1395,6 +1406,7 @@ function switchTab(tab) {
   if(tab==='audiogallery') loadAudioGalleryAdmin();
   if(tab==='support'){
     loadTickets();
+    supportSyncAttachUI();
     adminQaInterval=setInterval(()=>{if(document.visibilityState==='hidden')return;loadTickets();loadQAUsers();},20000);
   }
   if(tab==='chatbot'){const f=document.getElementById('chatbot-admin-frame');if(f&&!f.src)f.src=f.dataset.src;}
@@ -1438,6 +1450,7 @@ function switchSupportTab(mode) {
   const inp=document.getElementById('support-reply-input'),btn=document.getElementById('support-reply-send');
   inp.disabled=true; btn.disabled=true; btn.classList.add('opacity-50','cursor-not-allowed');
   activeTicketId=null; activeUserId=null;
+  supportSyncAttachUI();
 }
 
 // BOOKS
@@ -2299,7 +2312,7 @@ async function loadTickets(){
             ${t.category_name?`<span class="text-[9px] bg-blue-50 text-blue-500 px-1 rounded">${escHtml(t.category_name)}</span>`:''}
             ${t.tracking_code?`<span class="font-mono text-[9px] text-gray-400">${escHtml(t.tracking_code)}</span>`:''}
           </div>
-          ${t.last_msg?`<p class="text-[10px] text-gray-500 truncate">${escHtml(t.last_msg)}</p>`:''}
+          ${(t.last_msg||adminAttachLabel(t.last_attachment_type))?`<p class="text-[10px] text-gray-500 truncate">${escHtml(t.last_msg||adminAttachLabel(t.last_attachment_type))}</p>`:''}
         </button>
         <button onclick="copyTicketText(event,${jsArg(copyText)})" title="کپی" class="absolute top-2 left-2 w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-teal-50 hover:text-teal-600 text-gray-400 rounded-lg transition text-[10px]"><i class="fas fa-copy"></i></button>
       </div>`;
@@ -2319,6 +2332,7 @@ async function selectTicket(id,subject,status){
   const statusBtns=document.getElementById('ticket-status-btns');
   if(status!=='closed'){inp.disabled=false;btn.disabled=false;btn.classList.remove('opacity-50','cursor-not-allowed');statusBtns.classList.remove('hidden');}
   else{inp.disabled=true;btn.disabled=true;btn.classList.add('opacity-50','cursor-not-allowed');statusBtns.classList.add('hidden');}
+  supportSyncAttachUI();
   try{
     const r=await adminFetch('/api/admin/tickets/'+id+'/messages');
     const msgs=await r.json();
@@ -2335,7 +2349,7 @@ async function selectTicket(id,subject,status){
         else if(m.attachment_type==='pdf') attachHtml=`<a href="${attUrl}" target="_blank" class="inline-flex items-center gap-1 mt-2 bg-red-50 border border-red-100 px-2 py-1 rounded-lg text-[10px] text-red-600 font-bold hover:bg-red-100"><i class="fas fa-file-pdf"></i>مشاهده PDF</a>`;
         else if(m.attachment_type==='audio') attachHtml=`<audio controls class="mt-2 w-full" style="min-height:40px;" src="${attUrl}"></audio>`;
       }
-      const editBtn=isAdmin?`<button onclick="adminEditMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="ویرایش"><i class="fas fa-pen"></i></button>`:'';
+      const editBtn=(isAdmin&&m.text)?`<button onclick="adminEditMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="ویرایش"><i class="fas fa-pen"></i></button>`:'';
       const replyBtn=m.id?`<button onclick="adminReplyToMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="پاسخ"><i class="fas fa-reply"></i></button>`:'';
       return `<div class="flex ${isAdmin?'justify-start':'justify-end'}">
         <div class="${isAdmin?'bg-teal-50 border border-teal-100':'bg-white border border-gray-100'} max-w-[75%] px-4 py-2.5 rounded-2xl text-xs font-medium shadow-sm">
@@ -2356,6 +2370,113 @@ async function selectTicket(id,subject,status){
   }catch(e){}
 }
 let adminSupportMsgs=[], adminReplyTo=null;
+
+// ---------------------------------------------------------------------------
+// پیوست پاسخ ادمین در تیکت‌ها — فایل (تصویر/PDF/صوت) یا ویس ضبط‌شده
+// سمت سرور: POST /api/admin/tickets/:id/reply با فیلد multipart «ticket_file»
+// ---------------------------------------------------------------------------
+const SUPPORT_ATTACH_MAX = 25*1024*1024;   // هم‌تراز با سقف multer در server.js
+let supportAttachFile=null, supportVoiceBlob=null, supportRecorder=null, supportChunks=[], supportTimerInt=null;
+
+function supportFaNum(v){ return String(v).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]); }
+function supportAttachIcon(name,isVoice){
+  if(isVoice) return 'fa-microphone';
+  const n=String(name||'').toLowerCase();
+  if(n.endsWith('.pdf')) return 'fa-file-pdf';
+  if(/\.(mp3|wav|ogg|aac|m4a|webm|flac)$/.test(n)) return 'fa-music';
+  return 'fa-image';
+}
+function supportShowAttachBar(name,isVoice,blobUrl){
+  const bar=document.getElementById('support-attach-bar');
+  const ic=document.getElementById('support-attach-icon');
+  const nm=document.getElementById('support-attach-name');
+  const pl=document.getElementById('support-attach-player');
+  if(!bar) return;
+  if(ic) ic.className='fas '+supportAttachIcon(name,isVoice)+' text-teal-600 text-xs shrink-0';
+  if(nm) nm.textContent=name;
+  if(pl){
+    if(blobUrl){ pl.src=blobUrl; pl.classList.remove('hidden'); }
+    else { pl.removeAttribute('src'); pl.classList.add('hidden'); }
+  }
+  bar.classList.remove('hidden');
+}
+function supportStopRecorder(){
+  if(supportRecorder&&supportRecorder.state==='recording'){
+    try{ supportRecorder.stream.getTracks().forEach(t=>t.stop()); supportRecorder.stop(); }catch(e){}
+  }
+  supportRecorder=null;
+  if(supportTimerInt){ clearInterval(supportTimerInt); supportTimerInt=null; }
+  const tm=document.getElementById('support-record-timer');
+  if(tm){ tm.classList.add('hidden'); tm.textContent=''; }
+  const btn=document.getElementById('support-voice-btn');
+  if(btn) btn.innerHTML='<i class="fas fa-microphone"></i>';
+}
+function supportClearAttachment(){
+  supportStopRecorder();
+  supportAttachFile=null; supportVoiceBlob=null; supportChunks=[];
+  const fi=document.getElementById('support-attach-input'); if(fi) fi.value='';
+  const pl=document.getElementById('support-attach-player');
+  if(pl){ if(pl.src&&pl.src.startsWith('blob:')) URL.revokeObjectURL(pl.src); pl.removeAttribute('src'); pl.classList.add('hidden'); }
+  const bar=document.getElementById('support-attach-bar'); if(bar) bar.classList.add('hidden');
+}
+function supportPickFile(){
+  const fi=document.getElementById('support-attach-input');
+  const f=fi&&fi.files?fi.files[0]:null;
+  if(!f){ supportClearAttachment(); return; }
+  if(f.size>SUPPORT_ATTACH_MAX){ showToast('حجم فایل نباید بیش از ۲۵ مگابایت باشد',false); fi.value=''; return; }
+  // انتخاب فایل، ویس ضبط‌شده را کنار می‌گذارد (هر پیام فقط یک پیوست دارد)
+  supportStopRecorder(); supportVoiceBlob=null;
+  supportAttachFile=f;
+  supportShowAttachBar(f.name,false,null);
+}
+async function supportToggleVoice(){
+  if(supportRecorder&&supportRecorder.state==='recording'){ supportRecorder.stop(); return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    supportAttachFile=null;
+    const fi=document.getElementById('support-attach-input'); if(fi) fi.value='';
+    supportRecorder=new MediaRecorder(stream);
+    supportChunks=[];
+    supportRecorder.ondataavailable=e=>{ if(e.data&&e.data.size) supportChunks.push(e.data); };
+    supportRecorder.onstop=()=>{
+      try{ stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+      if(supportTimerInt){ clearInterval(supportTimerInt); supportTimerInt=null; }
+      const tm=document.getElementById('support-record-timer');
+      if(tm){ tm.classList.add('hidden'); tm.textContent=''; }
+      const btn=document.getElementById('support-voice-btn');
+      if(btn) btn.innerHTML='<i class="fas fa-microphone"></i>';
+      supportRecorder=null;
+      if(!supportChunks.length) return;
+      supportVoiceBlob=new Blob(supportChunks,{type:'audio/webm'});
+      if(supportVoiceBlob.size>SUPPORT_ATTACH_MAX){ showToast('ضبط طولانی‌تر از حد مجاز بود',false); supportClearAttachment(); return; }
+      supportShowAttachBar('پاسخ صوتی',true,URL.createObjectURL(supportVoiceBlob));
+    };
+    supportRecorder.start();
+    const tm=document.getElementById('support-record-timer');
+    let sec=0;
+    if(tm){ tm.classList.remove('hidden'); tm.textContent='۰:۰۰'; }
+    supportTimerInt=setInterval(()=>{
+      sec++;
+      if(tm) tm.textContent=supportFaNum(Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'));
+    },1000);
+    const btn=document.getElementById('support-voice-btn');
+    if(btn) btn.innerHTML='<i class="fas fa-stop text-red-500 animate-pulse"></i>';
+  }catch(e){ showToast('دسترسی به میکروفون ممکن نشد',false); }
+}
+// دکمه‌های پیوست فقط در تب تیکت‌ها و روی تیکت بازِ انتخاب‌شده فعال‌اند
+function supportSyncAttachUI(){
+  const isTicket=currentSupportMode==='tickets';
+  const inp=document.getElementById('support-reply-input');
+  const on=isTicket&&inp&&!inp.disabled;
+  if(!on) supportClearAttachment();
+  ['support-attach-btn','support-voice-btn'].forEach(id=>{
+    const b=document.getElementById(id); if(!b) return;
+    b.classList.toggle('hidden',!isTicket);
+    b.disabled=!on;
+    b.classList.toggle('opacity-50',!on);
+    b.classList.toggle('cursor-not-allowed',!on);
+  });
+}
 function adminEscHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function adminAttachLabel(t){return t==='image'?'🖼 تصویر':t==='audio'?'🎤 پیام صوتی':t==='pdf'?'📄 فایل PDF':t?'📎 پیوست':'';}
 function adminReplyQuote(m){
@@ -2401,16 +2522,30 @@ async function adminEditMsg(msgId){
 async function sendSupportReply(){
   const inp=document.getElementById('support-reply-input');
   const t=inp.value.trim();
-  if(!t) return;
-  inp.value='';
   if(currentSupportMode==='tickets'&&activeTicketId){
-    const body={text:t};
-    if(adminReplyTo) body.reply_to=adminReplyTo;
+    // ضبطِ در حال انجام را اول تمام کن تا ویس از دست نرود
+    if(supportRecorder&&supportRecorder.state==='recording'){ showToast('ابتدا ضبط را متوقف کنید',false); return; }
+    const att=supportAttachFile||supportVoiceBlob;
+    if(!t&&!att) return;
+    inp.value='';
+    const fd=new FormData();
+    fd.append('text',t);
+    if(adminReplyTo) fd.append('reply_to',adminReplyTo);
+    if(supportAttachFile) fd.append('ticket_file',supportAttachFile);
+    else if(supportVoiceBlob) fd.append('ticket_file',supportVoiceBlob,'voice.webm');
     adminCancelReply();
-    const r=await adminFetch('/api/admin/tickets/'+activeTicketId+'/reply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    supportClearAttachment();
+    const r=await adminFetch('/api/admin/tickets/'+activeTicketId+'/reply',{method:'POST',body:fd});
     if(r.ok) selectTicket(activeTicketId,document.getElementById('active-support-title').textContent,'answered');
-    else showToast('خطا در ارسال',false);
+    else{
+      let msg='خطا در ارسال';
+      try{ const d=await r.json(); if(d&&d.error) msg=d.error; }catch(e){}
+      showToast(msg,false);
+      inp.value=t;
+    }
+  } else if(!t){ return;
   } else if(currentSupportMode==='qa'&&activeUserId){
+    inp.value='';
     const r=await adminFetch('/api/admin/qa/messages/'+activeUserId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t})});
     if(r.ok) loadAdminMessages(activeUserId);
     else showToast('خطا در ارسال',false);
@@ -2602,6 +2737,7 @@ async function selectUser(id,name){
   const inp=document.getElementById('support-reply-input'),btn=document.getElementById('support-reply-send');
   inp.disabled=false;inp.placeholder='پاسخ به '+name+'...';
   btn.disabled=false;btn.classList.remove('opacity-50','cursor-not-allowed');
+  supportSyncAttachUI();
   await loadAdminMessages(id);loadQAUsers();
 }
 async function loadAdminMessages(uid){

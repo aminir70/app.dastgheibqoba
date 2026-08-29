@@ -102,6 +102,14 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 - `POST /api/admin/login` — ورود ادمین (کوکی `admin_token` ست می‌شود)
 - `POST /api/admin/logout` — خروج (کوکی پاک می‌شود)
 - `GET /api/admin/auth-check` — بررسی وضعیت session
+- `POST /api/admin/tickets/:id/reply` — پاسخ به تیکت. **multipart/form-data**
+  با فیلدهای `text`، `reply_to` (اختیاری) و `ticket_file` (اختیاری). پیوست
+  می‌تواند تصویر، PDF یا صوت باشد (سقف ۲۵ مگابایت — کاربر ۵ مگابایت). پیام
+  می‌تواند فقط متن، فقط پیوست، یا هر دو باشد.
+
+> پیوست‌های تیکت زیر `public/ticket-files/` ذخیره می‌شوند ولی مسیر استاتیک
+> بسته است؛ دریافت فقط از `GET /api/ticket-files/:name?t=<امضا>` که هنگام
+> خواندن پیام‌ها (با احراز هویت) تولید می‌شود و ۶ ساعت اعتبار دارد.
 
 احراز هویت ادمین: httpOnly cookie `admin_token` (JWT) — نه header
 

@@ -584,6 +584,9 @@ const uploadAudio = multer({ storage, limits:{fileSize:60*1024*1024, files:5}, f
 const upload = multer({ storage, limits:{fileSize:200*1024*1024, files:10}, fileFilter: _makeFilter(['image','pdf','db']) });
 // آپلود پیوست تیکت: عکس، pdf، یا صوت (ویس) حداکثر ۵ مگابایت
 const uploadTicketFile = multer({ storage, limits:{fileSize:5*1024*1024, files:1}, fileFilter: _makeFilter(['image','pdf','audio']) });
+// پیوست پاسخ ادمین: همان انواع مجاز کاربر ولی سقف بزرگ‌تر، چون پاسخ صوتی
+// ادمین معمولاً طولانی‌تر از ویس کوتاه کاربر است.
+const uploadAdminTicketFile = multer({ storage, limits:{fileSize:25*1024*1024, files:1}, fileFilter: _makeFilter(['image','pdf','audio']) });
 function genTrackingCode() {
     const d = new Date().toISOString().slice(0,10).replace(/-/g,'');
     // کد رهگیری نباید قابل حدس باشد → crypto به جای Math.random
@@ -2190,7 +2193,7 @@ app.delete('/api/admin/canned-responses/:id',adminAuth,(req,res)=>{
 });
 // Admin Tickets
 app.get('/api/admin/tickets',adminAuth,(req,res)=>{
-    mainDb.all(`SELECT t.*,tc.name as category_name,(SELECT COUNT(*) FROM ticket_messages WHERE ticket_id=t.id) as msg_count,(SELECT text FROM ticket_messages WHERE ticket_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) as last_msg FROM tickets t LEFT JOIN ticket_categories tc ON tc.id=t.category_id ORDER BY t.updated_at DESC`,[],(err,rows)=>res.json(rows||[]));
+    mainDb.all(`SELECT t.*,tc.name as category_name,(SELECT COUNT(*) FROM ticket_messages WHERE ticket_id=t.id) as msg_count,(SELECT text FROM ticket_messages WHERE ticket_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) as last_msg,(SELECT attachment_type FROM ticket_messages WHERE ticket_id=t.id ORDER BY created_at DESC, id DESC LIMIT 1) as last_attachment_type FROM tickets t LEFT JOIN ticket_categories tc ON tc.id=t.category_id ORDER BY t.updated_at DESC`,[],(err,rows)=>res.json(rows||[]));
 });
 app.get('/api/admin/tickets/:id/messages',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
@@ -2198,18 +2201,23 @@ app.get('/api/admin/tickets/:id/messages',adminAuth,(req,res)=>{
                 FROM ticket_messages m LEFT JOIN ticket_messages r ON r.id=m.reply_to
                 WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err,rows)=>res.json(withSignedAttachments(rows)));
 });
-app.post('/api/admin/tickets/:id/reply',adminAuth,(req,res)=>{
+app.post('/api/admin/tickets/:id/reply',adminAuth,uploadAdminTicketFile.single('ticket_file'),(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const t=sanText(req.body.text);if(!t||!t.trim()) return res.status(400).json({error:'متن خالی است'});
+    const t=sanText(req.body.text)||'';
+    const att=req.file?('/ticket-files/'+req.file.filename):null;
+    const attType=req.file?_detectAttachmentType(req.file):null;
+    // پیام می‌تواند فقط متن، فقط پیوست، یا هر دو باشد — ولی نه هیچ‌کدام.
+    if(!t.trim()&&!att) return res.status(400).json({error:'متن یا پیوست الزامی است'});
     const replyTo=_parseReplyTo(req.body.reply_to);
     _validateReplyTo(replyTo,id,(validReplyTo)=>{
-    mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,reply_to) VALUES (?,?,"admin",?)',[id,t,validReplyTo],function(err){
+    mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,attachment,attachment_type,reply_to) VALUES (?,?,"admin",?,?,?)',[id,t.trim(),att,attType,validReplyTo],function(err){
         if(err) return res.status(500).json({error:failMsg(err)});
         mainDb.run('UPDATE tickets SET status="answered",updated_at=CURRENT_TIMESTAMP WHERE id=?',[id]);
         mainDb.get('SELECT user_id,subject FROM tickets WHERE id=?',[id],(err2,ticket)=>{
             if(ticket&&ticket.user_id){
                 const replyTitle='پاسخ به تیکت';
-                const replyMsg=`تیکت شما با موضوع "${ticket.subject}" پاسخ داده شد.`;
+                const attNote=attType==='audio'?' (پاسخ صوتی)':attType==='image'?' (همراه تصویر)':attType==='pdf'?' (همراه فایل PDF)':attType?' (همراه پیوست)':'';
+                const replyMsg=`تیکت شما با موضوع "${ticket.subject}" پاسخ داده شد.${attNote}`;
                 mainDb.run('INSERT INTO notifications (title,message,type) VALUES (?,?,"ticket_reply")',
                     [replyTitle,replyMsg],function(err3){
                         if(this.lastID) mainDb.run('INSERT INTO user_notifications (user_id,notification_id) VALUES (?,?)',[ticket.user_id,this.lastID]);
