@@ -19,5 +19,5 @@ echo اسکریپت: !SCRIPT!
 powershell -NoProfile -STA -ExecutionPolicy Bypass -File "!SCRIPT!" -NoSave %*
 echo.
 echo ---------------------------------------------------------------
-echo Word باز مانده. سند را با F12 ذخیره کنید.
+echo تمام شد. اگر کتابی باز مانده، با F12 ذخیره‌اش کنید.
 pause >nul

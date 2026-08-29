@@ -48,7 +48,7 @@ try {
     $OutputEncoding           = [Text.Encoding]::UTF8
 } catch {}
 
-$SCRIPT_VERSION = 'v15 (1405/06/08)'
+$SCRIPT_VERSION = 'v16 (1405/06/08)'
 
 # =============================================================================
 #  ۱) تنظیمات ظاهری — هرچه لازم بود همین‌جا عوض کنید
@@ -326,6 +326,7 @@ function Clear-Undo {
 }
 
 $script:LeaveWordOpen = $false
+$script:OpenDoc = $null
 $script:StepWatch = [Diagnostics.Stopwatch]::StartNew()
 function Write-Step {
     param([string]$Msg)
@@ -924,6 +925,8 @@ function Convert-Book {
     foreach ($ts in @($sTOC1, $sTOC2, $sTOC3)) {
         try { Set-StyleLook -Style (Get-BuiltinStyle $doc $ts) -Font $fB -Size ($CFG.SizeBody - 2) -Align $wdAlignRight -LineMul 1.0 } catch {}
     }
+    Write-Log ("استایل تیترها →  ۱: «{0}»   ۲: «{1}»   ۳: «{2}»" -f `
+               (Get-StyleName $styH1 '؟'), (Get-StyleName $styH2 '؟'), (Get-StyleName $styH3 '؟'))
     if ($script:StyleFails.Count -gt 0) {
         Write-Log ("این ویژگی‌ها را ورد نپذیرفت (بی‌اهمیت): {0}" -f `
                    (($script:StyleFails.Keys | Sort-Object) -join '، ')) 'WARN'
@@ -965,6 +968,13 @@ function Convert-Book {
                     Write-Log ("استایل '{0}' («{1}») اعمال نشد: {2}" -f `
                                $c, $styleOf[$c], $_.Exception.Message) 'WARN'
                 }
+            }
+            # سطح ساختاری را مستقیم هم ست می‌کنیم تا تیترها حتماً در
+            # پنجره‌ی ناوبری و در فهرست خودکار دیده شوند — حتی اگر استایل
+            # داخلیِ ورد به هر دلیل سطحش را نیاورده باشد.
+            if ($c -eq 'H1' -or $c -eq 'H2' -or $c -eq 'H3') {
+                $lvl = [int]$c.Substring(1)
+                try { $rng.ParagraphFormat.OutlineLevel = $lvl } catch { }
             }
             $applied++
             $runStart = $i
@@ -1113,6 +1123,7 @@ function Convert-Book {
         Write-Host "  ============================================================" -ForegroundColor Green
         Write-Host ""
         $script:LeaveWordOpen = $true
+        $script:OpenDoc = $doc
         return
     }
 
@@ -1200,11 +1211,6 @@ if (-not (Test-Path $InputPath)) {
 if (Test-Path $InputPath -PathType Leaf) { $files = @(Get-Item $InputPath) }
 else                                     { $files = Get-WordFiles $InputPath }
 
-if ($NoSave -and $files.Count -gt 1) {
-    Write-Host "`n  حالت دستی فقط یک فایل را پردازش می‌کند (اولی): $($files[0].Name)`n" -ForegroundColor Yellow
-    $files = @($files[0])
-}
-
 if ($files.Count -eq 0) {
     Write-Host "`nهیچ فایل وردی (.dot/.doc/.docx) در این مسیر پیدا نشد:" -ForegroundColor Red
     Write-Host "   $InputPath" -ForegroundColor Red
@@ -1276,12 +1282,26 @@ try { $word.Options.SaveNormalPrompt         = $false } catch {}
 $swAll = [Diagnostics.Stopwatch]::StartNew()
 $ok = 0; $fail = 0
 
+$fileNo = 0
 foreach ($f in $files) {
+    $fileNo++
     $sw = [Diagnostics.Stopwatch]::StartNew()
     try {
         Convert-Book -Word $word -SrcPath $f.FullName -OutDir $OutputPath
         $ok++
         Write-Log ("زمان: {0:N1} ثانیه" -f $sw.Elapsed.TotalSeconds)
+
+        # حالت دستی: منتظر بمان تا کاربر ذخیره کند، بعد سراغ کتاب بعدی برو
+        if ($script:LeaveWordOpen -and $fileNo -lt $files.Count) {
+            Write-Host ""
+            Write-Host ("  کتاب {0} از {1} آماده است. بعد از ذخیره در Word، اینجا Enter بزنید" -f `
+                        $fileNo, $files.Count) -ForegroundColor Yellow
+            Write-Host ("  تا کتاب بعدی ({0}) شروع شود." -f $files[$fileNo].Name) -ForegroundColor Yellow
+            [void](Read-Host "  Enter")
+            try { $script:OpenDoc.Close($wdDoNotSaveChanges) } catch {}
+            $script:OpenDoc = $null
+            $script:LeaveWordOpen = $false
+        }
     } catch {
         $fail++
         Write-Log ("خطا در '{0}': {1}" -f $f.Name, $_.Exception.Message) 'ERR'
