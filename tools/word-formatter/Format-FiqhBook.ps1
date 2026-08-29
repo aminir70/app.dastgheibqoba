@@ -36,7 +36,10 @@ param(
     # عملیات ذخیره پشت یک پنجره‌ی نامرئی قفل می‌کند
     [switch] $HideWord,
     # حتی اگر نمونه‌ی دیگری از Word باز است ادامه بده
-    [switch] $Force
+    [switch] $Force,
+    # ذخیره نکن: سند را آماده در Word باز بگذار تا خودتان Ctrl+S بزنید.
+    # روی سیستم‌هایی که ذخیره‌ی خودکارِ Word گیر می‌کند، این تنها راه است.
+    [switch] $NoSave
 )
 
 # خروجی کنسول را UTF-8 کن وگرنه متن فارسی ???? دیده می‌شود
@@ -45,7 +48,7 @@ try {
     $OutputEncoding           = [Text.Encoding]::UTF8
 } catch {}
 
-$SCRIPT_VERSION = 'v14 (1405/06/08)'
+$SCRIPT_VERSION = 'v15 (1405/06/08)'
 
 # =============================================================================
 #  ۱) تنظیمات ظاهری — هرچه لازم بود همین‌جا عوض کنید
@@ -322,6 +325,7 @@ function Clear-Undo {
     try { $Doc.UndoClear() } catch { }
 }
 
+$script:LeaveWordOpen = $false
 $script:StepWatch = [Diagnostics.Stopwatch]::StartNew()
 function Write-Step {
     param([string]$Msg)
@@ -973,7 +977,7 @@ function Convert-Book {
     Write-Log ("آمار: {0}" -f $stat)
 
     # ذخیره‌ی میانی: از اینجا به بعد یک فایل قالب‌بندی‌شده روی دیسک هست
-    if ($CFG.SaveEarly) {
+    if ($CFG.SaveEarly -and -not $NoSave) {
         try {
             if (Test-Path $dst) { Remove-Item $dst -Force }
             Write-Step ("ذخیره‌ی میانی در {0} ..." -f $dst)
@@ -1091,6 +1095,27 @@ function Convert-Book {
     # =====================================================================
     # اول ذخیره می‌کنیم و بعد سراغ کارهای سنگینِ صفحه‌بندی می‌رویم،
     # تا در هر حال یک فایل سالم روی دیسک باشد.
+    if ($NoSave) {
+        # سند را آماده در Word باز می‌گذاریم تا کاربر خودش ذخیره کند
+        try { $Word.Visible = $true } catch {}
+        try { $Word.WindowState = 1 } catch {}          # wdWindowStateMaximize
+        try { $Word.Activate() } catch {}
+        try { $doc.Activate() } catch {}
+        Write-Host ""
+        Write-Host "  ============================================================" -ForegroundColor Green
+        Write-Host "   سند آماده است و در Word باز مانده." -ForegroundColor Green
+        Write-Host "   در پنجره‌ی Word کلید  F12  را بزنید (Save As)، مسیر و نام" -ForegroundColor Green
+        Write-Host "   دلخواه را انتخاب کنید و ذخیره کنید." -ForegroundColor Green
+        Write-Host ""
+        Write-Host ("   پیشنهاد نام: " + [IO.Path]::GetFileName($dst)) -ForegroundColor Green
+        Write-Host "   بعد از ذخیره، برای به‌روز شدن شماره‌ی صفحاتِ فهرست:" -ForegroundColor Green
+        Write-Host "   Ctrl+A  و بعد  F9  را بزنید." -ForegroundColor Green
+        Write-Host "  ============================================================" -ForegroundColor Green
+        Write-Host ""
+        $script:LeaveWordOpen = $true
+        return
+    }
+
     Write-Step ("ذخیره در {0} ..." -f $dst)
     Write-Host "     (اگر بیش از دو دقیقه اینجا ماند، پنجره‌ی Word را از نوار وظیفه باز کنید)" -ForegroundColor DarkGray
     try {
@@ -1174,6 +1199,11 @@ if (-not (Test-Path $InputPath)) {
 
 if (Test-Path $InputPath -PathType Leaf) { $files = @(Get-Item $InputPath) }
 else                                     { $files = Get-WordFiles $InputPath }
+
+if ($NoSave -and $files.Count -gt 1) {
+    Write-Host "`n  حالت دستی فقط یک فایل را پردازش می‌کند (اولی): $($files[0].Name)`n" -ForegroundColor Yellow
+    $files = @($files[0])
+}
 
 if ($files.Count -eq 0) {
     Write-Host "`nهیچ فایل وردی (.dot/.doc/.docx) در این مسیر پیدا نشد:" -ForegroundColor Red
@@ -1261,8 +1291,12 @@ foreach ($f in $files) {
     }
 }
 
-try { $word.Quit() } catch { Write-Host "  (ورد از قبل بسته شده بود)" -ForegroundColor DarkGray }
-try { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word) } catch {}
+if ($script:LeaveWordOpen) {
+    Write-Host "  Word باز مانده تا سند را ذخیره کنید." -ForegroundColor Green
+} else {
+    try { $word.Quit() } catch { Write-Host "  (ورد از قبل بسته شده بود)" -ForegroundColor DarkGray }
+    try { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word) } catch {}
+}
 try { if ('ComRetryFilter' -as [type]) { [ComRetryFilter]::Revoke() } } catch {}
 [GC]::Collect(); [GC]::WaitForPendingFinalizers()
 
