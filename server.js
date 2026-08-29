@@ -40,23 +40,13 @@ let webpush; try { webpush = require('web-push'); } catch(e) { webpush = null; }
 let VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 let VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 let PUSH_ENABLED = false;
-if (webpush) {
-    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
-        try {
-            const gen = webpush.generateVAPIDKeys();
-            VAPID_PUBLIC_KEY = gen.publicKey; VAPID_PRIVATE_KEY = gen.privateKey;
-            console.error('⚠️  VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY تنظیم نشده — کلید موقت ساخته شد.');
-            console.error('   برای پایدار شدن اعلان‌ها این مقادیر را در .env بگذارید:');
-            console.error('   VAPID_PUBLIC_KEY=' + VAPID_PUBLIC_KEY);
-            console.error('   VAPID_PRIVATE_KEY=' + VAPID_PRIVATE_KEY);
-        } catch(e) { console.error('VAPID keygen failed:', e.message); }
-    }
-    if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
-        const contact = process.env.VAPID_CONTACT || 'mailto:admin@dastgheibqoba.info';
-        try { webpush.setVapidDetails(contact, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY); PUSH_ENABLED = true; }
-        catch(e) { console.error('VAPID setup failed:', e.message); }
-    }
+function applyVapidKeys() {
+    if (!webpush || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return false;
+    const contact = process.env.VAPID_CONTACT || 'mailto:admin@dastgheibqoba.info';
+    try { webpush.setVapidDetails(contact, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY); PUSH_ENABLED = true; return true; }
+    catch(e) { console.error('VAPID setup failed:', e.message); return false; }
 }
+if (webpush && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) applyVapidKeys();
 
 let rateLimit, helmet, compression, jwt, cookieParser;
 try { rateLimit = require('express-rate-limit'); } catch(e) { rateLimit = null; }
@@ -344,8 +334,38 @@ const mainDb = new sqlite3.Database(mainDbPath, (err) => {
     mainDb.run('PRAGMA foreign_keys = ON');
     initDb();
     // تاخیر کوچک تا اطمینان از اتمام initDb و قابل دسترس بودن جدول settings
-    mainDb.serialize(() => { ensureJwtSecret(); });
+    mainDb.serialize(() => { ensureJwtSecret(); ensureVapidKeys(); });
 });
+
+// کلیدهای VAPID — اگر در env نباشند در settings ذخیره می‌شوند.
+//
+// قبلاً هر restart یک جفت کلید تازه می‌ساخت. نتیجه‌اش این بود که همهٔ
+// اشتراک‌های push موجود بی‌صدا از کار می‌افتادند — و چون مرورگر هنوز یک
+// subscription معتبر داشت، کلاینت هم دوباره ثبت‌نام نمی‌کرد و کاربر
+// برای همیشه از اعلان محروم می‌ماند.
+function ensureVapidKeys() {
+    if (!webpush || (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY)) return;
+    mainDb.all(`SELECT key,value FROM settings WHERE key IN ('_vapid_public','_vapid_private')`, [], (err, rows) => {
+        const m = {};
+        (rows || []).forEach(r => { m[r.key] = r.value; });
+        if (m._vapid_public && m._vapid_private) {
+            VAPID_PUBLIC_KEY = m._vapid_public; VAPID_PRIVATE_KEY = m._vapid_private;
+            if (applyVapidKeys()) console.log('🔔 کلیدهای VAPID از دیتابیس بارگذاری شد.');
+            return;
+        }
+        try {
+            const gen = webpush.generateVAPIDKeys();
+            VAPID_PUBLIC_KEY = gen.publicKey; VAPID_PRIVATE_KEY = gen.privateKey;
+            mainDb.run(`INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('_vapid_public',?,CURRENT_TIMESTAMP)`, [VAPID_PUBLIC_KEY]);
+            mainDb.run(`INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('_vapid_private',?,CURRENT_TIMESTAMP)`, [VAPID_PRIVATE_KEY]);
+            applyVapidKeys();
+            console.error('⚠️  VAPID_* در env تنظیم نشده — کلید ساخته و در دیتابیس ذخیره شد.');
+            console.error('   اعلان‌ها حالا بعد از restart هم کار می‌کنند، ولی بهتر است در .env بگذارید:');
+            console.error('   VAPID_PUBLIC_KEY=' + VAPID_PUBLIC_KEY);
+            console.error('   VAPID_PRIVATE_KEY=' + VAPID_PRIVATE_KEY);
+        } catch(e) { console.error('VAPID keygen failed:', e.message); }
+    });
+}
 
 // JWT secret loader — persists in settings so tokens survive restarts
 function ensureJwtSecret() {
@@ -412,7 +432,9 @@ function initDb() {
         mainDb.run(`ALTER TABLE sliders ADD COLUMN pages TEXT DEFAULT 'home'`, () => {});
         mainDb.run(`CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, message TEXT NOT NULL, type TEXT DEFAULT 'broadcast', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
         mainDb.run(`CREATE TABLE IF NOT EXISTS user_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, notification_id INTEGER NOT NULL, is_read INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-        mainDb.run(`CREATE TABLE IF NOT EXISTS push_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, subscription TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id))`);
+        // کلید یکتا endpoint است نه user_id: هر کاربر می‌تواند چند دستگاه داشته
+        // باشد و هر endpoint فقط به یک کاربر تعلق دارد. (مهاجرت پایین‌تر.)
+        mainDb.run(`CREATE TABLE IF NOT EXISTS push_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL, subscription TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(endpoint))`);
         mainDb.run(`CREATE TABLE IF NOT EXISTS page_contents (id TEXT PRIMARY KEY, title TEXT DEFAULT '', content TEXT DEFAULT '', updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
         mainDb.run(`CREATE TABLE IF NOT EXISTS nav_items (sort_order INTEGER PRIMARY KEY, icon TEXT DEFAULT 'fas fa-circle', label TEXT DEFAULT '', action TEXT DEFAULT 'screen:home')`);
         mainDb.run(`ALTER TABLE nav_items ADD COLUMN image TEXT DEFAULT ''`, () => {});
@@ -532,6 +554,25 @@ function initDb() {
         mainDb.run(`CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC)`, () => {});
         mainDb.run(`CREATE INDEX IF NOT EXISTS idx_books_sort ON books(sort_order)`, () => {});
         mainDb.run(`CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)`, () => {});
+        // مهاجرت جدول قدیمی push_subscriptions که UNIQUE(user_id) داشت:
+        // با آن هر کاربر فقط یک دستگاه می‌توانست اعلان بگیرد و ثبت دستگاه دوم
+        // بی‌صدا دستگاه اول را از کار می‌انداخت.
+        mainDb.all(`PRAGMA table_info(push_subscriptions)`, [], (e, cols) => {
+            if (e || !cols || !cols.length) return;
+            if (cols.some(c => c.name === 'endpoint')) return;   // قبلاً مهاجرت شده
+            mainDb.serialize(() => {
+                mainDb.run(`CREATE TABLE IF NOT EXISTS push_subscriptions_v2 (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endpoint TEXT NOT NULL, subscription TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(endpoint))`);
+                mainDb.run(`INSERT OR IGNORE INTO push_subscriptions_v2 (user_id,endpoint,subscription,created_at)
+                            SELECT user_id, json_extract(subscription,'$.endpoint'), subscription, created_at
+                            FROM push_subscriptions
+                            WHERE json_extract(subscription,'$.endpoint') IS NOT NULL`);
+                mainDb.run(`DROP TABLE push_subscriptions`);
+                mainDb.run(`ALTER TABLE push_subscriptions_v2 RENAME TO push_subscriptions`);
+                mainDb.run(`CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)`, () => {
+                    console.log('🔔 جدول push_subscriptions به ساختار چنددستگاهی مهاجرت کرد.');
+                });
+            });
+        });
     });
 }
 
@@ -923,11 +964,16 @@ app.get('/api/search', searchLimiter, async (req, res) => {
 });
 
 // === API SETTINGS (PUBLIC) ===
+// کلیدهای داخلی با _ شروع می‌شوند (_jwt_secret، _vapid_private، …) و هرگز
+// نباید از API بیرون بروند. این endpoint عمومی است و قبلاً کل جدول settings
+// را برمی‌گرداند — یعنی روی نصبی که JWT_SECRET در env نداشت، کلید امضای
+// توکن‌ها برای همه قابل خواندن بود.
+const INTERNAL_SETTING = k => String(k || '').startsWith('_');
 app.get('/api/settings',(req,res)=>{
     res.set('Cache-Control','public, max-age=60');
     mainDb.all('SELECT key,value FROM settings',[],(err,rows)=>{
         if(err) return res.status(500).json({error:failMsg(err)});
-        const s={};rows.forEach(r=>s[r.key]=r.value);res.json(s);
+        const s={};rows.forEach(r=>{ if(!INTERNAL_SETTING(r.key)) s[r.key]=r.value; });res.json(s);
     });
 });
 
@@ -1786,7 +1832,7 @@ app.get('/api/books/:id/pdf-page/:page',(req,res)=>{
 // Admin Settings
 app.get('/api/admin/settings',adminAuth,(req,res)=>{
     mainDb.all('SELECT key,value FROM settings',[],(err,rows)=>{
-        const s={};rows.forEach(r=>s[r.key]=r.value);res.json(s);
+        const s={};(rows||[]).forEach(r=>{ if(!INTERNAL_SETTING(r.key)) s[r.key]=r.value; });res.json(s);
     });
 });
 app.post('/api/admin/settings',adminAuth,(req,res)=>{
@@ -1799,6 +1845,7 @@ app.post('/api/admin/settings',adminAuth,(req,res)=>{
         if (v === null || v === undefined) v = '';
         if (typeof v === 'object') { try { v = JSON.stringify(v); } catch(e) { v = ''; } }
         const key=sanText(String(k));
+        if(INTERNAL_SETTING(key)) return;   // فرم تنظیمات نباید کلید امضا یا VAPID را بازنویسی کند
         let val=sanText(String(v));
         // live_embed: اگر کد کامل iframe پیست شده، فقط src استخراج شود
         if(key==='live_embed'){
@@ -2222,7 +2269,7 @@ app.post('/api/admin/tickets/:id/reply',adminAuth,uploadAdminTicketFile.single('
                     [replyTitle,replyMsg],function(err3){
                         if(this.lastID) mainDb.run('INSERT INTO user_notifications (user_id,notification_id) VALUES (?,?)',[ticket.user_id,this.lastID]);
                     });
-                sendPushToUser(ticket.user_id,{title:replyTitle,body:replyMsg,icon:'/icons/icon-192.png',badge:'/icons/icon-72.png',tag:'ticket-'+id,data:{url:'/'}});
+                sendPushToUser(ticket.user_id,{title:replyTitle,body:replyMsg,icon:'/icons/icon-192.png',badge:'/icons/icon-72.png',tag:'ticket-'+id,data:{url:'/?ticket='+id,action:'ticket',ticketId:id}});
             }
         });
         res.json({success:true});
@@ -2246,7 +2293,9 @@ app.put('/api/admin/tickets/:id/status',adminAuth,(req,res)=>{
 
 // Admin Notifications (broadcast)
 app.get('/api/admin/notifications',adminAuth,(req,res)=>{
-    mainDb.all('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50',[],(err,rows)=>res.json(rows||[]));
+    // فقط پیام‌های همگانی؛ اعلان‌های خودکارِ «پاسخ تیکت» اینجا جایی ندارند
+    // (به ازای هر پاسخ یک ردیف ساخته می‌شود و لیست را پر می‌کردند).
+    mainDb.all(`SELECT * FROM notifications WHERE type='broadcast' ORDER BY created_at DESC LIMIT 50`,[],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/notifications',adminAuth,(req,res)=>{
     const title=sanText(req.body.title),msg=sanText(req.body.message);
@@ -2259,10 +2308,23 @@ app.post('/api/admin/notifications',adminAuth,(req,res)=>{
             'INSERT OR IGNORE INTO user_notifications (user_id,notification_id) SELECT id, ? FROM users',
             [notifId],
             ()=>{
-                sendPushToAll({title, body: msg, icon:'/icons/icon-192.png', badge:'/icons/icon-72.png', tag:'broadcast-'+notifId, data:{url:'/'}});
+                sendPushToAll({title, body: msg, icon:'/icons/icon-192.png', badge:'/icons/icon-72.png', tag:'broadcast-'+notifId, data:{url:'/?n='+notifId,action:'notification',notificationId:notifId}});
                 res.json({success:true,id:notifId});
             }
         );
+    });
+});
+// وضعیت سرویس پوش — برای اینکه ادمین بفهمد پیام همگانی اصلاً به گوشی
+// کسی می‌رسد یا نه (کلید VAPID ست شده؟ چند دستگاه مشترک‌اند؟).
+app.get('/api/admin/push/status',adminAuth,(req,res)=>{
+    mainDb.get('SELECT COUNT(*) as devices, COUNT(DISTINCT user_id) as users FROM push_subscriptions',[],(err,row)=>{
+        res.json({
+            enabled: PUSH_ENABLED,
+            library: !!webpush,
+            key_source: (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) ? 'env' : (VAPID_PUBLIC_KEY ? 'db' : 'none'),
+            devices: row ? row.devices : 0,
+            users: row ? row.users : 0
+        });
     });
 });
 app.delete('/api/admin/notifications/:id',adminAuth,(req,res)=>{
@@ -2272,45 +2334,67 @@ app.delete('/api/admin/notifications/:id',adminAuth,(req,res)=>{
 
 // === PUSH SUBSCRIPTIONS ===
 app.get('/api/push/vapid-public-key',(req,res)=>{
-    res.json({publicKey: VAPID_PUBLIC_KEY});
+    // کلاینت با مقایسهٔ این کلید و کلیدِ subscription فعلی تشخیص می‌دهد که
+    // اشتراکش کهنه شده و باید دوباره ثبت‌نام کند.
+    res.set('Cache-Control','no-store');
+    res.json({publicKey: VAPID_PUBLIC_KEY, enabled: PUSH_ENABLED});
 });
 app.post('/api/push/subscribe',userAuth,(req,res)=>{
     if(!webpush || !PUSH_ENABLED) return res.status(503).json({error:'سرویس پوش پشتیبانی نمی‌شود'});
     const sub=req.body.subscription;
-    if(!sub||!sub.endpoint) return res.status(400).json({error:'اشتراک نامعتبر'});
-    mainDb.run('INSERT OR REPLACE INTO push_subscriptions (user_id,subscription) VALUES (?,?)',[req.userId,JSON.stringify(sub)],function(err){
-        if(err) return res.status(500).json({error:failMsg(err)});
-        res.json({success:true});
+    if(!sub||typeof sub.endpoint!=='string'||!/^https:\/\//i.test(sub.endpoint)) return res.status(400).json({error:'اشتراک نامعتبر'});
+    const endpoint=sub.endpoint.slice(0,2000);
+    // یک endpoint = یک دستگاه = یک کاربر. اگر کاربر قبلی روی همین دستگاه
+    // خارج شده و کاربر جدیدی وارد شده، ردیف قبلی باید برود؛ وگرنه اعلان‌های
+    // خصوصی کاربر قبلی (پاسخ تیکت‌هایش) روی گوشی کاربر جدید ظاهر می‌شد.
+    mainDb.run('DELETE FROM push_subscriptions WHERE endpoint=?',[endpoint],()=>{
+        mainDb.run('INSERT INTO push_subscriptions (user_id,endpoint,subscription) VALUES (?,?,?)',[req.userId,endpoint,JSON.stringify(sub)],function(err){
+            if(err) return res.status(500).json({error:failMsg(err)});
+            res.json({success:true});
+        });
     });
 });
 app.post('/api/push/unsubscribe',userAuth,(req,res)=>{
-    mainDb.run('DELETE FROM push_subscriptions WHERE user_id=?',[req.userId],()=>res.json({success:true}));
+    // با endpoint فقط همان دستگاه حذف می‌شود؛ بدون آن همهٔ دستگاه‌های کاربر.
+    const ep = req.body && typeof req.body.endpoint === 'string' ? req.body.endpoint.slice(0,2000) : '';
+    if (ep) mainDb.run('DELETE FROM push_subscriptions WHERE endpoint=? AND user_id=?',[ep,req.userId],()=>res.json({success:true}));
+    else mainDb.run('DELETE FROM push_subscriptions WHERE user_id=?',[req.userId],()=>res.json({success:true}));
 });
 
+// ارسال یک payload به یک ردیف اشتراک؛ اشتراک‌های مرده (410/404) پاک می‌شوند.
+function _pushToRow(row, payload) {
+    try {
+        const sub = JSON.parse(row.subscription);
+        return webpush.sendNotification(sub, JSON.stringify(payload)).catch(e => {
+            if (e && (e.statusCode === 410 || e.statusCode === 404)) {
+                mainDb.run('DELETE FROM push_subscriptions WHERE endpoint=?', [row.endpoint]);
+            }
+        });
+    } catch(e) { return Promise.resolve(); }
+}
 function sendPushToUser(userId, payload) {
     if(!webpush || !PUSH_ENABLED) return;
-    mainDb.get('SELECT subscription FROM push_subscriptions WHERE user_id=?',[userId],(err,row)=>{
-        if(err||!row) return;
-        try {
-            const sub = JSON.parse(row.subscription);
-            webpush.sendNotification(sub, JSON.stringify(payload)).catch(e=>{
-                if(e.statusCode===410||e.statusCode===404) mainDb.run('DELETE FROM push_subscriptions WHERE user_id=?',[userId]);
-            });
-        } catch(e) {}
+    // همهٔ دستگاه‌های کاربر، نه فقط آخرین دستگاه
+    mainDb.all('SELECT endpoint,subscription FROM push_subscriptions WHERE user_id=?',[userId],(err,rows)=>{
+        if(err||!rows) return;
+        rows.forEach(row => _pushToRow(row, payload));
     });
 }
+// پیام همگانی: قبلاً همهٔ درخواست‌ها یک‌جا شلیک می‌شدند. با چند هزار مشترک
+// این یعنی چند هزار اتصال TLS همزمان؛ حالا دسته‌دسته فرستاده می‌شود.
+const PUSH_BATCH = 50;
 function sendPushToAll(payload) {
     if(!webpush || !PUSH_ENABLED) return;
-    mainDb.all('SELECT user_id,subscription FROM push_subscriptions',[],(err,rows)=>{
-        if(err||!rows) return;
-        rows.forEach(row=>{
-            try {
-                const sub = JSON.parse(row.subscription);
-                webpush.sendNotification(sub, JSON.stringify(payload)).catch(e=>{
-                    if(e.statusCode===410||e.statusCode===404) mainDb.run('DELETE FROM push_subscriptions WHERE user_id=?',[row.user_id]);
-                });
-            } catch(e) {}
-        });
+    mainDb.all('SELECT endpoint,subscription FROM push_subscriptions',[],(err,rows)=>{
+        if(err||!rows||!rows.length) return;
+        let i = 0;
+        const next = () => {
+            if (i >= rows.length) return;
+            const batch = rows.slice(i, i + PUSH_BATCH);
+            i += PUSH_BATCH;
+            Promise.allSettled(batch.map(row => _pushToRow(row, payload))).then(next);
+        };
+        next();
     });
 }
 

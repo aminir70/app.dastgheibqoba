@@ -838,7 +838,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   <div id="tab-broadcast" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-bullhorn text-teal-600 ml-2"></i>ارسال پیام همگانی</h2>
-      <p class="text-xs text-gray-500 mb-4">این پیام برای همه کاربران در بخش اعلان‌ها (زنگوله) نمایش داده می‌شود.</p>
+      <p class="text-xs text-gray-500 mb-4">این پیام برای همه کاربران در بخش اعلان‌ها (زنگوله) نمایش داده می‌شود و برای دستگاه‌هایی که اعلان را فعال کرده‌اند به‌صورت نوتیفیکیشن گوشی هم فرستاده می‌شود.</p>
+      <div id="push-status" class="mb-4 text-[11px] rounded-xl px-3 py-2 bg-gray-50 border border-gray-200 text-gray-500">در حال بررسی وضعیت اعلان...</div>
       <div class="flex flex-col gap-4">
         <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان پیام *</label><input type="text" id="bc-title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان اعلان"></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">متن پیام *</label><textarea id="bc-message" rows="4" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 resize-none" placeholder="متن اعلان برای کاربران..."></textarea></div>
@@ -2824,7 +2825,30 @@ async function loadAnalytics() {
     } catch(e) {}
 }
 
+// وضعیت سرویس پوش — تا ادمین بداند پیام همگانی به گوشی کسی می‌رسد یا نه
+async function loadPushStatus(){
+  const el=document.getElementById('push-status');
+  if(!el) return;
+  try{
+    const r=await adminFetch('/api/admin/push/status');
+    const d=await r.json();
+    if(!d.library||!d.enabled){
+      el.className='mb-4 text-[11px] rounded-xl px-3 py-2 bg-red-50 border border-red-200 text-red-700';
+      el.textContent=d.library
+        ? 'اعلان گوشی غیرفعال است — کلید VAPID تنظیم نشده. پیام فقط داخل برنامه دیده می‌شود.'
+        : 'کتابخانهٔ web-push نصب نیست — اعلان گوشی ارسال نمی‌شود.';
+      return;
+    }
+    const src=d.key_source==='env'?'از فایل .env':'از دیتابیس';
+    el.className='mb-4 text-[11px] rounded-xl px-3 py-2 bg-green-50 border border-green-200 text-green-700';
+    el.textContent=`اعلان گوشی فعال است (کلید ${src}) — ${supportFaNum(d.devices)} دستگاه از ${supportFaNum(d.users)} کاربر مشترک شده‌اند.`;
+  }catch(e){
+    el.className='mb-4 text-[11px] rounded-xl px-3 py-2 bg-gray-50 border border-gray-200 text-gray-500';
+    el.textContent='وضعیت اعلان قابل دریافت نبود.';
+  }
+}
 async function loadBroadcasts(){
+  loadPushStatus();
   try{
     const r=await adminFetch('/api/admin/notifications');
     const ns=await r.json();
@@ -2833,8 +2857,8 @@ async function loadBroadcasts(){
     c.innerHTML=ns.map(n=>`
       <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 flex justify-between items-start gap-3">
         <div class="flex-1 min-w-0">
-          <h4 class="font-bold text-sm text-gray-800 mb-1">${n.title}</h4>
-          <p class="text-xs text-gray-500 line-clamp-2">${n.message}</p>
+          <h4 class="font-bold text-sm text-gray-800 mb-1">${escHtml(n.title)}</h4>
+          <p class="text-xs text-gray-500 line-clamp-2">${escHtml(n.message)}</p>
           <span class="text-[10px] text-gray-400 mt-1 block">${new Date(n.created_at).toLocaleString('fa-IR')}</span>
         </div>
         <button onclick="deleteBroadcast(${n.id})" class="text-rose-500 hover:text-rose-700 text-xs bg-rose-50 px-2 py-1 rounded-lg hover:bg-rose-100 transition shrink-0"><i class="fas fa-trash"></i></button>

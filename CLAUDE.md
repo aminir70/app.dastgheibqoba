@@ -76,6 +76,7 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 | `GET /api/wp?path=...` | پروکسی WordPress REST API |
 | `GET /api/proxy?url=...` | پروکسی امن خارجی (SSRF-protected) |
 | `GET /api/notifications/public` | اعلان‌های عمومی |
+| `GET /api/push/vapid-public-key` | کلید عمومی VAPID + وضعیت فعال بودن پوش |
 | `GET /manifest.json` | PWA manifest (دینامیک از دیتابیس) |
 
 ### کاربر (JWT Bearer token)
@@ -244,6 +245,45 @@ JWT_SECRET=...
 
 ---
 
+## اعلان‌ها و پوش (Web Push)
+
+دو مسیر موازی وجود دارد و هر دو باید کار کنند:
+
+1. **داخل برنامه** — لیست زنگوله. `GET /api/notifications` (کاربر واردشده) یا
+   `GET /api/notifications/public` (مهمان). Polling هر ۶۰ ثانیه و فقط وقتی تب
+   قابل مشاهده است. مهمان وضعیت خوانده‌شدن را در `localStorage`
+   (`notif_read_guest`) نگه می‌دارد.
+2. **نوتیفیکیشن گوشی** — Web Push از طریق `sw.js`.
+
+### قواعد اشتراک push
+- جدول `push_subscriptions` کلید یکتایش **`endpoint`** است، نه `user_id` —
+  یعنی هر کاربر می‌تواند چند دستگاه داشته باشد و هر دستگاه فقط به یک کاربر
+  تعلق دارد. هنگام `POST /api/push/subscribe` ردیف‌های قبلیِ همان endpoint
+  حذف می‌شوند تا اعلان خصوصی کاربر قبلی روی گوشیِ کاربر بعدی نیفتد.
+- `POST /api/push/unsubscribe` با `{endpoint}` فقط همان دستگاه را جدا می‌کند.
+  هنگام خروج از حساب حتماً باید صدا زده شود.
+- کلاینت هرگز در حالت خودکار `Notification.requestPermission()` نمی‌زند؛ فقط
+  از دکمهٔ «فعال‌سازی» (`enableNotifications()`).
+- کلاینت کلید VAPID سرور را با کلیدِ داخل subscription مقایسه می‌کند
+  (`_subKeyMatches`) و در صورت تفاوت، اشتراک کهنه را دور می‌اندازد.
+- iOS فقط در حالت نصب‌شده روی صفحهٔ اصلی (standalone) پوش می‌دهد.
+
+### پیام سرویس‌ورکر به صفحه
+| پیام | زمان | کار صفحه |
+|------|------|----------|
+| `PUSH_RECEIVED` | رسیدن یک push | `loadNotifications()` فوری |
+| `NOTIFICATION_CLICK` | کلیک روی اعلان گوشی | `handleNotificationTarget(payload)` |
+
+`payload.action` یکی از `ticket` (با `ticketId`) یا `notification` (با
+`notificationId`) است. اگر اپ باز نباشد، سرویس‌ورکر با `?ticket=` یا `?n=` باز
+می‌کند و `_consumeNotificationQuery()` در startup آن را مصرف می‌کند.
+
+### عیب‌یابی
+`GET /api/admin/push/status` وضعیت را برمی‌گرداند (`enabled`, `key_source`,
+`devices`, `users`) و همین در پنل ادمین → «پیام همگانی» نمایش داده می‌شود.
+
+---
+
 ## امنیت — قواعدی که باید رعایت شود
 
 ### سمت سرور (`server.js`)
@@ -265,7 +305,14 @@ JWT_SECRET=...
 سمت سرور یک blacklist است و به‌تنهایی کافی نیست.
 
 ### متغیرهای محیطی امنیتی
-- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — اگر خالی باشند کلید موقت ساخته می‌شود
-  و اشتراک‌های push بعد از هر restart باطل می‌شوند.
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — اگر خالی باشند، سرور یک بار کلید
+  می‌سازد و در `settings` (`_vapid_public` / `_vapid_private`) ذخیره می‌کند؛ پس
+  اشتراک‌های push بعد از restart سالم می‌مانند. گذاشتن مقدار در `.env` همچنان
+  توصیه می‌شود تا کلید مستقل از فایل دیتابیس باشد.
+- **کلیدهای داخلی `settings`:** هر کلیدی که با `_` شروع شود (`_jwt_secret`،
+  `_vapid_private`، …) داخلی است: نه از `GET /api/settings` بیرون می‌رود، نه از
+  `GET /api/admin/settings`، و نه با `POST /api/admin/settings` قابل بازنویسی
+  است. اگر تنظیمات جدیدی اضافه می‌کنید که نباید عمومی باشد، نامش را با `_`
+  شروع کنید.
 - `PROXY_ALLOWED_HOSTS` — خالی یعنی `/api/proxy` غیرفعال (پیش‌فرض و توصیه‌شده).
 - `ALLOWED_ORIGINS` — فقط برای cross-origin؛ درخواست‌های هم‌origin همیشه مجازند.

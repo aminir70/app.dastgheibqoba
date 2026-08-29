@@ -848,6 +848,7 @@ async function mainLogin() {
             updateAuthScreenUI(); updateQAUserUI();
             showToast('خوش آمدید ' + d.username);
             startNotifPolling();
+            afterLoginPush();
         } else { showToast(d.error || 'نام کاربری یا رمز عبور اشتباه است'); }
     } catch(e) { showToast('خطا در اتصال به سرور'); }
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt ml-2"></i>ورود به حساب';
@@ -872,15 +873,19 @@ async function mainRegister() {
             updateAuthScreenUI(); updateQAUserUI();
             showToast('ثبت‌نام با موفقیت انجام شد');
             startNotifPolling();
+            afterLoginPush();
         } else { showToast(d.error || 'خطا در ثبت‌نام'); }
     } catch(e) { showToast('خطا در اتصال به سرور'); }
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-user-plus ml-2"></i>ایجاد حساب کاربری';
 }
 
 function authLogout() {
+    const headers = userAuthHeaders();
     qaUser = null; qaTickets = [];
     stopNotifPolling();
+    unsubscribeFromPush(headers);
     localStorage.removeItem('qa_user');
+    _notifications = []; _updateNotifBadge();
     updateAuthScreenUI(); updateQAUserUI();
     showToast('از حساب خارج شدید');
 }
@@ -899,6 +904,7 @@ function userAuthHeaders(extra) {
 function _onAuthFailure() {
     qaUser = null;
     stopNotifPolling();
+    _notifications = []; try { _updateNotifBadge(); } catch(e) {}
     try { localStorage.removeItem('qa_user'); } catch(e) {}
     try { updateAuthScreenUI(); updateQAUserUI(); } catch(e) {}
 }
@@ -954,6 +960,7 @@ async function qaLogin() {
             hideQAAuth(); updateQAUserUI(); renderQATickets();
             showToast('خوش آمدید ' + d.username);
             startNotifPolling();
+            afterLoginPush();
         } else { showToast(d.error || 'نام کاربری یا رمز عبور اشتباه است'); }
     } catch(e) { showToast('خطا در اتصال به سرور'); }
 }
@@ -975,8 +982,13 @@ async function qaRegister() {
     } catch(e) { showToast('خطا در اتصال به سرور'); }
 }
 function qaLogout() {
+    const headers = userAuthHeaders();
     qaUser = null; qaTickets = [];
+    // قبلاً polling ادامه پیدا می‌کرد و هر ۶۰ ثانیه یک درخواست ۴۰۱ می‌زد
+    stopNotifPolling();
+    unsubscribeFromPush(headers);
     localStorage.removeItem('qa_user');
+    _notifications = []; _updateNotifBadge();
     updateQAUserUI(); showQAAuth();
     showToast('از حساب کاربری خارج شدید');
 }
@@ -1505,6 +1517,29 @@ async function refreshAllTicketStatuses() { await renderQATickets(); }
 // ====================================================
 let _notifications = [];
 
+// کاربر مهمان (لاگین‌نکرده) وضعیت خوانده‌شدن را روی سرور ندارد؛ قبلاً همهٔ
+// اعلان‌های عمومی همیشه «نخوانده» بودند و نقطهٔ قرمز زنگوله هیچ‌وقت خاموش
+// نمی‌شد. حالا شناسهٔ خوانده‌شده‌ها را محلی نگه می‌داریم.
+const GUEST_READ_KEY = 'notif_read_guest';
+function _guestReadIds() {
+    try { const v = JSON.parse(localStorage.getItem(GUEST_READ_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+    catch(e) { return []; }
+}
+function _guestMarkRead(id) {
+    try {
+        const ids = _guestReadIds();
+        if (ids.includes(id)) return;
+        ids.push(id);
+        localStorage.setItem(GUEST_READ_KEY, JSON.stringify(ids.slice(-200)));
+    } catch(e) {}
+}
+function _updateNotifBadge() {
+    const unread = _notifications.filter(n => !n.is_read).length;
+    document.querySelectorAll('#notif-badge, #notif-badge-desk').forEach(badge => {
+        badge.classList.toggle('hidden', unread === 0);
+    });
+}
+
 async function loadNotifications() {
     try {
         if (qaUser) {
@@ -1514,12 +1549,58 @@ async function loadNotifications() {
             const r = await fetch('/api/notifications/public');
             if (r.ok) {
                 const pub = await r.json();
-                _notifications = pub.map(n => ({ ...n, is_read: 0 }));
+                const read = _guestReadIds();
+                _notifications = pub.map(n => ({ ...n, is_read: read.includes(n.id) ? 1 : 0 }));
             }
         }
-        const unread = _notifications.filter(n => !n.is_read).length;
-        const badge = document.getElementById('notif-badge');
-        if (badge) { if(unread>0){badge.classList.remove('hidden');}else{badge.classList.add('hidden');} }
+        _updateNotifBadge();
+    } catch(e) {}
+}
+
+// وقتی سرویس‌ورکر یک push می‌گیرد یا کاربر روی اعلان گوشی می‌زند
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', (event) => {
+        const d = event.data || {};
+        if (d.type === 'PUSH_RECEIVED') {
+            // اعلان تازه رسیده — لیست داخل برنامه را فوراً به‌روز کن
+            loadNotifications();
+        } else if (d.type === 'NOTIFICATION_CLICK') {
+            handleNotificationTarget(d.payload || {});
+        }
+    });
+}
+
+// باز کردن صفحهٔ مربوط به یک اعلان (از کلیک روی اعلان گوشی یا از URL)
+async function handleNotificationTarget(payload) {
+    try {
+        await loadNotifications();
+        if (payload.action === 'ticket' && payload.ticketId) {
+            if (typeof navToScreen === 'function') navToScreen('qa');
+            if (!qaUser) return;
+            try { await renderQATickets(); } catch(e) {}
+            const tid = +payload.ticketId;
+            const t = (qaTickets || []).find(x => x.id === tid);
+            if (t) openQAConversation(tid, t.subject || '');
+            return;
+        }
+        openNotifications();
+        if (payload.notificationId) {
+            const id = +payload.notificationId;
+            if (_notifications.some(n => n.id === id)) openNotifDetail(id);
+        }
+    } catch(e) {}
+}
+
+// اگر اپ از روی کلیک اعلان تازه باز شده باشد (?ticket= یا ?n=)
+function _consumeNotificationQuery() {
+    try {
+        const q = new URLSearchParams(location.search);
+        const t = q.get('ticket'), n = q.get('n');
+        if (!t && !n) return;
+        history.replaceState(history.state, '', location.pathname + location.hash);
+        setTimeout(() => {
+            handleNotificationTarget(t ? { action: 'ticket', ticketId: +t } : { action: 'notification', notificationId: +n });
+        }, 800);
     } catch(e) {}
 }
 
@@ -1529,6 +1610,7 @@ function openNotifications() {
     panel.classList.remove('hidden');
     renderNotifications();
     loadNotifications();
+    refreshPushState().then(() => { if (!panel.classList.contains('hidden')) renderNotifications(); });
 }
 
 function closeNotifications() {
@@ -1536,21 +1618,75 @@ function closeNotifications() {
     if (panel) panel.classList.add('hidden');
 }
 
+// بنر بالای لیست اعلان‌ها — بسته به اینکه دقیقاً چه چیزی جلوی دریافت اعلان
+// روی گوشی را گرفته، پیام متفاوتی نشان می‌دهد. قبلاً فقط حالت «هنوز نپرسیده‌ایم»
+// پوشش داشت و در بقیهٔ حالت‌ها کاربر بدون هیچ توضیحی اعلان نمی‌گرفت.
+// وضعیت واقعی اشتراک این دستگاه. صرفِ granted بودن permission کافی نیست:
+// ممکن است permission داده شده باشد ولی ثبت اشتراک روی سرویس push شکست
+// خورده باشد — در آن حالت هیچ اعلانی نمی‌رسد و کاربر هم خبر ندارد.
+let _pushActive = null;   // null = هنوز نمی‌دانیم
+async function refreshPushState() {
+    try {
+        if (!('Notification' in window) || !('serviceWorker' in navigator) || Notification.permission !== 'granted') {
+            _pushActive = false; return;
+        }
+        const reg = window._swReg || await navigator.serviceWorker.getRegistration();
+        const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+        _pushActive = !!sub;
+    } catch(e) { _pushActive = false; }
+}
+
+function _notifBanner() {
+    // کلاس‌ها باید کامل و ثابت نوشته شوند؛ Tailwind کلاسِ ساخته‌شده با
+    // template literal را در فایل نمی‌بیند و آن را compile نمی‌کند.
+    const SKIN = {
+        amber: ['bg-amber-50 border-amber-200', 'bg-amber-100', 'text-amber-600', 'text-amber-800', 'text-amber-700'],
+        blue:  ['bg-blue-50 border-blue-200',   'bg-blue-100',  'text-blue-600',  'text-blue-800',  'text-blue-700'],
+        red:   ['bg-red-50 border-red-200',     'bg-red-100',   'text-red-600',   'text-red-800',   'text-red-700'],
+        gray:  ['bg-gray-50 border-gray-200',   'bg-gray-100',  'text-gray-600',  'text-gray-800',  'text-gray-600']
+    };
+    const box = (color, icon, title, text, btn) => {
+        const k = SKIN[color] || SKIN.gray;
+        return `<div class="${k[0]} border rounded-2xl p-3 flex items-center gap-3">
+        <div class="w-9 h-9 ${k[1]} rounded-full flex items-center justify-center shrink-0"><i class="fas fa-${icon} ${k[2]} text-sm"></i></div>
+        <div class="flex-1 min-w-0">
+            <p class="text-xs font-bold ${k[3]}">${title}</p>
+            <p class="text-[11px] ${k[4]} mt-0.5">${text}</p>
+        </div>
+        ${btn || ''}
+    </div>`;
+    };
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return '';
+    if (!qaUser) {
+        return box('gray', 'bell', 'اعلان روی گوشی', 'برای دریافت پاسخ سوال‌ها و پیام‌های همگانی وارد حساب خود شوید',
+            '<button onclick="closeNotifications();navToScreen(\'auth\')" class="text-xs bg-gray-600 text-white font-bold px-3 py-2 rounded-full shrink-0">ورود</button>');
+    }
+    // iOS فقط در حالت نصب‌شده روی صفحهٔ اصلی از web push پشتیبانی می‌کند
+    if (_isIos && !_isStandalone) {
+        return box('blue', 'mobile-screen-button', 'افزودن به صفحهٔ اصلی',
+            'در آیفون، اعلان فقط وقتی کار می‌کند که برنامه را از منوی «به اشتراک‌گذاری» به صفحهٔ اصلی اضافه کنید');
+    }
+    if (Notification.permission === 'denied') {
+        return box('red', 'bell-slash', 'اعلان مسدود شده است',
+            'اجازهٔ اعلان برای این سایت رد شده. از تنظیمات مرورگر (بخش Notifications) دوباره فعالش کنید');
+    }
+    if (Notification.permission !== 'granted') {
+        return box('amber', 'bell', 'دریافت اعلان روی گوشی', 'برای دیدن پاسخ سوال‌ها و پیام‌های همگانی فعال کنید',
+            '<button onclick="enableNotifications()" class="text-xs bg-amber-500 text-white font-bold px-3 py-2 rounded-full shrink-0">فعال‌سازی</button>');
+    }
+    if (_pushActive === false) {
+        return box('amber', 'triangle-exclamation', 'اعلان کامل فعال نشد',
+            'اجازه داده شده ولی ثبت این دستگاه انجام نشد. یک بار دیگر تلاش کنید',
+            '<button onclick="enableNotifications()" class="text-xs bg-amber-500 text-white font-bold px-3 py-2 rounded-full shrink-0">تلاش دوباره</button>');
+    }
+    return '';
+}
+
 function renderNotifications() {
     const c = document.getElementById('notif-list');
     if (!c) return;
     // بنر فعال‌سازی push اگر کاربر لاگین است و هنوز permission نگرفته
-    let banner = '';
-    if (qaUser && 'Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        banner = `<div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center gap-3">
-            <div class="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center shrink-0"><i class="fas fa-bell text-amber-600 text-sm"></i></div>
-            <div class="flex-1 min-w-0">
-                <p class="text-xs font-bold text-amber-800">دریافت اعلان روی گوشی</p>
-                <p class="text-[11px] text-amber-700 mt-0.5">برای دیدن پیام‌های همگانی فعال کنید</p>
-            </div>
-            <button onclick="enableNotifications()" class="text-xs bg-amber-500 text-white font-bold px-3 py-2 rounded-full shrink-0">فعال‌سازی</button>
-        </div>`;
-    }
+    const banner = _notifBanner();
     if (!_notifications.length) {
         c.innerHTML = banner + `<div class="text-center py-10 text-gray-400"><i class="fas fa-bell text-4xl mb-3 opacity-30"></i><p class="text-sm font-bold">اعلانی وجود ندارد</p></div>`;
         return;
@@ -1568,14 +1704,14 @@ function renderNotifications() {
                     <div class="w-8 h-8 ${isBroadcast?'bg-teal-100':'bg-orange-100'} rounded-full flex items-center justify-center shrink-0"><i class="fas fa-${icon} ${isBroadcast?'text-teal-600':'text-orange-500'} text-xs"></i></div>
                     <div class="min-w-0">
                         <div class="flex items-center flex-wrap gap-1">
-                            <h4 class="font-bold text-sm text-gray-800">${n.title}</h4>${badge}
+                            <h4 class="font-bold text-sm text-gray-800">${escHtml(n.title)}</h4>${badge}
                         </div>
-                        <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">${n.message}</p>
+                        <p class="text-xs text-gray-600 mt-0.5 line-clamp-2">${escHtml(n.message)}</p>
                     </div>
                 </div>
                 ${!n.is_read?'<span class="w-2 h-2 bg-red-500 rounded-full shrink-0 mt-1.5"></span>':''}
             </div>
-            <span class="text-[10px] text-gray-400 mt-2 block">${new Date(n.created_at).toLocaleString('fa-IR')}</span>
+            <span class="text-[10px] text-gray-400 mt-2 block">${toFa(new Date(n.created_at).toLocaleString('fa-IR'))}</span>
         </div>`;
     }).join('');
 }
@@ -1592,14 +1728,13 @@ function openNotifDetail(id) {
     document.getElementById('notif-detail-message').textContent = n.message || '';
     document.getElementById('notif-detail-date').textContent = new Date(n.created_at).toLocaleString('fa-IR');
     document.getElementById('notif-detail-modal').classList.remove('hidden');
-    // علامت‌گذاری خوانده‌شده
-    if (qaUser && !n.is_read) {
+    // علامت‌گذاری خوانده‌شده — برای مهمان هم (محلی)
+    if (!n.is_read) {
         n.is_read = 1;
+        if (qaUser) fetch('/api/notifications/read', {method:'POST',headers:userAuthHeaders({'Content-Type':'application/json'}),body:JSON.stringify({notification_id:id})}).catch(()=>{});
+        else _guestMarkRead(id);
         renderNotifications();
-        fetch('/api/notifications/read', {method:'POST',headers:userAuthHeaders({'Content-Type':'application/json'}),body:JSON.stringify({notification_id:id})}).catch(()=>{});
-        const badge = document.getElementById('notif-badge');
-        const unread = _notifications.filter(x => !x.is_read).length;
-        if (badge && unread===0) badge.classList.add('hidden');
+        _updateNotifBadge();
     }
 }
 
@@ -1609,13 +1744,12 @@ function closeNotifDetail() {
 }
 
 async function markAllNotifsRead() {
-    if (!qaUser) return;
     try {
-        await fetch('/api/notifications/read-all', {method:'POST',headers:userAuthHeaders()});
+        if (qaUser) await fetch('/api/notifications/read-all', {method:'POST',headers:userAuthHeaders()});
+        else _notifications.forEach(n => _guestMarkRead(n.id));
         _notifications.forEach(n=>n.is_read=1);
         renderNotifications();
-        const badge = document.getElementById('notif-badge');
-        if (badge) badge.classList.add('hidden');
+        _updateNotifBadge();
     } catch(e) {}
 }
 
@@ -2140,7 +2274,9 @@ async function registerServiceWorker() {
     try {
         const reg = await navigator.serviceWorker.register('/sw.js');
         window._swReg = reg;
-        if (qaUser) { setTimeout(() => subscribeToPush(reg), 2000); }
+        // در بارگذاری فقط وقتی اشتراک را تازه می‌کنیم که اجازه از قبل داده شده
+        // باشد (subscribeToPush در حالت غیرتعاملی prompt نشان نمی‌دهد).
+        if (qaUser) { setTimeout(() => subscribeToPush(reg, false), 2000); }
 
         // به‌روزرسانی خودکار: وقتی SW جدید نصب شد، فوراً فعالش کن
         // (بدون نیاز به کلیک کاربر) تا همیشه آخرین نسخه اجرا شود
@@ -2195,54 +2331,125 @@ function urlBase64ToUint8Array(base64String) {
     return output;
 }
 
-async function subscribeToPush(reg) {
-    if (!reg || !('pushManager' in reg) || !('Notification' in window)) return;
-    if (!qaUser) return;
+// کلید سرور با کلیدِ داخل subscription فعلی یکی است؟
+// اگر سرور کلید VAPID عوض کرده باشد، subscription قدیمی هنوز «معتبر» به نظر
+// می‌رسد ولی هیچ پیامی با آن تحویل داده نمی‌شود؛ باید دور انداخته شود.
+function _subKeyMatches(sub, publicKey) {
     try {
-        // اگر permission تعیین نشده، از کاربر بپرس
+        const raw = sub && sub.options && sub.options.applicationServerKey;
+        if (!raw || !publicKey) return true;   // نمی‌دانیم → دست نزن
+        const bytes = new Uint8Array(raw);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        const b64 = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        return b64 === String(publicKey).replace(/=+$/, '');
+    } catch(e) { return true; }
+}
+
+// interactive=true یعنی کاربر خودش دکمه را زده و می‌شود permission خواست.
+// در حالت خودکار (بارگذاری صفحه یا ورود) هرگز prompt نشان نمی‌دهیم: درخواست
+// permission بدون کلیک کاربر در سافاری کار نمی‌کند و در کروم هم می‌تواند برای
+// همیشه رد شود و کاربر دیگر هیچ اعلانی نگیرد.
+async function subscribeToPush(reg, interactive) {
+    if (!reg || !('pushManager' in reg) || !('Notification' in window)) return false;
+    if (!qaUser) return false;
+    try {
         if (Notification.permission === 'default') {
+            if (!interactive) return false;
             const perm = await Notification.requestPermission();
-            if (perm !== 'granted') return;
+            if (perm !== 'granted') return false;
         }
-        if (Notification.permission !== 'granted') return;
+        if (Notification.permission !== 'granted') return false;
+
+        const keyRes = await fetch('/api/push/vapid-public-key');
+        const info = await keyRes.json();
+        const publicKey = info && info.publicKey;
+        if (!publicKey) { console.warn('Push: سرور کلید VAPID ندارد'); return false; }
 
         let sub = await reg.pushManager.getSubscription();
+        if (sub && !_subKeyMatches(sub, publicKey)) {
+            // کلید سرور عوض شده — اشتراک قدیمی مرده است
+            try { await sub.unsubscribe(); } catch(e) {}
+            sub = null;
+        }
         if (!sub) {
-            const keyRes = await fetch('/api/push/vapid-public-key');
-            const { publicKey } = await keyRes.json();
             sub = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(publicKey)
             });
         }
         // همیشه subscription فعلی را به سرور بفرست (در صورت تغییر user_id یا backend)
-        await fetch('/api/push/subscribe', {
+        const r = await fetch('/api/push/subscribe', {
             method: 'POST',
             headers: userAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ subscription: sub })
         });
-        console.log('Push subscribed');
-    } catch(e) { console.warn('Push subscribe failed:', e); }
+        _pushActive = r.ok;
+        return r.ok;
+    } catch(e) { console.warn('Push subscribe failed:', e); _pushActive = false; return false; }
+}
+
+// هنگام خروج از حساب: اشتراک این دستگاه باید از حساب جدا شود، وگرنه
+// اعلان‌های خصوصی کاربر قبلی روی همین گوشی برای نفر بعدی ظاهر می‌شود.
+async function unsubscribeFromPush(authHeaders) {
+    try {
+        const reg = window._swReg || await navigator.serviceWorker.getRegistration();
+        const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+        const body = JSON.stringify({ endpoint: sub ? sub.endpoint : '' });
+        if (authHeaders) {
+            await fetch('/api/push/unsubscribe', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders),
+                body
+            }).catch(() => {});
+        }
+        if (sub) { try { await sub.unsubscribe(); } catch(e) {} }
+        _pushActive = false;
+    } catch(e) {}
 }
 
 // درخواست permission و سابسکریب کردن — توسط UI صدا زده می‌شود
 async function enableNotifications() {
     try {
-        const reg = window._swReg || await navigator.serviceWorker.getRegistration();
-        if (!reg) { showToast && showToast('سرویس‌ورکر هنوز آماده نشده'); return false; }
-        if (!qaUser) { showToast && showToast('برای دریافت اعلان، ابتدا وارد شوید'); return false; }
-        await subscribeToPush(reg);
-        if (Notification.permission === 'granted') {
-            showToast && showToast('اعلان‌ها فعال شد');
-            return true;
-        } else if (Notification.permission === 'denied') {
-            showToast && showToast('اجازه اعلان رد شده. از تنظیمات مرورگر فعال کنید');
+        if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+            showToast && showToast('مرورگر شما از اعلان پشتیبانی نمی‌کند');
+            return false;
         }
+        // iOS فقط وقتی اعلان می‌دهد که اپ روی صفحهٔ اصلی نصب شده باشد
+        if (_isIos && !_isStandalone) {
+            showToast && showToast('در آیفون ابتدا برنامه را به صفحهٔ اصلی اضافه کنید');
+            return false;
+        }
+        if (!qaUser) { showToast && showToast('برای دریافت اعلان، ابتدا وارد شوید'); return false; }
+        const reg = window._swReg || await navigator.serviceWorker.ready;
+        if (!reg) { showToast && showToast('سرویس‌ورکر هنوز آماده نشده'); return false; }
+        if (Notification.permission === 'denied') {
+            showToast && showToast('اجازه اعلان رد شده. از تنظیمات مرورگر فعال کنید');
+            renderNotifications();
+            return false;
+        }
+        const ok = await subscribeToPush(reg, true);
+        renderNotifications();
+        if (ok) { showToast && showToast('اعلان‌ها فعال شد'); return true; }
+        if (Notification.permission === 'denied') showToast && showToast('اجازه اعلان رد شد');
+        else showToast && showToast('فعال‌سازی اعلان ناموفق بود');
         return false;
     } catch(e) { console.warn(e); return false; }
 }
 
+// بعد از ورود/ثبت‌نام: اشتراک push این دستگاه را به حساب تازه وصل کن.
+// قبلاً فقط در بارگذاری صفحه اجرا می‌شد، یعنی کاربری که تازه لاگین کرده بود
+// تا reload بعدی هیچ اعلانی روی گوشی نمی‌گرفت.
+async function afterLoginPush() {
+    try {
+        const reg = window._swReg || await navigator.serviceWorker.ready;
+        if (reg) await subscribeToPush(reg, false);
+    } catch(e) {}
+    try { renderNotifications(); } catch(e) {}
+}
+
 registerServiceWorker();
+_consumeNotificationQuery();
 
 // ====================================================
 // PWA Install Prompt

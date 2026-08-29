@@ -1,7 +1,7 @@
 // Service Worker - مرکز نشر آثار
-const CACHE_NAME = 'nashr-asar-v54';
-const STATIC_CACHE = 'nashr-static-v54';
-const DYNAMIC_CACHE = 'nashr-dynamic-v54';
+const CACHE_NAME = 'nashr-asar-v55';
+const STATIC_CACHE = 'nashr-static-v55';
+const DYNAMIC_CACHE = 'nashr-dynamic-v55';
 
 // صفحه اصلی و فونت‌ها را pre-cache می‌کنیم
 // فایل‌های JS/CSS با استراتژی network-first بارگذاری می‌شوند (همیشه به‌روز)
@@ -161,32 +161,47 @@ self.addEventListener('fetch', event => {
 });
 
 // Push notifications
+async function broadcastToClients(msg) {
+  const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  list.forEach(c => { try { c.postMessage(msg); } catch(e) {} });
+}
+
 self.addEventListener('push', event => {
   if (!event.data) return;
   let data = {};
   try { data = event.data.json(); } catch(e) { data = { title: 'مرکز نشر آثار', body: event.data.text() }; }
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'مرکز نشر آثار', {
+  const payload = data.data || { url: '/' };
+  event.waitUntil((async () => {
+    await self.registration.showNotification(data.title || 'مرکز نشر آثار', {
       body: data.body || '',
       icon: data.icon || '/icons/icon-192.png',
       badge: data.badge || '/icons/icon-72.png',
       tag: data.tag || 'notif',
-      data: data.data || { url: '/' },
+      data: payload,
       dir: 'rtl',
       lang: 'fa',
       vibrate: [200, 100, 200]
-    })
-  );
+    });
+    // اگر اپ باز است، لیست اعلان‌های داخل برنامه را فوراً تازه کن؛ وگرنه
+    // کاربر اعلان را روی گوشی می‌بیند ولی داخل برنامه تا ۶۰ ثانیه خبری نیست.
+    await broadcastToClients({ type: 'PUSH_RECEIVED', payload });
+  })());
 });
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      const existing = list.find(c => c.url.includes(self.location.origin));
-      if (existing) { existing.focus(); existing.navigate(url); }
-      else clients.openWindow(url);
-    })
-  );
+  const payload = event.notification.data || { url: '/' };
+  const url = payload.url || '/';
+  event.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = list.find(c => c.url.startsWith(self.location.origin));
+    if (existing) {
+      // بدون navigate — تا وضعیت اپ (SPA) از دست نرود؛ خودِ اپ صفحهٔ درست را باز می‌کند.
+      try { await existing.focus(); } catch(e) {}
+      try { existing.postMessage({ type: 'NOTIFICATION_CLICK', payload }); return; } catch(e) {}
+      try { await existing.navigate(url); } catch(e) {}
+      return;
+    }
+    await self.clients.openWindow(url);
+  })());
 });
