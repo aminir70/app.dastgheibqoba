@@ -45,6 +45,8 @@ try {
     $OutputEncoding           = [Text.Encoding]::UTF8
 } catch {}
 
+$SCRIPT_VERSION = 'v13 (1405/06/07)'
+
 # =============================================================================
 #  ۱) تنظیمات ظاهری — هرچه لازم بود همین‌جا عوض کنید
 # =============================================================================
@@ -350,6 +352,18 @@ $script:BuiltinNames = @{
     '-34' = @('Header','سرصفحه','رأس الصفحة')
     '-35' = @('Footer','پاصفحه','تذييل الصفحة')
 }
+# نام محلیِ یک استایل. نسبت دادن استایل به Range.Style فقط با «نام» مطمئن
+# است؛ با شماره یا با شیء، PowerShell سعی می‌کند شیء COM را به رشته تبدیل کند
+# و خطای «Unable to cast COM object ... to System.String» می‌دهد.
+function Get-StyleName {
+    param($Style, [string]$Fallback = '')
+    if ($null -eq $Style) { return $Fallback }
+    foreach ($prop in @('NameLocal','Name')) {
+        try { $n = [string]$Style.$prop; if ($n) { return $n } } catch { }
+    }
+    return $Fallback
+}
+
 function Get-BuiltinStyle {
     param($Doc, [int]$Id)
     try { $st = $Doc.Styles.Item($Id); if ($null -ne $st) { return $st } } catch { }
@@ -918,24 +932,30 @@ function Convert-Book {
         'TITLE' = $STY.Title; 'BODY' = $STY.Body;  'MATN' = $STY.Matn;  'ITEM' = $STY.Item
         'QUOTE' = $STY.Quote; 'LABEL'= $STY.Label; 'HEAD' = $STY.Head;  'CLIST'= $STY.List
         'COLO'  = $STY.Colo;  'EMPTY'= $STY.Empty
-        'H1' = $styH1; 'H2' = $styH2; 'H3' = $styH3
-    }
-    # اگر ورد استایل داخلی تیتر را نداد، دست‌کم ظاهر تیتر را داشته باشند
-    foreach ($k in @('H1','H2','H3')) {
-        if ($null -eq $styleOf[$k]) { $styleOf[$k] = $STY.Head }
+        'H1' = (Get-StyleName $styH1 $STY.Head)
+        'H2' = (Get-StyleName $styH2 $STY.Head)
+        'H3' = (Get-StyleName $styH3 $STY.Head)
     }
 
     # اعمال استایل به‌صورت «بازه‌ای» (سریع‌تر از پاراگراف‌به‌پاراگراف)
     if ($P.Count -eq 0) { throw 'سند خالی است.' }
     Write-Step ("اعمال استایل روی {0:N0} پاراگراف ..." -f $P.Count)
     $applied = 0
+    $styleErr = @{}
     $runStart = 0
     for ($i = 0; $i -le $P.Count; $i++) {
         $isEnd = ($i -eq $P.Count)
         if ($isEnd -or ($cls[$i] -ne $cls[$runStart])) {
             $c = $cls[$runStart]
             $rng = $doc.Range($P.Start[$runStart], $P.End[$i - 1])
-            try { $rng.Style = $styleOf[$c] } catch { Write-Log ("استایل '{0}' اعمال نشد" -f $c) 'WARN' }
+            try { $rng.Style = $styleOf[$c] }
+            catch {
+                if (-not $styleErr.ContainsKey($c)) {
+                    $styleErr[$c] = 1
+                    Write-Log ("استایل '{0}' («{1}») اعمال نشد: {2}" -f `
+                               $c, $styleOf[$c], $_.Exception.Message) 'WARN'
+                }
+            }
             $applied++
             $runStart = $i
         }
@@ -1025,14 +1045,14 @@ function Convert-Book {
       try {
         $hdr = $sec.Headers.Item($wdHeaderFooterPrimary)
         $hdr.Range.Text = $bookTitle
-        $hdr.Range.Style = (Get-BuiltinStyle $doc $sHeader)
+        $hdr.Range.Style = (Get-StyleName (Get-BuiltinStyle $doc $sHeader) 'Header')
         $hdr.Range.ParagraphFormat.ReadingOrder = $wdReadingOrderRtl
         $hdr.Range.ParagraphFormat.Alignment = $wdAlignCenter
         try { $hdr.Range.Borders.Item(-3).LineStyle = 1 } catch {}   # wdBorderBottom
 
         $ftr = $sec.Footers.Item($wdHeaderFooterPrimary)
         $ftr.Range.Text = ''
-        $ftr.Range.Style = (Get-BuiltinStyle $doc $sFooter)
+        $ftr.Range.Style = (Get-StyleName (Get-BuiltinStyle $doc $sFooter) 'Footer')
         $ftr.Range.ParagraphFormat.Alignment = $wdAlignCenter
         $null = $ftr.Range.Fields.Add($ftr.Range, $wdFieldPage)
         try { $ftr.PageNumbers.NumberStyle = $CFG.PageNumberStyle } catch {}
@@ -1050,7 +1070,7 @@ function Convert-Book {
         $head = 'الفهرس'
         $r = $doc.Range($anchor, $anchor)
         $r.InsertBefore($head + [string][char]13)
-        $doc.Range($anchor, $anchor + $head.Length + 1).Style = $doc.Styles.Item($STY.TocT)
+        $doc.Range($anchor, $anchor + $head.Length + 1).Style = $STY.TocT
 
         $tocAt = $anchor + $head.Length + 1
         $tr = $doc.Range($tocAt, $tocAt)
@@ -1063,12 +1083,8 @@ function Convert-Book {
     # =====================================================================
     #  مرحله ۸ — به‌روزرسانی و ذخیره
     # =====================================================================
-    Write-Step "به‌روزرسانی فهرست و ذخیره نهایی ..."
-    try { $doc.Application.Options.Pagination = $true } catch {}
-    try { $doc.Fields.Update() | Out-Null } catch {}
-    try { if ($doc.TablesOfContents.Count -gt 0) { $doc.TablesOfContents.Item(1).Update() } } catch {}
-    try { $doc.Repaginate() } catch {}
-
+    # اول ذخیره می‌کنیم و بعد سراغ کارهای سنگینِ صفحه‌بندی می‌رویم،
+    # تا در هر حال یک فایل سالم روی دیسک باشد.
     Write-Step ("ذخیره در {0} ..." -f $dst)
     try {
         if (Test-Path $dst) { Remove-Item $dst -Force }
@@ -1077,9 +1093,25 @@ function Convert-Book {
         try { $doc.SaveAs($dst, $CFG.SaveFormat, $false, '', $false) }
         catch { throw ("ذخیره نشد: {0}" -f $_.Exception.Message) }
     }
-    $pages = '?'
-    try { $pages = $doc.ComputeStatistics(2) } catch {}
-    Write-Log ("ذخیره شد: {0}  ({1} صفحه)" -f $dst, $pages) 'OK'
+    if (Test-Path $dst) {
+        Write-Log ("ذخیره شد: {0}  ({1:N0} کیلوبایت)" -f $dst, ((Get-Item $dst).Length/1KB)) 'OK'
+    } else {
+        Write-Log "ورد خطا نداد ولی فایلی ساخته نشد!" 'ERR'
+    }
+
+    # شماره‌ی صفحه‌های فهرست به صفحه‌بندی نیاز دارد و کند است؛ جدا و اختیاری
+    if ($CFG.AddTOC) {
+        try {
+            Write-Step "به‌روزرسانی شماره‌ی صفحات فهرست ..."
+            try { $doc.Application.Options.Pagination = $true } catch {}
+            if ($doc.TablesOfContents.Count -gt 0) { $doc.TablesOfContents.Item(1).Update() }
+            $doc.Fields.Update() | Out-Null
+            $doc.Save()
+            $pages = '?'
+            try { $pages = $doc.ComputeStatistics(2) } catch {}
+            Write-Log ("فهرست به‌روز شد — {0} صفحه" -f $pages) 'OK'
+        } catch { Write-Log ("به‌روزرسانی فهرست نشد: {0}" -f $_.Exception.Message) 'WARN' }
+    }
 
     if ($AlsoPdf) {
         $pdf = Join-Path $OutDir ($name + '.pdf')
@@ -1137,6 +1169,7 @@ if ($files.Count -eq 0) {
 if (-not (Test-Path $OutputPath)) { New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null }
 
 Write-Host ""
+Write-Host "  نسخه اسکریپت: $SCRIPT_VERSION" -ForegroundColor DarkGray
 Write-Host "  تعداد فایل: $($files.Count)" -ForegroundColor White
 Write-Host "  خروجی    : $OutputPath" -ForegroundColor White
 
