@@ -48,7 +48,7 @@ try {
     $OutputEncoding           = [Text.Encoding]::UTF8
 } catch {}
 
-$SCRIPT_VERSION = 'v17 (1405/06/09)'
+$SCRIPT_VERSION = 'v18 (1405/06/09)'
 
 # =============================================================================
 #  ۱) تنظیمات ظاهری — هرچه لازم بود همین‌جا عوض کنید
@@ -1316,10 +1316,15 @@ if ($files.Count -eq 0) {
 
 if (-not (Test-Path $OutputPath)) { New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null }
 
+# همه‌ی پیام‌ها در یک فایل متنی هم ذخیره می‌شوند تا بشود فرستادشان
+$script:LogPath = Join-Path $OutputPath ("log-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".txt")
+try { Start-Transcript -Path $script:LogPath -Force | Out-Null } catch { $script:LogPath = '' }
+
 Write-Host ""
 Write-Host "  نسخه اسکریپت: $SCRIPT_VERSION" -ForegroundColor DarkGray
 Write-Host "  تعداد فایل: $($files.Count)" -ForegroundColor White
 Write-Host "  خروجی    : $OutputPath" -ForegroundColor White
+if ($script:LogPath) { Write-Host "  فایل لاگ  : $script:LogPath" -ForegroundColor Cyan }
 
 # نمونه‌های باز مانده را قبل از ساختن نمونه‌ی خودمان بشمار.
 # یک نمونه‌ی گیرکرده فایل را باز نگه می‌دارد و باعث می‌شود ورد متن ناقص بدهد.
@@ -1421,5 +1426,12 @@ Write-Host ("=" * 70) -ForegroundColor DarkCyan
 Write-Host ("  تمام شد — موفق: {0}   ناموفق: {1}   زمان کل: {2:N1} دقیقه" -f `
             $ok, $fail, $swAll.Elapsed.TotalMinutes) -ForegroundColor Green
 Write-Host ("  خروجی‌ها: {0}" -f $OutputPath) -ForegroundColor Green
+if ($script:LogPath) {
+    Write-Host ""
+    Write-Host "  گزارش کامل این اجرا در این فایل ذخیره شد:" -ForegroundColor Cyan
+    Write-Host ("  {0}" -f $script:LogPath) -ForegroundColor Cyan
+    Write-Host "  اگر مشکلی بود، همین فایل را بفرستید." -ForegroundColor Cyan
+}
 Write-Host ("=" * 70) -ForegroundColor DarkCyan
 Write-Host ""
+try { Stop-Transcript | Out-Null } catch {}
