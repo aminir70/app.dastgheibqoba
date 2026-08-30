@@ -48,7 +48,7 @@ try {
     $OutputEncoding           = [Text.Encoding]::UTF8
 } catch {}
 
-$SCRIPT_VERSION = 'v16 (1405/06/08)'
+$SCRIPT_VERSION = 'v17 (1405/06/09)'
 
 # =============================================================================
 #  ۱) تنظیمات ظاهری — هرچه لازم بود همین‌جا عوض کنید
@@ -374,12 +374,77 @@ function Get-StyleName {
     return $Fallback
 }
 
+# نام استایلی که واقعاً روی یک بازه نشسته است
+function Get-RangeStyleName {
+    param($Rng)
+    try { $n = [string]$Rng.Style.NameLocal; if ($n) { return $n } } catch { }
+    try { $n = [string]$Rng.Style;          if ($n) { return $n } } catch { }
+    return ''
+}
+
+# اعمال استایل با چند روش، و بازخوانی برای اطمینان از اینکه واقعاً نشسته.
+# روی بعضی نسخه‌های ورد، «Range.Style = نام» خطا نمی‌دهد ولی کاری هم نمی‌کند.
+function Set-RangeStyle {
+    param($Word, $Rng, [string]$Name, $Obj = $null, [switch]$Verify)
+
+    $try = {
+        param($how)
+        try {
+            switch ($how) {
+                'name'       { $Rng.Style = $Name }
+                'object'     { if ($null -eq $Obj) { return $false }; $Rng.Style = $Obj }
+                'paragraphs' { $Rng.Paragraphs.Style = $Name }
+                'selection'  { $Rng.Select(); $Word.Selection.Style = $Name }
+            }
+        } catch { return $false }
+        if (-not $Verify) { return $true }
+        return ((Get-RangeStyleName $Rng) -eq $Name)
+    }
+
+    foreach ($how in @('name','object','paragraphs','selection')) {
+        if (& $try $how) { return $how }
+    }
+    return ''
+}
+
 function Get-BuiltinStyle {
     param($Doc, [int]$Id)
-    try { $st = $Doc.Styles.Item($Id); if ($null -ne $st) { return $st } } catch { }
+    # ۱) با شماره‌ی داخلی
+    try {
+        $st = $Doc.Styles.Item($Id)
+        if ($null -ne $st) {
+            Write-Log ("استایل داخلی {0} = «{1}» (BuiltIn={2})" -f $Id, (Get-StyleName $st '?'), $st.BuiltIn)
+            return $st
+        }
+    } catch { }
+    # ۲) با نام‌های شناخته‌شده
     foreach ($n in @($script:BuiltinNames["$Id"])) {
         if (-not $n) { continue }
-        try { $st = $Doc.Styles.Item($n); if ($null -ne $st) { return $st } } catch { }
+        try {
+            $st = $Doc.Styles.Item($n)
+            if ($null -ne $st) {
+                Write-Log ("استایل داخلی {0} با نام «{1}» پیدا شد" -f $Id, $n)
+                return $st
+            }
+        } catch { }
+    }
+    # ۳) آخرین راه برای تیترها: بین همه‌ی استایل‌ها دنبال استایلِ داخلیِ
+    #    پاراگرافی با همان سطح ساختاری می‌گردیم (نام محلی هرچه باشد)
+    $wantLevel = switch ($Id) { -2 { 1 } -3 { 2 } -4 { 3 } default { 0 } }
+    if ($wantLevel -gt 0) {
+        try {
+            foreach ($st in $Doc.Styles) {
+                try {
+                    if (-not $st.BuiltIn) { continue }
+                    if ($st.Type -ne 1) { continue }
+                    if ([int]$st.ParagraphFormat.OutlineLevel -ne $wantLevel) { continue }
+                    $nm = Get-StyleName $st ''
+                    if ($nm -notmatch "$wantLevel") { continue }
+                    Write-Log ("استایل تیتر سطح {0} با جست‌وجو پیدا شد: «{1}»" -f $wantLevel, $nm)
+                    return $st
+                } catch { }
+            }
+        } catch { }
     }
     Write-Log ("استایل داخلی {0} پیدا نشد؛ از آن می‌گذریم." -f $Id) 'WARN'
     return $null
@@ -955,26 +1020,40 @@ function Convert-Book {
     Write-Step ("اعمال استایل روی {0:N0} پاراگراف ..." -f $P.Count)
     $applied = 0
     $styleErr = @{}
+    $styleWay = @{}
+    $styleObjOf = @{ 'H1' = $styH1; 'H2' = $styH2; 'H3' = $styH3 }
     $runStart = 0
     for ($i = 0; $i -le $P.Count; $i++) {
         $isEnd = ($i -eq $P.Count)
         if ($isEnd -or ($cls[$i] -ne $cls[$runStart])) {
             $c = $cls[$runStart]
             $rng = $doc.Range($P.Start[$runStart], $P.End[$i - 1])
-            try { $rng.Style = $styleOf[$c] }
-            catch {
-                if (-not $styleErr.ContainsKey($c)) {
-                    $styleErr[$c] = 1
-                    Write-Log ("استایل '{0}' («{1}») اعمال نشد: {2}" -f `
-                               $c, $styleOf[$c], $_.Exception.Message) 'WARN'
+            $isHead = ($c -eq 'H1' -or $c -eq 'H2' -or $c -eq 'H3')
+            if ($isHead) {
+                # تیترها کم‌تعدادند (حدود ۷۰ تا)، پس با بازخوانی و در صورت
+                # لزوم با روش‌های جایگزین اعمالشان می‌کنیم تا حتماً بنشینند.
+                $how = Set-RangeStyle -Word $Word -Rng $rng -Name $styleOf[$c] `
+                                      -Obj $styleObjOf[$c] -Verify
+                if ($how -eq '') {
+                    if (-not $styleErr.ContainsKey($c)) {
+                        $styleErr[$c] = 1
+                        Write-Log ("استایل تیتر '{0}' («{1}») با هیچ روشی ننشست" -f $c, $styleOf[$c]) 'WARN'
+                    }
+                } elseif (-not $styleWay.ContainsKey($c)) {
+                    $styleWay[$c] = $how
                 }
-            }
-            # سطح ساختاری را مستقیم هم ست می‌کنیم تا تیترها حتماً در
-            # پنجره‌ی ناوبری و در فهرست خودکار دیده شوند — حتی اگر استایل
-            # داخلیِ ورد به هر دلیل سطحش را نیاورده باشد.
-            if ($c -eq 'H1' -or $c -eq 'H2' -or $c -eq 'H3') {
                 $lvl = [int]$c.Substring(1)
-                try { $rng.ParagraphFormat.OutlineLevel = $lvl } catch { }
+                try { $rng.ParagraphFormat.OutlineLevel = $lvl }
+                catch { $script:StyleFails['OutlineLevel'] = 1 }
+            } else {
+                try { $rng.Style = $styleOf[$c] }
+                catch {
+                    if (-not $styleErr.ContainsKey($c)) {
+                        $styleErr[$c] = 1
+                        Write-Log ("استایل '{0}' («{1}») اعمال نشد: {2}" -f `
+                                   $c, $styleOf[$c], $_.Exception.Message) 'WARN'
+                    }
+                }
             }
             $applied++
             $runStart = $i
@@ -983,6 +1062,23 @@ function Convert-Book {
     $stat = ($cls | Group-Object | Sort-Object Count -Descending |
              ForEach-Object { "{0}={1}" -f $_.Name, $_.Count }) -join '  '
     Clear-Undo $doc
+    if ($styleWay.Count -gt 0) {
+        Write-Log ("روش اعمال تیتر: {0}" -f (($styleWay.GetEnumerator() |
+                    Sort-Object Name | ForEach-Object { "{0}={1}" -f $_.Key, $_.Value }) -join '  '))
+    }
+    # بازخوانی سه نمونه‌ی واقعی از سند، برای اطمینان
+    foreach ($lvlName in @('H1','H2','H3')) {
+        for ($i = 0; $i -lt $P.Count; $i++) {
+            if ($cls[$i] -ne $lvlName) { continue }
+            $r  = $doc.Range($P.Start[$i], $P.End[$i])
+            $sn = Get-RangeStyleName $r
+            $ol = '?'
+            try { $ol = [int]$r.ParagraphFormat.OutlineLevel } catch { }
+            Write-Log ("نمونه {0}: «{1}»  →  استایل «{2}» ، سطح {3}" -f `
+                       $lvlName, (($P.Text[$i] -split "[`v`r`n]")[0]), $sn, $ol)
+            break
+        }
+    }
     Write-Log ("استایل‌ها اعمال شد ({0} بازه)" -f $applied)
     Write-Log ("آمار: {0}" -f $stat)
 
