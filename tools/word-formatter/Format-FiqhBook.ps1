@@ -48,7 +48,7 @@ try {
     $OutputEncoding           = [Text.Encoding]::UTF8
 } catch {}
 
-$SCRIPT_VERSION = 'v18 (1405/06/09)'
+$SCRIPT_VERSION = 'v19 (1405/06/09)'
 
 # =============================================================================
 #  ۱) تنظیمات ظاهری — هرچه لازم بود همین‌جا عوض کنید
@@ -100,6 +100,7 @@ $CFG = @{
     TOCLevels       = 3
     AddHeaderFooter = $true
     PageNumberStyle = 0       # 0 = ۱۲۳ لاتین ، 51 = ١٢٣ عربی‌هندی
+    Diagnose        = $true   # گزارش واژه‌های ساختاریِ ناشناخته در لاگ
     RemoveEmptyParas= $false  # حذف واقعیِ پاراگراف‌های خالی (هزاران فراخوانی
                               # به ورد؛ خاموش که باشد به‌جایش با استایلی به
                               # ارتفاع ۱ نقطه عملاً نامرئی می‌شوند — سریع‌تر
@@ -1080,6 +1081,39 @@ function Convert-Book {
         }
     }
     Write-Log ("استایل‌ها اعمال شد ({0} بازه)" -f $applied)
+
+    # --- تشخیص واژه‌های ساختاریِ ناشناخته -------------------------------
+    # اگر تعداد تیترها کم است، احتمالاً این کتاب از واژه‌های دیگری برای
+    # بخش‌بندی استفاده می‌کند. کوتاه‌ترین پاراگراف‌هایی که «متن عادی» شده‌اند
+    # را گزارش می‌کنیم تا الگوها را کامل کنیم.
+    $nHead = @($cls | Where-Object { $_ -match '^H\d$' }).Count
+    if ($CFG.Diagnose) {
+        $firstWord = @{}
+        $samples   = New-Object System.Collections.ArrayList
+        for ($i = 0; $i -lt $P.Count; $i++) {
+            if ($cls[$i] -ne 'BODY') { continue }
+            $t = Clean-Line $P.Text[$i]
+            if ($t.Length -lt 4 -or $t.Length -gt 55) { continue }
+            if ($t -match '[،؛\.»]\s*$') { continue }
+            $w = ($t -split '\s+')[0]
+            if (-not $firstWord.ContainsKey($w)) { $firstWord[$w] = 0 }
+            $firstWord[$w]++
+            if ($samples.Count -lt 25) { [void]$samples.Add($t) }
+        }
+        $top = $firstWord.GetEnumerator() | Where-Object { $_.Value -ge 3 } |
+               Sort-Object Value -Descending | Select-Object -First 25
+        Write-Host ""
+        Write-Host "  --- تشخیص ساختار --------------------------------------" -ForegroundColor Magenta
+        Write-Host ("  تیترهای پیدا شده: {0}" -f $nHead) -ForegroundColor Magenta
+        Write-Host "  پرتکرارترین واژه‌های آغازینِ خطوط کوتاهی که تیتر نشدند:" -ForegroundColor Magenta
+        foreach ($e in $top) {
+            Write-Host ("     {0,4} × {1}" -f $e.Value, $e.Key) -ForegroundColor Magenta
+        }
+        Write-Host "  نمونه خطوط کوتاهی که تیتر نشدند:" -ForegroundColor Magenta
+        foreach ($x in $samples) { Write-Host ("     {0}" -f $x) -ForegroundColor Magenta }
+        Write-Host "  -------------------------------------------------------" -ForegroundColor Magenta
+        Write-Host ""
+    }
     Write-Log ("آمار: {0}" -f $stat)
 
     # ذخیره‌ی میانی: از اینجا به بعد یک فایل قالب‌بندی‌شده روی دیسک هست
