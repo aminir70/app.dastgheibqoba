@@ -1604,5 +1604,19 @@
   </div>
 </div>
 
+<!-- صفحهٔ پخش تکی صوت (از «آخرین صوت‌ها» در صفحه اصلی) -->
+<div id="audio-single-screen" class="fixed inset-0 bg-gray-50 z-[300] flex-col hidden" dir="rtl">
+  <div class="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">
+    <button onclick="closeAudioSingleScreen()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0">
+      <i class="fas fa-arrow-right text-sm"></i>
+    </button>
+    <h2 class="font-bold text-base text-gray-800 flex-1 text-center">پخش صوت</h2>
+    <div class="w-9"></div>
+  </div>
+  <div class="flex-1 overflow-y-auto p-6">
+    <div id="audio-single-slot"></div>
+  </div>
+</div>
+
 </body>
 </html>

@@ -1102,6 +1102,27 @@ function setAudioTracksAndPlay(tracks, idx) {
     setTimeout(() => { window._audioDirectPlay = false; }, 1000);
 }
 
+// باز کردن یک صوت در صفحهٔ جدا (بدون رفتن به بخش دسته‌بندی‌های صوت) — از «آخرین صوت‌ها» در صفحه اصلی
+function openAudioSingleScreen(tracks, idx) {
+    audioCurrentTracks = tracks;
+    audioCurrentIndex = -1;
+    const card = document.getElementById('audio-player-card');
+    const slot = document.getElementById('audio-single-slot');
+    if (card && slot) slot.appendChild(card);
+    const screen = document.getElementById('audio-single-screen');
+    if (screen) { screen.classList.remove('hidden'); screen.classList.add('flex'); }
+    selectAudioTrack(idx, true);
+}
+
+function closeAudioSingleScreen() {
+    const screen = document.getElementById('audio-single-screen');
+    if (screen) { screen.classList.add('hidden'); screen.classList.remove('flex'); }
+    const card = document.getElementById('audio-player-card');
+    const plView = document.getElementById('audio-playlist-view');
+    const tracksList = document.getElementById('audio-tracks-list');
+    if (card && plView && tracksList) plView.insertBefore(card, tracksList);
+}
+
 function openGalleryImage(index) {
     if(!galleryCurrentPhotos || galleryCurrentPhotos.length === 0) return;
     galleryCurrentIndex = index;

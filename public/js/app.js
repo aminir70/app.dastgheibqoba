@@ -490,9 +490,7 @@ function openHomeVideo(idx) {
 
 function openHomeAudio(idx) {
     if (!_homeLatestAudios.length) return;
-    navToScreen('media');
-    switchMediaTab('audio');
-    setTimeout(() => setAudioTracksAndPlay(_homeLatestAudios, idx), 80);
+    openAudioSingleScreen(_homeLatestAudios, idx);
 }
 
 async function loadHomeLatestMedia() {
@@ -2096,6 +2094,7 @@ function _closeAnyTransientModal() {
     if (_isVisible('exit-confirm-modal'))   { closeExitDialog();    return true; }
     if (_isVisible('pwa-install-modal'))    { closePwaModal(false); return true; }
     if (_isVisible('image-modal'))          { closeImageModal();    return true; }
+    if (_isVisible('audio-single-screen'))  { closeAudioSingleScreen(); return true; }
     if (_isVisible('webview-modal'))        { closeWebView();       return true; }
     if (_isVisible('content-page-overlay')) { closeContentPage();   return true; }
     if (_isVisible('notif-panel'))          { closeNotifications(); return true; }
