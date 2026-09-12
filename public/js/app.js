@@ -1938,15 +1938,33 @@ document.addEventListener('DOMContentLoaded',()=>{
     let _touchActive = false;
     let _mobileSelTimer = null;
 
+    // انتخاب که خالی شد، نوار ابزار باید برود — ولی نه فوراً: شروعِ یک کشیدن جدید
+    // هم لحظه‌ای انتخاب را خالی می‌کند و نباید تکه‌های قبلی را از دست بدهیم.
+    let _emptySelTimer = null;
+    const _scheduleToolbarDismiss = () => {
+        if (_emptySelTimer) clearTimeout(_emptySelTimer);
+        _emptySelTimer = setTimeout(() => {
+            _emptySelTimer = null;
+            const s = window.getSelection();
+            if (s && !s.isCollapsed && s.rangeCount) return;
+            if (typeof _hasPendingSelection === 'function' && _hasPendingSelection()) return;
+            if (typeof _clearPendingSelections === 'function') _clearPendingSelections();
+            hideHighlightToolbar();
+        }, 400);
+    };
+
     document.addEventListener('selectionchange', () => {
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
             _selInContainer = false;
             if (_mobileSelTimer) { clearTimeout(_mobileSelTimer); _mobileSelTimer = null; }
+            _scheduleToolbarDismiss();
             return;
         }
+        if (_emptySelTimer) { clearTimeout(_emptySelTimer); _emptySelTimer = null; }
         if (typeof getHighlightContainer !== 'function') return;
         _selInContainer = !!getHighlightContainer(sel.anchorNode);
+        if (_selInContainer && typeof _trackActiveRange === 'function') _trackActiveRange();
 
         // موبایل: اگه هیچ انگشتی روی صفحه نیست (مثلاً دستگیره selection رها شده)،
         // با debounce نوار رو نشون بده — fallback برای زمانی که touchend نرسیده
@@ -1967,8 +1985,9 @@ document.addEventListener('DOMContentLoaded',()=>{
         if (!getHighlightContainer(s.anchorNode)) return;
         const r = s.getRangeAt(0).getBoundingClientRect();
         if (r.width === 0 && r.height === 0) return;
-        if (typeof _capturePendingSelection === 'function') _capturePendingSelection();
-        else if (typeof saveAndClearSelection === 'function') saveAndClearSelection();
+        // انتخاب پاک نمی‌شود تا دستگیره‌های انتخاب بمانند و قابل کم/زیاد کردن باشند
+        if (typeof _commitSelectionPiece === 'function') _commitSelectionPiece();
+        else if (typeof saveSelectionForMobile === 'function') saveSelectionForMobile();
         _selInContainer = false;
         showHighlightToolbar(window.innerWidth / 2, window.innerHeight * 0.35, true);
     }
@@ -1982,8 +2001,9 @@ document.addEventListener('DOMContentLoaded',()=>{
         if (!container) return;
         const r = sel.getRangeAt(0).getBoundingClientRect();
         if (r.width === 0 && r.height === 0) return;
-        if (typeof _capturePendingSelection === 'function') _capturePendingSelection();
-        else if (typeof saveAndClearSelection === 'function') saveAndClearSelection();
+        // انتخاب پاک نمی‌شود تا کاربر بتواند همان لحظه آن را کم و زیاد کند
+        if (typeof _commitSelectionPiece === 'function') _commitSelectionPiece();
+        else if (typeof saveSelectionForMobile === 'function') saveSelectionForMobile();
         _selInContainer = false;
         showHighlightToolbar(r.left + r.width / 2, r.top, _isMobile);
     }
@@ -2019,17 +2039,15 @@ document.addEventListener('DOMContentLoaded',()=>{
         }
     });
 
-    // بستن toolbar با کلیک/تاچ بیرون از آن.
-    // اگه کاربر داخل محتوای خواندنی کلیک کنه و تکه‌های موقت داشته باشیم،
-    // یعنی داره تکه‌ی دیگه‌ای اضافه می‌کنه — نه toolbar رو ببند نه انتخاب‌ها رو لغو کن.
+    // بستن toolbar با کلیک/تاچ بیرون از آن. کلیک داخل خودِ متن یعنی کاربر دارد
+    // انتخاب را جابه‌جا یا کم و زیاد می‌کند، نه اینکه نوار را ببندد؛ بستن بعد از
+    // یک تپِ ساده را _scheduleToolbarDismiss انجام می‌دهد.
     const _dismissSelectionUI = (e) => {
         const tb = document.getElementById('highlight-toolbar');
         if (!tb || tb.classList.contains('hidden')) return;
         if (tb.contains(e.target)) return;
-        const inContainer = typeof getHighlightContainer === 'function' && !!getHighlightContainer(e.target);
-        const hasPending = typeof _hasPendingSelection === 'function' && _hasPendingSelection();
-        if (inContainer && hasPending) return;
-        if (!inContainer && typeof _clearPendingSelections === 'function') _clearPendingSelections();
+        if (typeof getHighlightContainer === 'function' && getHighlightContainer(e.target)) return;
+        if (typeof _clearPendingSelections === 'function') _clearPendingSelections();
         hideHighlightToolbar();
     };
     document.addEventListener('mousedown', _dismissSelectionUI);
