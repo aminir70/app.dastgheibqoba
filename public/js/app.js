@@ -2026,6 +2026,16 @@ document.addEventListener('DOMContentLoaded',()=>{
         document.addEventListener('touchcancel', () => { _touchActive = false; });
     }
 
+    // دسکتاپ: گرفتن ماوس روی متنی که همین حالا انتخاب شده، برای مرورگر یعنی
+    // «کشیدن متن» نه انتخاب جدید. انتخاب قبلی را همان اول پاک می‌کنیم تا کشیدن
+    // دوباره واقعاً انتخاب کند. (روی موبایل این کار نمی‌شود — دستگیره‌ها را خراب می‌کند.)
+    document.addEventListener('mousedown', (e) => {
+        if (_isMobile) return;
+        if (typeof getHighlightContainer !== 'function' || !getHighlightContainer(e.target)) return;
+        const sel = window.getSelection();
+        if (sel && !sel.isCollapsed) sel.removeAllRanges();
+    });
+
     // دسکتاپ: mouseup
     document.addEventListener('mouseup', () => {
         if (_isMobile) return;
