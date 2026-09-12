@@ -818,10 +818,21 @@ function _wrapPendingSelection() {
     if (!tc) return false;
     const text = range.toString().trim();
     if (!text) return false;
-    // از پیچیدن دوباره روی یک تکه موقتِ موجود جلوگیری کن
-    let startEl = range.startContainer;
-    if (startEl && startEl.nodeType === Node.TEXT_NODE) startEl = startEl.parentElement;
-    if (startEl && startEl.closest && startEl.closest('mark.pending-sel')) return false;
+
+    // تکه‌های موقتی که انتخاب جدید با آن‌ها همپوشانی دارد
+    const overlapping = _pendingMarks().filter(m => {
+        try { return range.intersectsNode(m); } catch (e) { return false; }
+    });
+    // انتخاب جدید کاملاً داخل یک تکهٔ موجود است → همان تکه با انتخاب کوچک‌تر جایگزین می‌شود
+    const shrinkTarget = (overlapping.length === 1 && overlapping[0].contains(range.commonAncestorContainer))
+        ? overlapping[0] : null;
+    // انتخاب جدید از وسط یک تکه شروع/تمام می‌شود → مرز را تا لبهٔ آن تکه باز کن تا با هم ادغام شوند
+    if (!shrinkTarget) {
+        overlapping.forEach(m => {
+            if (m.contains(range.startContainer)) range.setStartBefore(m);
+            if (m.contains(range.endContainer)) range.setEndAfter(m);
+        });
+    }
 
     const mark = document.createElement('mark');
     mark.className = 'pending-sel';
@@ -834,6 +845,9 @@ function _wrapPendingSelection() {
             range.insertNode(mark);
         } catch (e2) { return false; }
     }
+    // تکه‌های قدیمی که حالا داخل تکهٔ جدید افتاده‌اند باز می‌شوند تا mark تودرتو نماند
+    Array.from(mark.querySelectorAll('mark.pending-sel')).forEach(_unwrapPendingMark);
+    if (shrinkTarget) _unwrapPendingMark(shrinkTarget);
     return true;
 }
 
