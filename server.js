@@ -1524,6 +1524,39 @@ app.get('/api/ticket-files/:name', (req, res) => {
 });
 
 // === ANALYTICS (lightweight visitor tracking) ===
+const jalaali = require('jalaali-js');
+
+// خزنده‌هایی که جاوااسکریپت اجرا می‌کنند (Googlebot و …) هر بار با حافظهٔ خالی
+// می‌آیند و بدون این فیلتر هر بار یک «بازدیدکنندهٔ جدید» ثبت می‌شوند.
+// «bot/» به‌جای «bot» تا مدل گوشی‌هایی مثل CUBOT اشتباه ربات حساب نشوند.
+const _BOT_UA_MARKERS = ['bot/', 'bot-', 'bot;', 'crawler', 'spider', 'slurp',
+    'headlesschrome', 'lighthouse', 'pagespeed', 'inspectiontool'];
+const _isBotUa = ua => { const s = (ua || '').toLowerCase(); return _BOT_UA_MARKERS.some(m => s.includes(m)); };
+// LIKE در SQLite برای حروف لاتین حساس به بزرگی/کوچکی نیست
+const _HUMAN_SQL = '(' + _BOT_UA_MARKERS.map(m => `COALESCE(user_agent,'') NOT LIKE '%${m}%'`).join(' AND ') + ')';
+
+// ایران از ۱۴۰۱ ساعت تابستانی ندارد؛ پس اختلاف ثابت ۳:۳۰ با UTC درست است.
+const _TEHRAN_OFFSET_MS = 210 * 60 * 1000;
+// شروع امروز / این هفته (از شنبه) / این ماه و امسالِ شمسی، به وقت تهران،
+// به‌صورت رشتهٔ UTC هم‌قالبِ CURRENT_TIMESTAMP تا مستقیم با ستون‌ها مقایسه شود.
+function _tehranPeriodStarts(now = new Date()) {
+    const t = new Date(now.getTime() + _TEHRAN_OFFSET_MS);   // ساعت دیواری تهران در getUTC*
+    const gy = t.getUTCFullYear(), gm = t.getUTCMonth() + 1, gd = t.getUTCDate();
+    const midnight = (y, m, d) => new Date(Date.UTC(y, m - 1, d) - _TEHRAN_OFFSET_MS);
+    const day = midnight(gy, gm, gd);
+    const daysSinceSaturday = (t.getUTCDay() + 1) % 7;
+    const week = new Date(day.getTime() - daysSinceSaturday * 86400000);
+    const { jy, jm } = jalaali.toJalaali(gy, gm, gd);
+    const m1 = jalaali.toGregorian(jy, jm, 1);
+    const y1 = jalaali.toGregorian(jy, 1, 1);
+    const fmt = d => d.toISOString().slice(0, 19).replace('T', ' ');
+    return {
+        day: fmt(day), week: fmt(week),
+        month: fmt(midnight(m1.gy, m1.gm, m1.gd)),
+        year: fmt(midnight(y1.gy, y1.gm, y1.gd)),
+    };
+}
+
 function _parseDevice(ua) {
     if (!ua) return 'unknown';
     if (/iPad|Tablet/i.test(ua)) return 'tablet';
@@ -1566,6 +1599,7 @@ app.post('/api/analytics/ping', express.json({limit:'1kb'}), (req, res) => {
     const visitor_id = (req.body && typeof req.body.visitor_id === 'string') ? req.body.visitor_id.slice(0, 64) : null;
     if (!visitor_id || visitor_id.length < 8) return res.status(400).json({error:'invalid'});
     const ua = (req.headers['user-agent'] || '').slice(0, 300);
+    if (_isBotUa(ua)) return res.json({ok:1});
     const ip = _getClientIp(req).slice(0, 60);
     const device = _parseDevice(ua);
     // UPSERT: try update first, insert if not exists
@@ -1585,29 +1619,33 @@ app.post('/api/analytics/ping', express.json({limit:'1kb'}), (req, res) => {
     );
 });
 // Admin analytics endpoint
+// ستون‌های زمانی به UTC ذخیره می‌شوند؛ مرز «امروز/هفته/ماه/امسال» باید به وقت
+// تهران و تقویم شمسی باشد، نه نیمه‌شب UTC و ماه/سال میلادی.
 app.get('/api/admin/analytics', adminAuth, (req, res) => {
+    const p = _tehranPeriodStarts();
+    const H = _HUMAN_SQL;
     const queries = {
-        online:  `SELECT COUNT(*) as c FROM visitor_sessions WHERE last_seen > datetime('now', '-5 minutes')`,
-        today:   `SELECT COUNT(*) as c FROM visitor_sessions WHERE date(last_seen) = date('now')`,
-        week:    `SELECT COUNT(*) as c FROM visitor_sessions WHERE last_seen >= datetime('now', '-7 days')`,
-        month:   `SELECT COUNT(*) as c FROM visitor_sessions WHERE last_seen >= datetime('now', 'start of month')`,
-        year:    `SELECT COUNT(*) as c FROM visitor_sessions WHERE last_seen >= datetime('now', 'start of year')`,
-        total:   `SELECT COUNT(*) as c FROM visitor_sessions`,
-        new_today: `SELECT COUNT(*) as c FROM visitor_sessions WHERE date(first_seen) = date('now')`,
+        online:    [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen > datetime('now', '-5 minutes')`, []],
+        today:     [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen >= ?`, [p.day]],
+        week:      [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen >= ?`, [p.week]],
+        month:     [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen >= ?`, [p.month]],
+        year:      [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen >= ?`, [p.year]],
+        total:     [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H}`, []],
+        new_today: [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND first_seen >= ?`, [p.day]],
     };
     const results = {};
     let pending = Object.keys(queries).length + 2;
     const done = () => { if (--pending === 0) res.json(results); };
-    Object.entries(queries).forEach(([key, sql]) => {
-        mainDb.get(sql, [], (err, row) => { results[key] = row ? row.c : 0; done(); });
+    Object.entries(queries).forEach(([key, [sql, params]]) => {
+        mainDb.get(sql, params, (err, row) => { results[key] = row ? row.c : 0; done(); });
     });
     mainDb.all(
-        `SELECT device_type as type, COUNT(*) as count FROM visitor_sessions GROUP BY device_type ORDER BY count DESC`,
+        `SELECT device_type as type, COUNT(*) as count FROM visitor_sessions WHERE ${H} GROUP BY device_type ORDER BY count DESC`,
         [],
         (err, rows) => { results.devices = rows || []; done(); }
     );
     mainDb.all(
-        `SELECT COALESCE(country,'نامشخص') as country, COUNT(*) as count FROM visitor_sessions GROUP BY country ORDER BY count DESC LIMIT 20`,
+        `SELECT COALESCE(country,'نامشخص') as country, COUNT(*) as count FROM visitor_sessions WHERE ${H} GROUP BY country ORDER BY count DESC LIMIT 20`,
         [],
         (err, rows) => { results.countries = rows || []; done(); }
     );

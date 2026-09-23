@@ -903,7 +903,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
         <div id="stat-countries" class="flex flex-col gap-2 max-h-80 overflow-y-auto"></div>
       </div>
     </div>
-    <p class="text-[10px] text-gray-400 text-center mt-4">آمار بر اساس ping سبک هر ۲ دقیقه از کاربران بازدیدکننده محاسبه می‌شود.</p>
+    <p class="text-[10px] text-gray-400 text-center mt-4">روز به وقت تهران، هفته از شنبه، ماه و سال شمسی. ربات‌ها و خزنده‌ها شمرده نمی‌شوند. هر مرورگر/دستگاه یک بازدیدکننده حساب می‌شود.</p>
   </div>
 
   <!-- USERS TAB -->
@@ -2800,7 +2800,7 @@ async function loadAnalytics() {
             dev.innerHTML = (d.devices||[]).map(x => {
                 const pct = Math.round(x.count*100/total);
                 const ic = icons[x.type]||icons.unknown;
-                const lb = labels[x.type]||x.type;
+                const lb = labels[x.type]||escHtml(x.type);
                 return `<div>
                     <div class="flex items-center justify-between mb-1.5 text-xs">
                         <span class="font-bold flex items-center gap-2"><i class="fas ${ic}"></i>${lb}</span>
@@ -2817,7 +2817,7 @@ async function loadAnalytics() {
             cn.innerHTML = (d.countries||[]).map(x => {
                 const pct = Math.round(x.count*100/total);
                 return `<div class="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-b-0">
-                    <span class="text-xs font-bold text-gray-700">${x.country}</span>
+                    <span class="text-xs font-bold text-gray-700">${escHtml(x.country)}</span>
                     <span class="text-xs text-gray-500">${_faNum(x.count)} <span class="text-gray-400 text-[10px]">(${_faNum(pct)}٪)</span></span>
                 </div>`;
             }).join('') || '<p class="text-xs text-gray-400 text-center py-4">داده‌ای نیست</p>';
