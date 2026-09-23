@@ -654,6 +654,7 @@ function playVideoItem(itemId) {
 
     document.getElementById('video-player-title').textContent = item.title;
     document.getElementById('video-aparat-iframe').src = item.embed_url;
+    if (typeof trackView === 'function') trackView('media', 'video', item.id, item.title);
 
     const descEl = document.getElementById('video-player-desc');
     if(item.description && item.description.trim()) {
@@ -1802,6 +1803,7 @@ function selectAudioTrack(idx, autoPlay) {
 
     document.getElementById('audio-player-title').textContent = tr.title;
     document.getElementById('audio-player-artist').textContent = tr.artist || '';
+    if (typeof trackView === 'function') trackView('media', 'audio', tr.id, tr.title);
 
     const coverEl = document.getElementById('audio-player-cover');
     if(coverEl) {

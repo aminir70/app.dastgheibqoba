@@ -522,6 +522,17 @@ function initDb() {
         mainDb.run(`CREATE TABLE IF NOT EXISTS visitor_sessions (visitor_id TEXT PRIMARY KEY, first_seen DATETIME DEFAULT CURRENT_TIMESTAMP, last_seen DATETIME DEFAULT CURRENT_TIMESTAMP, ip TEXT, user_agent TEXT, country TEXT, device_type TEXT, total_visits INTEGER DEFAULT 1)`);
         mainDb.run(`CREATE INDEX IF NOT EXISTS idx_visitor_last_seen ON visitor_sessions(last_seen)`, () => {});
         mainDb.run(`CREATE INDEX IF NOT EXISTS idx_visitor_first_seen ON visitor_sessions(first_seen)`, () => {});
+        mainDb.run(`ALTER TABLE visitor_sessions ADD COLUMN country_code TEXT`, () => {});
+        mainDb.run(`ALTER TABLE visitor_sessions ADD COLUMN os TEXT`, () => {});
+        mainDb.run(`ALTER TABLE visitor_sessions ADD COLUMN browser TEXT`, () => {});
+        // هر «بازدید» یک نشست است: بعد از ۳۰ دقیقه بی‌فعالیتی بازدید تازه شروع می‌شود
+        mainDb.run(`CREATE TABLE IF NOT EXISTS analytics_visits (visit_id TEXT PRIMARY KEY, visitor_id TEXT NOT NULL, started_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_seen DATETIME DEFAULT CURRENT_TIMESTAMP, pageviews INTEGER DEFAULT 0, source TEXT, referrer_host TEXT, utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, is_pwa INTEGER DEFAULT 0, is_new INTEGER DEFAULT 0)`);
+        mainDb.run(`CREATE INDEX IF NOT EXISTS idx_visits_started ON analytics_visits(started_at)`, () => {});
+        mainDb.run(`CREATE INDEX IF NOT EXISTS idx_visits_visitor ON analytics_visits(visitor_id)`, () => {});
+        mainDb.run(`CREATE TABLE IF NOT EXISTS analytics_pageviews (id INTEGER PRIMARY KEY AUTOINCREMENT, visit_id TEXT, visitor_id TEXT, ts DATETIME DEFAULT CURRENT_TIMESTAMP, screen TEXT, item_type TEXT, item_id TEXT, title TEXT)`);
+        mainDb.run(`CREATE INDEX IF NOT EXISTS idx_pv_ts ON analytics_pageviews(ts)`, () => {});
+        mainDb.run(`CREATE INDEX IF NOT EXISTS idx_pv_item ON analytics_pageviews(item_type, item_id)`, () => {});
+        mainDb.run(`SELECT 1`, () => { _backfillVisitorGeo(); _prunePageviews(); });
         // Migration: add user_id to tickets if not exists
         mainDb.run(`ALTER TABLE tickets ADD COLUMN user_id INTEGER DEFAULT NULL`, () => {});
         mainDb.run(`ALTER TABLE tickets ADD COLUMN tracking_code TEXT`, () => {});
@@ -1557,11 +1568,38 @@ function _tehranPeriodStarts(now = new Date()) {
     };
 }
 
+let geoip; try { geoip = require('geoip-country'); } catch (e) { geoip = null; }
+
 function _parseDevice(ua) {
     if (!ua) return 'unknown';
     if (/iPad|Tablet/i.test(ua)) return 'tablet';
     if (/Mobile|Android|iPhone|Windows Phone/i.test(ua)) return 'mobile';
     return 'desktop';
+}
+function _parseOs(ua) {
+    ua = ua || '';
+    if (/Windows/i.test(ua)) return 'Windows';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'iOS';
+    if (/Android/i.test(ua)) return 'Android';
+    if (/CrOS/i.test(ua)) return 'ChromeOS';
+    if (/Mac OS X|Macintosh/i.test(ua)) return 'macOS';
+    if (/Linux/i.test(ua)) return 'Linux';
+    return 'other';
+}
+// ترتیب مهم است: Edge/Opera/Samsung/Yandex هم «Chrome» را در UA دارند
+function _parseBrowser(ua) {
+    ua = ua || '';
+    if (/Instagram/.test(ua)) return 'Instagram';
+    if (/Edg(e|A|iOS)?\//.test(ua)) return 'Edge';
+    if (/OPR\/|Opera/.test(ua)) return 'Opera';
+    if (/SamsungBrowser/.test(ua)) return 'Samsung';
+    if (/YaBrowser/.test(ua)) return 'Yandex';
+    if (/Firefox|FxiOS/.test(ua)) return 'Firefox';
+    if (/CriOS/.test(ua)) return 'Chrome';
+    if (/; wv\)/.test(ua)) return 'WebView';   // مرورگر داخل برنامه‌ها (تلگرام، ایتا، …)
+    if (/Chrome\//.test(ua)) return 'Chrome';
+    if (/Safari\//.test(ua) && /Version\//.test(ua)) return 'Safari';
+    return 'other';
 }
 function _getClientIp(req) {
     const xfwd = req.headers['x-forwarded-for'];
@@ -1573,82 +1611,244 @@ function _isPrivateClientIp(ip) {
     if (!ip || ip === '::1' || ip === '127.0.0.1') return true;
     return _isPrivateIp(ip);
 }
-// Fire-and-forget country lookup (only on new visitor)
-function _lookupCountry(ip, visitor_id) {
-    if (_isPrivateClientIp(ip)) return;
-    try {
-        const http = require('http');
-        const req = http.get(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=country,countryCode`, { timeout: 2500 }, (r) => {
-            let data = '';
-            r.on('data', c => data += c);
-            r.on('end', () => {
-                try {
-                    const obj = JSON.parse(data);
-                    if (obj && obj.country) {
-                        mainDb.run('UPDATE visitor_sessions SET country=? WHERE visitor_id=?', [obj.country, visitor_id]);
-                    }
-                } catch(e) {}
-            });
-        });
-        req.on('error', () => {});
-        req.on('timeout', () => req.destroy());
-    } catch(e) {}
+// کد دوحرفی کشور، کاملاً آفلاین (داده‌های GeoLite2 از MaxMind در بستهٔ geoip-country)،
+// چون سرور به سرویس‌های آنلاینِ مکان‌یابی IP دسترسی مطمئن ندارد.
+// 'XX' یعنی نامشخص — و با NULL (هنوز بررسی‌نشده) فرق دارد.
+function _countryOf(ip) {
+    if (!geoip || _isPrivateClientIp(ip)) return 'XX';
+    try { const r = geoip.lookup(ip); return (r && r.country) || 'XX'; } catch (e) { return 'XX'; }
 }
-// Ping endpoint - very lightweight, called every minute
-app.post('/api/analytics/ping', express.json({limit:'1kb'}), (req, res) => {
-    const visitor_id = (req.body && typeof req.body.visitor_id === 'string') ? req.body.visitor_id.slice(0, 64) : null;
+
+// ردیف‌های قدیمی: کشور، سیستم‌عامل و مرورگر را یک بار از IP و user-agent ذخیره‌شده پر کن
+function _backfillVisitorGeo() {
+    mainDb.all(`SELECT visitor_id, ip, user_agent FROM visitor_sessions WHERE country_code IS NULL OR os IS NULL`, [], (err, rows) => {
+        if (err || !rows || !rows.length) return;
+        mainDb.serialize(() => {
+            mainDb.run('BEGIN');
+            const st = mainDb.prepare('UPDATE visitor_sessions SET country_code=?, os=?, browser=? WHERE visitor_id=?');
+            rows.forEach(r => st.run(_countryOf(r.ip), _parseOs(r.user_agent), _parseBrowser(r.user_agent), r.visitor_id));
+            st.finalize();
+            mainDb.run('COMMIT', () => console.log(`📊 آمار: کشور و دستگاهِ ${rows.length} بازدیدکنندهٔ قبلی تکمیل شد`));
+        });
+    });
+}
+
+// صفحه‌بازدیدهای خام بعد از ۴۰۰ روز پاک می‌شوند تا دیتابیس بی‌حد بزرگ نشود
+// (۴۰۰ روز تا «امسال» همیشه کامل بماند). جدول بازدیدها کوچک است و می‌ماند.
+function _prunePageviews() {
+    mainDb.run(`DELETE FROM analytics_pageviews WHERE ts < datetime('now', '-400 days')`, () => {});
+}
+setInterval(_prunePageviews, 24 * 3600 * 1000).unref();
+
+// منبع ورود از روی ارجاع‌دهنده (document.referrer) یا utm_source
+const _SOURCE_HOSTS = [
+    ['google',     /(^|\.)google\.[a-z.]+$|googlequicksearchbox/],
+    ['bing',       /(^|\.)bing\.com$/],
+    ['yandex',     /(^|\.)yandex\.[a-z.]+$/],
+    ['duckduckgo', /(^|\.)duckduckgo\.com$/],
+    ['telegram',   /(^|\.)t\.me$|(^|\.)telegram\.(org|me)$|^org\.telegram\.|challegram/],
+    ['eitaa',      /eitaa/],
+    ['rubika',     /(^|\.)rubika\.ir$|^app\.rbmain/],
+    ['bale',       /(^|\.)bale\.ai$|(^|\.)ble\.ir$|^ir\.nasim/],
+    ['soroush',    /(^|\.)splus\.ir$|soroush/],
+    ['instagram',  /instagram/],
+    ['whatsapp',   /whatsapp|(^|\.)wa\.me$/],
+    ['facebook',   /(^|\.)facebook\.com$|(^|\.)fb\.com$|^com\.facebook/],
+    ['twitter',    /(^|\.)twitter\.com$|(^|\.)x\.com$|(^|\.)t\.co$/],
+    ['youtube',    /(^|\.)youtube\.com$|(^|\.)youtu\.be$/],
+    ['aparat',     /(^|\.)aparat\.com$/],
+    ['website',    /(^|\.)dastgheibqoba\.info$/],
+];
+const _SOURCE_KEYS = _SOURCE_HOSTS.map(([k]) => k);
+function _classifySource(ref, utmSource, isPwa, ownHost) {
+    const utm = (utmSource || '').toLowerCase().trim();
+    if (utm) {
+        const key = _SOURCE_KEYS.find(k => utm === k || utm.startsWith(k));
+        return { source: key || 'other', host: key ? null : utm.slice(0, 100) };
+    }
+    let host = '';
+    try { host = new URL(ref).hostname.toLowerCase(); } catch (e) {}
+    if (!host || host === ownHost) return { source: isPwa ? 'app' : 'direct', host: null };
+    const hit = _SOURCE_HOSTS.find(([, re]) => re.test(host));
+    if (hit) return { source: hit[0], host };
+    // اپ اندرویدی خودمان (TWA) با ارجاعِ android-app://<بسته> باز می‌شود
+    if (/^android-app:/i.test(ref) && isPwa) return { source: 'app', host: null };
+    return { source: 'other', host: host.slice(0, 100) };
+}
+
+const _ITEM_TYPES = new Set(['book', 'lecture', 'audio', 'video', 'news']);
+const _cleanStr = (v, max) => (typeof v === 'string' ? sanText(v).slice(0, max) : '');
+const _slug = v => (typeof v === 'string' ? v.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40) : '');
+
+// Ping: ضربان هر ۲ دقیقه + شروع بازدید (start) + دیدن هر بخش یا محتوا (view)
+app.post('/api/analytics/ping', express.json({limit:'2kb'}), (req, res) => {
+    const b = req.body || {};
+    const visitor_id = typeof b.visitor_id === 'string' ? b.visitor_id.slice(0, 64) : null;
     if (!visitor_id || visitor_id.length < 8) return res.status(400).json({error:'invalid'});
     const ua = (req.headers['user-agent'] || '').slice(0, 300);
     if (_isBotUa(ua)) return res.json({ok:1});
     const ip = _getClientIp(req).slice(0, 60);
-    const device = _parseDevice(ua);
-    // UPSERT: try update first, insert if not exists
-    mainDb.run(
+
+    // نسخه‌های قدیمیِ کلاینت شناسهٔ بازدید نمی‌فرستند؛ برایشان هر روز یک بازدید حساب می‌شود
+    const visit_id = (typeof b.visit_id === 'string' && b.visit_id.length >= 8)
+        ? b.visit_id.slice(0, 64)
+        : 'L' + visitor_id + ':' + _tehranPeriodStarts().day.slice(0, 10);
+
+    const start = (b.start && typeof b.start === 'object') ? b.start : null;
+    let src = { source: null, host: null };
+    if (start) {
+        const ownHost = String(req.headers.host || '').split(':')[0].toLowerCase();
+        src = _classifySource(_cleanStr(start.ref, 500), _cleanStr(start.utm_source, 100), !!start.pwa, ownHost);
+    }
+    let view = null;
+    if (b.view && typeof b.view === 'object' && _slug(b.view.screen)) {
+        const type = _ITEM_TYPES.has(b.view.type) ? b.view.type : null;
+        view = {
+            screen: _slug(b.view.screen), type,
+            id: type && b.view.id != null ? String(b.view.id).slice(0, 40) : null,
+            title: type ? (_cleanStr(b.view.title, 200) || null) : null,
+        };
+    }
+
+    const upsertVisitor = next => mainDb.run(
         'UPDATE visitor_sessions SET last_seen=CURRENT_TIMESTAMP, total_visits=total_visits+1 WHERE visitor_id=?',
         [visitor_id],
-        function() {
-            if (this.changes === 0) {
-                mainDb.run(
-                    'INSERT OR IGNORE INTO visitor_sessions (visitor_id,ip,user_agent,device_type) VALUES (?,?,?,?)',
-                    [visitor_id, ip, ua, device],
-                    function() { _lookupCountry(ip, visitor_id); }
-                );
-            }
-            res.json({ok:1});
+        function (err) {
+            if (err || this.changes > 0) return next();
+            mainDb.run(
+                'INSERT OR IGNORE INTO visitor_sessions (visitor_id,ip,user_agent,device_type,country_code,os,browser) VALUES (?,?,?,?,?,?,?)',
+                [visitor_id, ip, ua, _parseDevice(ua), _countryOf(ip), _parseOs(ua), _parseBrowser(ua)],
+                () => next()
+            );
         }
     );
-});
-// Admin analytics endpoint
-// ستون‌های زمانی به UTC ذخیره می‌شوند؛ مرز «امروز/هفته/ماه/امسال» باید به وقت
-// تهران و تقویم شمسی باشد، نه نیمه‌شب UTC و ماه/سال میلادی.
-app.get('/api/admin/analytics', adminAuth, (req, res) => {
-    const p = _tehranPeriodStarts();
-    const H = _HUMAN_SQL;
-    const queries = {
-        online:    [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen > datetime('now', '-5 minutes')`, []],
-        today:     [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen >= ?`, [p.day]],
-        week:      [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen >= ?`, [p.week]],
-        month:     [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen >= ?`, [p.month]],
-        year:      [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND last_seen >= ?`, [p.year]],
-        total:     [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H}`, []],
-        new_today: [`SELECT COUNT(*) as c FROM visitor_sessions WHERE ${H} AND first_seen >= ?`, [p.day]],
+    // «جدید» یعنی اولین بازدیدِ این بازدیدکننده (ثبت‌شده در ۳۰ دقیقهٔ اخیر)
+    const upsertVisit = next => mainDb.run(
+        `INSERT OR IGNORE INTO analytics_visits (visit_id, visitor_id, is_new)
+         VALUES (?, ?, COALESCE((SELECT first_seen >= datetime('now','-30 minutes') FROM visitor_sessions WHERE visitor_id=?), 1))`,
+        [visit_id, visitor_id, visitor_id],
+        () => mainDb.run(
+            `UPDATE analytics_visits SET last_seen=CURRENT_TIMESTAMP, pageviews=pageviews+?,
+                source=COALESCE(source, ?), referrer_host=COALESCE(referrer_host, ?),
+                utm_source=COALESCE(utm_source, ?), utm_medium=COALESCE(utm_medium, ?), utm_campaign=COALESCE(utm_campaign, ?),
+                is_pwa=MAX(is_pwa, ?)
+             WHERE visit_id=? AND visitor_id=?`,
+            [view ? 1 : 0, src.source, src.host,
+             start ? (_cleanStr(start.utm_source, 100) || null) : null,
+             start ? (_cleanStr(start.utm_medium, 100) || null) : null,
+             start ? (_cleanStr(start.utm_campaign, 100) || null) : null,
+             start && start.pwa ? 1 : 0, visit_id, visitor_id],
+            () => next()
+        )
+    );
+    const insertView = next => {
+        if (!view) return next();
+        mainDb.run(
+            'INSERT INTO analytics_pageviews (visit_id, visitor_id, screen, item_type, item_id, title) VALUES (?,?,?,?,?,?)',
+            [visit_id, visitor_id, view.screen, view.type, view.id, view.title],
+            () => next()
+        );
     };
-    const results = {};
-    let pending = Object.keys(queries).length + 2;
-    const done = () => { if (--pending === 0) res.json(results); };
-    Object.entries(queries).forEach(([key, [sql, params]]) => {
-        mainDb.get(sql, params, (err, row) => { results[key] = row ? row.c : 0; done(); });
+    upsertVisitor(() => upsertVisit(() => insertView(() => res.json({ok:1}))));
+});
+
+// Admin analytics endpoint
+// ستون‌های زمانی به UTC ذخیره می‌شوند؛ مرز «امروز/هفته/ماه/امسال» به وقت تهران و
+// تقویم شمسی است. «بازدیدکننده» از visitor_sessions می‌آید (سابقهٔ کامل دارد)؛
+// «بازدید» و «صفحه» از جدول‌های تازه، که از tracking_since به بعد پر شده‌اند.
+const _dbAll = (sql, params = []) => new Promise(ok => mainDb.all(sql, params, (e, rows) => ok(e ? [] : rows || [])));
+const _toJalali = (y, m, d) => { const j = jalaali.toJalaali(y, m, d); return `${j.jy}/${String(j.jm).padStart(2, '0')}/${String(j.jd).padStart(2, '0')}`; };
+const _utcToJalali = s => {
+    const t = new Date(new Date(String(s).replace(' ', 'T') + 'Z').getTime() + _TEHRAN_OFFSET_MS);
+    return _toJalali(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate());
+};
+
+app.get('/api/admin/analytics', adminAuth, async (req, res) => {
+    const p = _tehranPeriodStarts();
+    const fmt = d => d.toISOString().slice(0, 19).replace('T', ' ');
+    const d30 = fmt(new Date(Date.now() - 30 * 86400000));
+    const RANGES = { today: p.day, week: p.week, month: p.month, year: p.year, '30d': d30, all: '1970-01-01 00:00:00' };
+    const range = RANGES[req.query.range] ? req.query.range : 'month';
+    const since = RANGES[range];
+    const H = _HUMAN_SQL;
+    const per = col => `SUM(${col}>=?) today, SUM(${col}>=?) week, SUM(${col}>=?) month, SUM(${col}>=?) year, COUNT(*) total`;
+    const periodParams = [p.day, p.week, p.month, p.year];
+
+    // روند ۳۰ روز اخیر؛ «روز» به وقت تهران
+    const trendFrom = fmt(new Date(Date.parse(p.day.replace(' ', 'T') + 'Z') - 29 * 86400000));
+
+    const [
+        [vs], [vi], [pv], sources, otherHosts, campaigns, [eng], hours, weekdays,
+        content, sections, countries, devices, oses, browsers, liveNow, trendVisits, trendViews, [first],
+    ] = await Promise.all([
+        _dbAll(`SELECT ${per('last_seen')}, SUM(first_seen>=?) new_today,
+                SUM(last_seen > datetime('now','-5 minutes')) online FROM visitor_sessions WHERE ${H}`, [...periodParams, p.day]),
+        _dbAll(`SELECT ${per('started_at')} FROM analytics_visits`, periodParams),
+        _dbAll(`SELECT ${per('ts')} FROM analytics_pageviews`, periodParams),
+        _dbAll(`SELECT COALESCE(source,'unknown') source, COUNT(*) visits FROM analytics_visits WHERE started_at>=? GROUP BY 1 ORDER BY 2 DESC`, [since]),
+        _dbAll(`SELECT referrer_host host, COUNT(*) visits FROM analytics_visits WHERE started_at>=? AND source='other' AND referrer_host IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 10`, [since]),
+        _dbAll(`SELECT utm_source source, utm_campaign campaign, COUNT(*) visits FROM analytics_visits WHERE started_at>=? AND COALESCE(utm_campaign,'')<>'' GROUP BY 1,2 ORDER BY 3 DESC LIMIT 10`, [since]),
+        _dbAll(`SELECT COUNT(*) visits, AVG(pageviews) pages_per_visit,
+                AVG((julianday(last_seen)-julianday(started_at))*86400) avg_duration,
+                SUM(pageviews<=1) bounces, SUM(is_new) new_visits, SUM(is_pwa) pwa_visits
+                FROM analytics_visits WHERE started_at>=?`, [since]),
+        _dbAll(`SELECT CAST(strftime('%H', started_at, '+210 minutes') AS INTEGER) h, COUNT(*) c FROM analytics_visits WHERE started_at>=? GROUP BY h`, [since]),
+        _dbAll(`SELECT CAST(strftime('%w', started_at, '+210 minutes') AS INTEGER) w, COUNT(*) c FROM analytics_visits WHERE started_at>=? GROUP BY w`, [since]),
+        _dbAll(`SELECT item_type type, item_id id, MAX(title) title, COUNT(*) views, COUNT(DISTINCT visitor_id) visitors
+                FROM analytics_pageviews WHERE ts>=? AND item_type IS NOT NULL GROUP BY item_type, item_id ORDER BY views DESC LIMIT 15`, [since]),
+        _dbAll(`SELECT screen, COUNT(*) views FROM analytics_pageviews WHERE ts>=? AND screen IS NOT NULL GROUP BY screen ORDER BY views DESC LIMIT 12`, [since]),
+        _dbAll(`SELECT COALESCE(country_code,'XX') code, COUNT(*) visitors FROM visitor_sessions WHERE ${H} AND last_seen>=? GROUP BY 1 ORDER BY 2 DESC LIMIT 15`, [since]),
+        _dbAll(`SELECT COALESCE(device_type,'unknown') name, COUNT(*) visitors FROM visitor_sessions WHERE ${H} AND last_seen>=? GROUP BY 1 ORDER BY 2 DESC`, [since]),
+        _dbAll(`SELECT COALESCE(os,'other') name, COUNT(*) visitors FROM visitor_sessions WHERE ${H} AND last_seen>=? GROUP BY 1 ORDER BY 2 DESC LIMIT 8`, [since]),
+        _dbAll(`SELECT COALESCE(browser,'other') name, COUNT(*) visitors FROM visitor_sessions WHERE ${H} AND last_seen>=? GROUP BY 1 ORDER BY 2 DESC LIMIT 8`, [since]),
+        // آخرین چیزی که هر کاربرِ آنلاین دیده
+        _dbAll(`SELECT pv.screen, pv.item_type type, pv.item_id id, pv.title, COUNT(*) visitors
+                FROM analytics_pageviews pv
+                JOIN (SELECT visitor_id, MAX(id) mid FROM analytics_pageviews WHERE ts > datetime('now','-5 minutes') GROUP BY visitor_id) l ON pv.id = l.mid
+                GROUP BY pv.screen, pv.item_type, pv.item_id ORDER BY visitors DESC LIMIT 8`),
+        _dbAll(`SELECT date(started_at,'+210 minutes') d, COUNT(*) visits, COUNT(DISTINCT visitor_id) visitors
+                FROM analytics_visits WHERE started_at>=? GROUP BY d`, [trendFrom]),
+        _dbAll(`SELECT date(ts,'+210 minutes') d, COUNT(*) pageviews FROM analytics_pageviews WHERE ts>=? GROUP BY d`, [trendFrom]),
+        _dbAll(`SELECT MIN(started_at) m FROM analytics_visits`),
+    ]);
+
+    const card = k => ({ visitors: (vs && vs[k]) || 0, visits: (vi && vi[k]) || 0, pageviews: (pv && pv[k]) || 0 });
+    const byDay = new Map(trendVisits.map(r => [r.d, r]));
+    const viewsByDay = new Map(trendViews.map(r => [r.d, r.pageviews]));
+    const trend = [];
+    const dayStartMs = Date.parse(p.day.replace(' ', 'T') + 'Z') + _TEHRAN_OFFSET_MS;  // نیمه‌شب امروزِ تهران به‌صورت ساعت دیواری
+    for (let i = 29; i >= 0; i--) {
+        const t = new Date(dayStartMs - i * 86400000);
+        const key = t.toISOString().slice(0, 10);
+        const r = byDay.get(key) || {};
+        trend.push({
+            date: _toJalali(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()),
+            weekday: (t.getUTCDay() + 1) % 7,   // ۰ = شنبه
+            visitors: r.visitors || 0, visits: r.visits || 0, pageviews: viewsByDay.get(key) || 0,
+        });
+    }
+    const hourArr = Array(24).fill(0); hours.forEach(r => { if (r.h >= 0 && r.h < 24) hourArr[r.h] = r.c; });
+    const weekArr = Array(7).fill(0);  weekdays.forEach(r => { weekArr[(r.w + 1) % 7] = r.c; });   // ۰ = شنبه
+
+    res.json({
+        online: (vs && vs.online) || 0,
+        new_today: (vs && vs.new_today) || 0,
+        cards: { today: card('today'), week: card('week'), month: card('month'), year: card('year'), total: card('total') },
+        tracking_since: first && first.m ? _utcToJalali(first.m) : null,
+        range,
+        sources, other_hosts: otherHosts, campaigns,
+        engagement: {
+            visits: (eng && eng.visits) || 0,
+            pages_per_visit: eng && eng.pages_per_visit ? Math.round(eng.pages_per_visit * 10) / 10 : 0,
+            avg_duration: eng && eng.avg_duration ? Math.round(eng.avg_duration) : 0,
+            bounces: (eng && eng.bounces) || 0,
+            new_visits: (eng && eng.new_visits) || 0,
+            pwa_visits: (eng && eng.pwa_visits) || 0,
+        },
+        hours: hourArr, weekdays: weekArr,
+        content, sections, countries, devices, oses, browsers,
+        live: liveNow, trend,
     });
-    mainDb.all(
-        `SELECT device_type as type, COUNT(*) as count FROM visitor_sessions WHERE ${H} GROUP BY device_type ORDER BY count DESC`,
-        [],
-        (err, rows) => { results.devices = rows || []; done(); }
-    );
-    mainDb.all(
-        `SELECT COALESCE(country,'نامشخص') as country, COUNT(*) as count FROM visitor_sessions WHERE ${H} GROUP BY country ORDER BY count DESC LIMIT 20`,
-        [],
-        (err, rows) => { results.countries = rows || []; done(); }
-    );
 });
 
 // === NOTIFICATIONS PUBLIC (broadcast - no login needed) ===

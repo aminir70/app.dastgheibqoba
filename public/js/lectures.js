@@ -366,6 +366,7 @@ async function showWPSingleView(postId) {
     const tempTitle = document.createElement('div');
     tempTitle.innerHTML = post.title.rendered;
     document.getElementById('lectures-header-title').textContent = tempTitle.textContent || tempTitle.innerText || 'بدون عنوان';
+    if (typeof trackView === 'function') trackView('lectures', 'lecture', postId, tempTitle.textContent);
     document.getElementById('single-post-title').innerHTML = post.title.rendered;
     document.getElementById('single-post-date').textContent = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
 

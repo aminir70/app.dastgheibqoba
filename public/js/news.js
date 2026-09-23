@@ -132,6 +132,7 @@ function showNewsSingle(postId) {
     const screen = document.getElementById('screen-news');
     if (screen) screen.classList.add('reading-mode');
     document.getElementById('news-header-title').textContent = post.title.rendered.replace(/<[^>]*>/g,'');
+    if (typeof trackView === 'function') trackView('news', 'news', postId, document.getElementById('news-header-title').textContent);
     document.getElementById('btn-news-settings').classList.remove('hidden');
     document.getElementById('news-posts-view').classList.add('hidden');
     document.getElementById('news-posts-view').classList.remove('flex');

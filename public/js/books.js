@@ -177,6 +177,7 @@ async function openBook(bookId, targetPageNum, searchQuery) {
         const book=allBooks.find(b=>b.id == bookId);
         document.getElementById('toc-book-title').textContent=book?book.title:'کتاب';
         document.getElementById('book-main-title').textContent=book?book.title:'کتاب';
+        if (typeof trackView === 'function') trackView('library', 'book', bookId, book ? book.title : null);
 
         hideLoading();
         if ((targetPageNum != null || searchQuery) && _searchHit) {

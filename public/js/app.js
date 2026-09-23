@@ -61,6 +61,7 @@ function navToScreen(name) {
     document.querySelectorAll(`[data-nav="${name}"]`).forEach(navBtn => {
         navBtn.classList.add('active');
     });
+    if (prevName !== name) trackView(name);
 
     // ثبت تاریخچه با URL منحصربه‌فرد semantic
     if (!_skipHistoryPush && prevName !== name) {
@@ -482,6 +483,7 @@ function openHomeVideo(idx) {
         if (playerView) { playerView.classList.remove('hidden'); playerView.classList.add('flex'); }
         document.getElementById('video-player-title').textContent = v.title;
         document.getElementById('video-aparat-iframe').src = v.embed_url;
+        trackView('media', 'video', v.id, v.title);
         const descEl = document.getElementById('video-player-desc');
         if (v.description && v.description.trim()) { descEl.textContent = v.description; descEl.classList.remove('hidden'); }
         else descEl.classList.add('hidden');
@@ -1902,17 +1904,63 @@ function _getVisitorId() {
         return id;
     } catch(e) { return null; }
 }
-function _analyticsPing() {
+// هر «بازدید» یک نشست است: بعد از ۳۰ دقیقه بی‌فعالیتی، بازدید تازه شروع می‌شود.
+// شناسه در localStorage است تا چند تب و بارگذاری مجدد، یک بازدید حساب شوند.
+const _VISIT_IDLE_MS = 30 * 60 * 1000;
+let _visitStartSent = false;
+let _pageRefUsed = false;
+function _getVisitId() {
+    try {
+        const now = Date.now();
+        let id = localStorage.getItem('vsid');
+        const last = parseInt(localStorage.getItem('vsid_t') || '0', 10);
+        if (!id || now - last > _VISIT_IDLE_MS) {
+            id = now.toString(36) + Math.random().toString(36).slice(2, 10);
+            localStorage.setItem('vsid', id);
+            _visitStartSent = false;
+        }
+        localStorage.setItem('vsid_t', String(now));
+        return id;
+    } catch(e) { return null; }
+}
+// منبع ورود فقط برای اولین بازدیدِ این بارگذاری معنی دارد؛ اگر اپ باز مانده و بعد
+// از بی‌فعالیتی بازدید تازه‌ای شروع شده، ارجاع‌دهندهٔ قدیمی را دوباره نمی‌فرستیم.
+function _visitStartInfo() {
+    const pwa = !!(window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+    if (_pageRefUsed) return { pwa };
+    _pageRefUsed = true;
+    const q = new URLSearchParams(location.search);
+    const p = k => (q.get(k) || '').slice(0, 100);
+    return {
+        ref: (document.referrer || '').slice(0, 500), pwa,
+        utm_source: p('utm_source'), utm_medium: p('utm_medium'), utm_campaign: p('utm_campaign')
+    };
+}
+function _analyticsSend(extra) {
     const vid = _getVisitorId();
     if (!vid) return;
+    const body = { visitor_id: vid, visit_id: _getVisitId() };
+    if (!_visitStartSent) { body.start = _visitStartInfo(); _visitStartSent = true; }
+    if (extra) Object.assign(body, extra);
     try {
         fetch('/api/analytics/ping', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ visitor_id: vid }),
+            body: JSON.stringify(body),
             keepalive: true
         }).catch(()=>{});
     } catch(e) {}
+}
+function _analyticsPing() { _analyticsSend(); }
+
+// ثبت دیدن یک بخش (screen) یا یک محتوا (type: book|lecture|audio|video|news)
+let _lastViewKey = '', _lastViewAt = 0;
+function trackView(screen, type, id, title) {
+    const key = screen + '|' + (type || '') + '|' + (id != null ? id : '');
+    const now = Date.now();
+    if (key === _lastViewKey && now - _lastViewAt < 10000) return;   // رندر مجدد همان صفحه
+    _lastViewKey = key; _lastViewAt = now;
+    _analyticsSend({ view: { screen, type: type || null, id: id != null ? String(id) : null, title: title ? String(title).slice(0, 200) : null } });
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
@@ -1922,7 +1970,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     const slider=document.getElementById('page-slider');if(slider)slider.addEventListener('input',e=>goToPage(parseInt(e.target.value)));
     setupSwipe();
     // Analytics ping: یک بار در ابتدا، سپس هر ۲ دقیقه
-    setTimeout(_analyticsPing, 2000);
+    setTimeout(() => {
+        const active = document.querySelector('.screen.active');
+        trackView(active ? active.id.replace('screen-', '') : 'home');
+    }, 2000);
     setInterval(() => { if (document.visibilityState !== 'hidden') _analyticsPing(); }, 120000);
 
     // ──────────────────────────────────────────────

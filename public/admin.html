@@ -857,53 +857,104 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 
   <!-- ANALYTICS TAB -->
   <div id="tab-analytics" class="hidden flex-1 overflow-y-auto p-4 sm:p-6">
-    <div class="flex items-center justify-between mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <h2 class="font-black text-lg"><i class="fas fa-chart-line text-teal-600 ml-2"></i>آمار بازدید</h2>
       <button onclick="loadAnalytics()" class="text-teal-600 text-xs font-bold bg-teal-50 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition"><i class="fas fa-sync-alt ml-1"></i>بروزرسانی</button>
     </div>
-    <!-- کارت‌های آماری -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+
+    <!-- زنده -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
       <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-2xl p-4">
         <div class="flex items-center gap-2 mb-2">
           <span class="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
-          <span class="text-xs font-bold text-green-700">آنلاین (۵ دقیقه اخیر)</span>
+          <span class="text-xs font-bold text-green-700">آنلاین الان</span>
         </div>
-        <p id="stat-online" class="text-3xl font-black text-green-700">۰</p>
+        <p id="stat-online" class="text-4xl font-black text-green-700">۰</p>
+        <p class="text-[10px] text-green-700 mt-1 opacity-70">فعال در ۵ دقیقهٔ اخیر</p>
       </div>
-      <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-        <span class="text-xs font-bold text-gray-500 block mb-2"><i class="fas fa-calendar-day ml-1 text-blue-500"></i>کاربران امروز</span>
-        <p id="stat-today" class="text-3xl font-black text-gray-800">۰</p>
-        <p class="text-[10px] text-gray-400 mt-1">جدید: <span id="stat-new-today">۰</span></p>
-      </div>
-      <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-        <span class="text-xs font-bold text-gray-500 block mb-2"><i class="fas fa-calendar-week ml-1 text-indigo-500"></i>این هفته</span>
-        <p id="stat-week" class="text-3xl font-black text-gray-800">۰</p>
-      </div>
-      <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-        <span class="text-xs font-bold text-gray-500 block mb-2"><i class="fas fa-calendar-alt ml-1 text-purple-500"></i>این ماه</span>
-        <p id="stat-month" class="text-3xl font-black text-gray-800">۰</p>
-      </div>
-      <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-        <span class="text-xs font-bold text-gray-500 block mb-2"><i class="fas fa-calendar ml-1 text-amber-500"></i>امسال</span>
-        <p id="stat-year" class="text-3xl font-black text-gray-800">۰</p>
-      </div>
-      <div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-        <span class="text-xs font-bold text-gray-500 block mb-2"><i class="fas fa-globe ml-1 text-teal-500"></i>کل بازدیدکنندگان</span>
-        <p id="stat-total" class="text-3xl font-black text-gray-800">۰</p>
+      <div class="lg:col-span-2 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+        <h3 class="text-xs font-bold text-gray-500 mb-3"><i class="fas fa-eye ml-1 text-green-600"></i>کاربرانِ آنلاین الان چه می‌بینند</h3>
+        <div id="stat-live" class="flex flex-col gap-1.5"></div>
       </div>
     </div>
-    <!-- دیوایس‌ها و کشورها -->
+
+    <!-- خلاصهٔ دوره‌ها -->
+    <div id="stat-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4"></div>
+
+    <!-- روند -->
+    <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-5">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h3 class="font-black text-sm"><i class="fas fa-chart-area text-teal-600 ml-2"></i>روند ۳۰ روز اخیر</h3>
+        <div class="flex items-center gap-4 text-[11px] text-gray-600">
+          <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded-full" style="background:#2a78d6"></span>بازدیدکننده</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-0.5 rounded-full" style="background:#eb6834"></span>بازدید</span>
+        </div>
+      </div>
+      <div id="stat-trend" class="relative" dir="ltr"></div>
+    </div>
+
+    <!-- انتخاب بازه برای جزئیات -->
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <span class="text-xs font-bold text-gray-500 ml-1">جزئیات در بازهٔ:</span>
+      <div id="an-range" class="flex flex-wrap gap-1.5">
+        <button data-range="today" onclick="setAnalyticsRange('today')" class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">امروز</button>
+        <button data-range="week"  onclick="setAnalyticsRange('week')"  class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">این هفته</button>
+        <button data-range="month" onclick="setAnalyticsRange('month')" class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">این ماه</button>
+        <button data-range="30d"   onclick="setAnalyticsRange('30d')"   class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">۳۰ روز اخیر</button>
+        <button data-range="year"  onclick="setAnalyticsRange('year')"  class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">امسال</button>
+        <button data-range="all"   onclick="setAnalyticsRange('all')"   class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">همه</button>
+      </div>
+    </div>
+
+    <div id="stat-engagement" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4"></div>
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-        <h3 class="font-black text-sm mb-4"><i class="fas fa-mobile-alt text-teal-600 ml-2"></i>دستگاه‌ها</h3>
+        <h3 class="font-black text-sm mb-4"><i class="fas fa-route text-teal-600 ml-2"></i>از کجا آمده‌اند <span class="text-[10px] font-normal text-gray-400">(تعداد بازدید)</span></h3>
+        <div id="stat-sources" class="flex flex-col gap-3"></div>
+        <div id="stat-other-hosts" class="hidden mt-4 pt-3 border-t border-gray-100"></div>
+        <div id="stat-campaigns" class="hidden mt-4 pt-3 border-t border-gray-100"></div>
+      </div>
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-black text-sm mb-4"><i class="fas fa-fire text-teal-600 ml-2"></i>پربازدیدترین محتوا</h3>
+        <div id="stat-content" class="flex flex-col gap-1 max-h-96 overflow-y-auto"></div>
+      </div>
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-black text-sm mb-4"><i class="fas fa-clock text-teal-600 ml-2"></i>ساعت‌های پربازدید <span class="text-[10px] font-normal text-gray-400">(به وقت تهران)</span></h3>
+        <div id="stat-hours" class="relative" dir="ltr"></div>
+      </div>
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-black text-sm mb-4"><i class="fas fa-calendar-week text-teal-600 ml-2"></i>روزهای هفته</h3>
+        <div id="stat-weekdays" class="relative"></div>
+      </div>
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-black text-sm mb-4"><i class="fas fa-layer-group text-teal-600 ml-2"></i>بخش‌های پربازدید <span class="text-[10px] font-normal text-gray-400">(تعداد صفحه)</span></h3>
+        <div id="stat-sections" class="flex flex-col gap-3"></div>
+      </div>
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-black text-sm mb-4"><i class="fas fa-map-marker-alt text-teal-600 ml-2"></i>کشورها <span class="text-[10px] font-normal text-gray-400">(بازدیدکننده)</span></h3>
+        <div id="stat-countries" class="flex flex-col gap-3 max-h-96 overflow-y-auto"></div>
+      </div>
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <h3 class="font-black text-sm mb-4"><i class="fas fa-mobile-alt text-teal-600 ml-2"></i>دستگاه‌ها <span class="text-[10px] font-normal text-gray-400">(بازدیدکننده)</span></h3>
         <div id="stat-devices" class="flex flex-col gap-3"></div>
       </div>
       <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-        <h3 class="font-black text-sm mb-4"><i class="fas fa-map-marker-alt text-teal-600 ml-2"></i>کشورها</h3>
-        <div id="stat-countries" class="flex flex-col gap-2 max-h-80 overflow-y-auto"></div>
+        <h3 class="font-black text-sm mb-4"><i class="fas fa-window-maximize text-teal-600 ml-2"></i>سیستم‌عامل و مرورگر <span class="text-[10px] font-normal text-gray-400">(بازدیدکننده)</span></h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div id="stat-os" class="flex flex-col gap-3"></div>
+          <div id="stat-browsers" class="flex flex-col gap-3"></div>
+        </div>
       </div>
     </div>
-    <p class="text-[10px] text-gray-400 text-center mt-4">روز به وقت تهران، هفته از شنبه، ماه و سال شمسی. ربات‌ها و خزنده‌ها شمرده نمی‌شوند. هر مرورگر/دستگاه یک بازدیدکننده حساب می‌شود.</p>
+
+    <div id="an-tip" class="hidden fixed z-50 pointer-events-none bg-gray-900 text-white text-[11px] rounded-lg px-3 py-2 shadow-lg leading-relaxed" dir="rtl"></div>
+    <p class="text-[10px] text-gray-400 text-center mt-5 leading-relaxed">
+      «بازدیدکننده» = هر مرورگر یا دستگاه (یک نفر با دو گوشی دو بازدیدکننده است). «بازدید» = یک بار استفاده از اپ؛ بعد از ۳۰ دقیقه بی‌فعالیتی بازدید تازه شروع می‌شود. «صفحه» = دیدن هر بخش یا محتوا.<br>
+      روز به وقت تهران، هفته از شنبه، ماه و سال شمسی. ربات‌ها و خزنده‌ها شمرده نمی‌شوند.
+      <span id="stat-since"></span><br>
+      داده‌های کشور: GeoLite2 از <a href="https://www.maxmind.com" target="_blank" rel="noopener" class="underline">MaxMind</a>.
+    </p>
   </div>
 
   <!-- USERS TAB -->
@@ -2778,51 +2829,284 @@ let analyticsInterval = null;
 function _faNum(n) {
     return String(n||0).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
 }
+
+// ── داشبورد آمار ──
+const _AN_BLUE = '#2a78d6', _AN_ORANGE = '#eb6834';   // سری ۱ و ۲ (پالت اعتبارسنجی‌شده برای کوررنگی)
+const _AN_WEEKDAYS = ['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنجشنبه','جمعه'];
+const _AN_SOURCES = {
+    direct: ['مستقیم (آدرس یا نشانک)', 'fas fa-link'], app: ['اپ نصب‌شده روی گوشی', 'fas fa-mobile-alt'],
+    google: ['گوگل', 'fab fa-google'], bing: ['بینگ', 'fas fa-search'], yandex: ['یاندکس', 'fab fa-yandex'], duckduckgo: ['داک‌داک‌گو', 'fas fa-search'],
+    telegram: ['تلگرام', 'fab fa-telegram-plane'], eitaa: ['ایتا', 'fas fa-comment-dots'], rubika: ['روبیکا', 'fas fa-comment-dots'],
+    bale: ['بله', 'fas fa-comment-dots'], soroush: ['سروش', 'fas fa-comment-dots'], instagram: ['اینستاگرام', 'fab fa-instagram'],
+    whatsapp: ['واتساپ', 'fab fa-whatsapp'], facebook: ['فیسبوک', 'fab fa-facebook'], twitter: ['ایکس (توییتر)', 'fab fa-twitter'],
+    youtube: ['یوتیوب', 'fab fa-youtube'], aparat: ['آپارات', 'fas fa-film'], website: ['سایت dastgheibqoba.info', 'fas fa-globe'],
+    other: ['سایر سایت‌ها', 'fas fa-external-link-alt'], unknown: ['نامشخص (نسخهٔ قبلی اپ)', 'fas fa-question-circle'],
+};
+const _AN_SCREENS = { home:'خانه', library:'کتابخانه', books:'کتابخانه', media:'رسانه (صوت، فیلم، عکس)', lectures:'سخنرانی‌ها', news:'اخبار',
+    qa:'سوال و پاسخ', statements:'بیانیه‌ها', live:'پخش زنده', favorites:'علاقه‌مندی‌ها', auth:'حساب کاربری', search:'جستجو' };
+const _AN_TYPES = { book:['کتاب','fa-book'], lecture:['سخنرانی','fa-microphone-alt'], audio:['صوت','fa-headphones'], video:['فیلم','fa-film'], news:['خبر','fa-newspaper'] };
+const _AN_DEVICES = { mobile:'موبایل', desktop:'دسکتاپ', tablet:'تبلت', unknown:'نامشخص' };
+const _AN_OS = { Android:'اندروید', iOS:'آیفون / آی‌پد', Windows:'ویندوز', macOS:'مک', Linux:'لینوکس', ChromeOS:'کروم‌اواس', other:'سایر' };
+const _AN_BROWSERS = { Chrome:'کروم', Safari:'سافاری', Firefox:'فایرفاکس', Edge:'اج', Opera:'اپرا', Samsung:'مرورگر سامسونگ', Yandex:'یاندکس',
+    WebView:'داخل برنامه‌ها (تلگرام، ایتا، …)', Instagram:'داخل اینستاگرام', other:'سایر' };
+let _anRange = 'month';
+try { _anRange = localStorage.getItem('an_range') || 'month'; } catch(e) {}
+
+function _anPct(part, whole) { return whole ? Math.round(part * 100 / whole) : 0; }
+function _anDuration(sec) {
+    sec = Math.round(sec || 0);
+    if (sec < 60) return _faNum(sec) + ' ثانیه';
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    if (h) return _faNum(h) + ' ساعت' + (m ? ' و ' + _faNum(m) + ' دقیقه' : '');
+    return _faNum(m) + ' دقیقه' + (s ? ' و ' + _faNum(s) + ' ثانیه' : '');
+}
+function _anCountry(code) {
+    if (!code || code === 'XX') return { name: 'نامشخص', flag: '' };
+    let name = code;
+    try { name = new Intl.DisplayNames(['fa'], { type: 'region' }).of(code) || code; } catch(e) {}
+    const flag = /^[A-Z]{2}$/.test(code) ? code.replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0))) : '';
+    return { name, flag };
+}
+function _anEmpty(msg) { return `<p class="text-xs text-gray-400 text-center py-6">${msg || 'در این بازه داده‌ای نیست'}</p>`; }
+
+// فهرست میله‌ای افقی: هر ردیف برچسب + مقدار + سهم، و یک میلهٔ نازک
+function _anBars(el, rows, opts = {}) {
+    if (!el) return;
+    if (!rows || !rows.length) { el.innerHTML = _anEmpty(opts.empty); return; }
+    const total = opts.total || rows.reduce((s, r) => s + r.value, 0) || 1;
+    const max = Math.max(...rows.map(r => r.value), 1);
+    el.innerHTML = rows.map(r => {
+        const pct = _anPct(r.value, total);
+        return `<div>
+            <div class="flex items-center justify-between gap-3 mb-1.5 text-xs">
+                <span class="font-bold text-gray-700 flex items-center gap-2 min-w-0">${r.icon ? `<i class="${r.icon} text-gray-400 w-4 text-center shrink-0"></i>` : ''}<span class="truncate">${r.label}</span></span>
+                <span class="text-gray-600 shrink-0">${_faNum(r.value)} <span class="text-gray-400">(${_faNum(pct)}٪)</span></span>
+            </div>
+            <div class="w-full bg-gray-100 h-2 rounded"><div class="h-full rounded" style="width:${Math.max(r.value * 100 / max, 1.5)}%;background:${_AN_BLUE}"></div></div>
+        </div>`;
+    }).join('');
+}
+
+// ── راهنمای شناور (tooltip) مشترک نمودارها ──
+function _anTipShow(ev, html) {
+    const tip = document.getElementById('an-tip');
+    if (!tip) return;
+    tip.innerHTML = html;
+    tip.classList.remove('hidden');
+    const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = ev.clientX + pad, y = ev.clientY - h - pad;
+    if (x + w > window.innerWidth - 8) x = ev.clientX - w - pad;
+    if (y < 8) y = ev.clientY + pad;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function _anTipHide() { const tip = document.getElementById('an-tip'); if (tip) tip.classList.add('hidden'); }
+
+function _anNiceMax(v) {
+    if (v <= 4) return 4;
+    const p = Math.pow(10, Math.floor(Math.log10(v))), n = v / p;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+// میله با گوشه‌های گرد فقط در سمت داده (بالا)، چسبیده به خط پایه
+function _anBarPath(x, y, w, h, r) {
+    if (h <= 0) return '';
+    r = Math.min(r, w / 2, h);
+    return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+
+// نمودار خطیِ روند (دو سری با یک محور مشترک؛ «صفحه» فقط در راهنما چون مقیاسش فرق دارد)
+function _anTrend(el, trend, since) {
+    if (!el) return;
+    const hasData = trend.some(d => d.visits || d.visitors);
+    if (!hasData) {
+        el.innerHTML = _anEmpty('هنوز بازدیدی ثبت نشده — ' + (since ? 'ثبت بازدیدها از ' + _faNum(since) + ' شروع شده است.' : 'ثبت بازدیدها از همین حالا شروع می‌شود.'));
+        return;
+    }
+    const W = Math.max(el.clientWidth, 320), H = 220, L = 40, R = 16, T = 12, B = 28;
+    const iw = W - L - R, ih = H - T - B, n = trend.length;
+    const maxY = _anNiceMax(Math.max(...trend.map(d => Math.max(d.visits, d.visitors))));
+    const X = i => L + (n === 1 ? iw / 2 : i * iw / (n - 1));
+    const Y = v => T + ih - v * ih / maxY;
+    const line = key => trend.map((d, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(d[key]).toFixed(1)}`).join('');
+    let grid = '';
+    for (let k = 0; k <= 4; k++) {
+        const v = maxY * k / 4, y = Y(v);
+        grid += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" stroke="#eef0f2" stroke-width="1"/>`
+              + `<text x="${L - 8}" y="${y + 3}" text-anchor="end" font-size="10" fill="#9ca3af">${_faNum(Math.round(v))}</text>`;
+    }
+    let xl = '';
+    trend.forEach((d, i) => {
+        if (i % 5 !== (n - 1) % 5) return;
+        xl += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#9ca3af">${_faNum(d.date.slice(5))}</text>`;
+    });
+    el.innerHTML = `<svg width="${W}" height="${H}" class="block select-none" style="touch-action:pan-y">
+        ${grid}${xl}
+        <path d="${line('visitors')}" fill="none" stroke="${_AN_BLUE}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="${line('visits')}" fill="none" stroke="${_AN_ORANGE}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <g id="an-cross" style="display:none">
+            <line id="an-cross-l" y1="${T}" y2="${T + ih}" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3 3"/>
+            <circle id="an-cross-a" r="4.5" fill="${_AN_BLUE}" stroke="#fff" stroke-width="2"/>
+            <circle id="an-cross-b" r="4.5" fill="${_AN_ORANGE}" stroke="#fff" stroke-width="2"/>
+        </g>
+        <rect x="${L}" y="${T}" width="${iw}" height="${ih}" fill="transparent" id="an-hit"/>
+    </svg>`;
+    const hit = el.querySelector('#an-hit'), cross = el.querySelector('#an-cross');
+    const move = ev => {
+        const box = el.querySelector('svg').getBoundingClientRect();
+        const i = Math.max(0, Math.min(n - 1, Math.round((ev.clientX - box.left - L) / (iw / Math.max(n - 1, 1)))));
+        const d = trend[i], x = X(i);
+        cross.style.display = '';
+        el.querySelector('#an-cross-l').setAttribute('x1', x); el.querySelector('#an-cross-l').setAttribute('x2', x);
+        el.querySelector('#an-cross-a').setAttribute('cx', x); el.querySelector('#an-cross-a').setAttribute('cy', Y(d.visitors));
+        el.querySelector('#an-cross-b').setAttribute('cx', x); el.querySelector('#an-cross-b').setAttribute('cy', Y(d.visits));
+        _anTipShow(ev, `<div class="font-bold mb-1">${_AN_WEEKDAYS[d.weekday]} ${_faNum(d.date)}</div>
+            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:${_AN_BLUE}"></span>بازدیدکننده: <b>${_faNum(d.visitors)}</b></div>
+            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full inline-block" style="background:${_AN_ORANGE}"></span>بازدید: <b>${_faNum(d.visits)}</b></div>
+            <div class="text-gray-300">صفحه: ${_faNum(d.pageviews)}</div>`);
+    };
+    hit.addEventListener('pointermove', move);
+    hit.addEventListener('pointerdown', move);
+    hit.addEventListener('pointerleave', () => { cross.style.display = 'none'; _anTipHide(); });
+}
+
+// نمودار میله‌ای عمودی تک‌سری (ساعت‌ها و روزهای هفته)
+function _anColumns(el, values, labels, tipFn, labelEvery = 1) {
+    if (!el) return;
+    if (!values.some(v => v)) { el.innerHTML = _anEmpty(); return; }
+    const W = Math.max(el.clientWidth, 280), H = 170, L = 8, R = 8, T = 10, B = 24;
+    const iw = W - L - R, ih = H - T - B, n = values.length;
+    const slot = iw / n, gap = Math.max(2, Math.min(6, slot * 0.18)), bw = slot - gap;
+    const max = Math.max(...values, 1);
+    let bars = '', xl = '';
+    values.forEach((v, i) => {
+        const h = v * ih / max, x = L + i * slot + gap / 2, y = T + ih - h;
+        bars += `<path d="${_anBarPath(x, y, bw, h, 4)}" fill="${_AN_BLUE}"/>`
+              + `<rect data-i="${i}" x="${L + i * slot}" y="${T}" width="${slot}" height="${ih}" fill="transparent"/>`;
+        if (i % labelEvery === 0) xl += `<text x="${x + bw / 2}" y="${H - 7}" text-anchor="middle" font-size="10" fill="#9ca3af">${labels[i]}</text>`;
+    });
+    el.innerHTML = `<svg width="${W}" height="${H}" class="block select-none" style="touch-action:pan-y">
+        <line x1="${L}" x2="${W - R}" y1="${T + ih}" y2="${T + ih}" stroke="#e5e7eb"/>${bars}${xl}</svg>`;
+    el.querySelectorAll('rect[data-i]').forEach(r => {
+        const show = ev => _anTipShow(ev, tipFn(+r.dataset.i, values[+r.dataset.i]));
+        r.addEventListener('pointermove', show);
+        r.addEventListener('pointerdown', show);
+        r.addEventListener('pointerleave', _anTipHide);
+    });
+}
+
+function setAnalyticsRange(r) {
+    _anRange = r;
+    try { localStorage.setItem('an_range', r); } catch(e) {}
+    loadAnalytics();
+}
+function _anRangeButtons() {
+    document.querySelectorAll('.an-range-btn').forEach(b => {
+        const on = b.dataset.range === _anRange;
+        b.classList.toggle('bg-teal-600', on); b.classList.toggle('text-white', on);
+        b.classList.toggle('bg-gray-100', !on); b.classList.toggle('text-gray-600', !on);
+    });
+}
+
 async function loadAnalytics() {
+    _anRangeButtons();
+    let d;
     try {
-        const r = await adminFetch('/api/admin/analytics');
+        const r = await adminFetch('/api/admin/analytics?range=' + encodeURIComponent(_anRange));
         if (!r.ok) return;
-        const d = await r.json();
-        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = _faNum(val); };
-        set('stat-online', d.online);
-        set('stat-today', d.today);
-        set('stat-new-today', d.new_today);
-        set('stat-week', d.week);
-        set('stat-month', d.month);
-        set('stat-year', d.year);
-        set('stat-total', d.total);
-        // دیوایس‌ها
-        const dev = document.getElementById('stat-devices');
-        if (dev) {
-            const total = (d.devices||[]).reduce((s,x)=>s+x.count,0) || 1;
-            const icons = { mobile:'fa-mobile-alt text-blue-500', desktop:'fa-desktop text-purple-500', tablet:'fa-tablet-alt text-amber-500', unknown:'fa-question-circle text-gray-400' };
-            const labels = { mobile:'موبایل', desktop:'دسکتاپ', tablet:'تبلت', unknown:'نامشخص' };
-            dev.innerHTML = (d.devices||[]).map(x => {
-                const pct = Math.round(x.count*100/total);
-                const ic = icons[x.type]||icons.unknown;
-                const lb = labels[x.type]||escHtml(x.type);
-                return `<div>
-                    <div class="flex items-center justify-between mb-1.5 text-xs">
-                        <span class="font-bold flex items-center gap-2"><i class="fas ${ic}"></i>${lb}</span>
-                        <span class="text-gray-500">${_faNum(x.count)} <span class="text-gray-400">(${_faNum(pct)}٪)</span></span>
-                    </div>
-                    <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden"><div class="bg-teal-500 h-full rounded-full transition-all" style="width:${pct}%"></div></div>
-                </div>`;
-            }).join('') || '<p class="text-xs text-gray-400 text-center py-4">داده‌ای نیست</p>';
-        }
-        // کشورها
-        const cn = document.getElementById('stat-countries');
-        if (cn) {
-            const total = (d.countries||[]).reduce((s,x)=>s+x.count,0) || 1;
-            cn.innerHTML = (d.countries||[]).map(x => {
-                const pct = Math.round(x.count*100/total);
-                return `<div class="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-b-0">
-                    <span class="text-xs font-bold text-gray-700">${escHtml(x.country)}</span>
-                    <span class="text-xs text-gray-500">${_faNum(x.count)} <span class="text-gray-400 text-[10px]">(${_faNum(pct)}٪)</span></span>
-                </div>`;
-            }).join('') || '<p class="text-xs text-gray-400 text-center py-4">داده‌ای نیست</p>';
-        }
-    } catch(e) {}
+        d = await r.json();
+    } catch(e) { return; }
+    const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+
+    set('stat-online', _faNum(d.online));
+    set('stat-live', (d.live || []).length ? d.live.map(x => {
+        const t = _AN_TYPES[x.type];
+        const label = t ? `<i class="fas ${t[1]} text-gray-400 w-4 text-center"></i><span class="text-gray-400">${t[0]}:</span> ${escHtml(x.title || '—')}`
+                        : `<i class="fas fa-layer-group text-gray-400 w-4 text-center"></i>${escHtml(_AN_SCREENS[x.screen] || x.screen)}`;
+        return `<div class="flex items-center justify-between gap-3 text-xs py-1 border-b border-gray-50 last:border-b-0">
+            <span class="flex items-center gap-2 min-w-0 truncate text-gray-700">${label}</span>
+            <span class="text-gray-500 shrink-0">${_faNum(x.visitors)} نفر</span></div>`;
+    }).join('') : _anEmpty('الان کسی آنلاین نیست'));
+
+    // کارت‌های خلاصه
+    const C = d.cards || {};
+    const cardDefs = [['today','امروز','fa-calendar-day text-blue-500'], ['week','این هفته','fa-calendar-week text-indigo-500'],
+        ['month','این ماه','fa-calendar-alt text-purple-500'], ['year','امسال','fa-calendar text-amber-500'], ['total','از ابتدا','fa-globe text-teal-500']];
+    set('stat-cards', cardDefs.map(([k, title, ic]) => {
+        const c = C[k] || {};
+        return `<div class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm${k === 'total' ? ' col-span-2 sm:col-span-1' : ''}">
+            <span class="text-xs font-bold text-gray-500 block mb-2"><i class="fas ${ic} ml-1"></i>${title}</span>
+            <p class="text-3xl font-black text-gray-800 leading-none">${_faNum(c.visitors)}</p>
+            <p class="text-[10px] text-gray-400 mt-1 mb-2">بازدیدکننده${k === 'today' ? ` · جدید: ${_faNum(d.new_today)}` : ''}</p>
+            <div class="flex items-center justify-between text-[11px] text-gray-600 border-t border-gray-100 pt-2">
+                <span>بازدید <b class="text-gray-800">${_faNum(c.visits)}</b></span>
+                <span>صفحه <b class="text-gray-800">${_faNum(c.pageviews)}</b></span>
+            </div></div>`;
+    }).join(''));
+
+    _anTrend(document.getElementById('stat-trend'), d.trend || [], d.tracking_since);
+
+    // شاخص‌های تعامل در بازهٔ انتخابی
+    const e = d.engagement || {}, v = e.visits || 0;
+    const tile = (label, value, hint) => `<div class="bg-white border border-gray-100 rounded-2xl p-3.5 shadow-sm" title="${hint || ''}">
+        <span class="text-[11px] font-bold text-gray-500 block mb-1.5">${label}</span>
+        <p class="text-xl font-black text-gray-800">${value}</p>${hint ? `<p class="text-[10px] text-gray-400 mt-0.5 leading-snug">${hint}</p>` : ''}</div>`;
+    set('stat-engagement', [
+        tile('بازدید', _faNum(v)),
+        tile('صفحه در هر بازدید', v ? _faNum(e.pages_per_visit) : '—'),
+        tile('میانگین مدت بازدید', v ? _anDuration(e.avg_duration) : '—'),
+        tile('نرخ پرش', v ? _faNum(_anPct(e.bounces, v)) + '٪' : '—', 'فقط یک صفحه دیده و رفته'),
+        tile('بازدیدکنندهٔ تازه', v ? _faNum(_anPct(e.new_visits, v)) + '٪' : '—', 'بقیه بازگشتی‌اند'),
+        tile('با اپ نصب‌شده', v ? _faNum(_anPct(e.pwa_visits, v)) + '٪' : '—', 'بقیه با مرورگر'),
+    ].join(''));
+
+    _anBars(document.getElementById('stat-sources'), (d.sources || []).map(s => {
+        const m = _AN_SOURCES[s.source] || [s.source, 'fas fa-link'];
+        return { label: escHtml(m[0]), icon: m[1], value: s.visits };
+    }), { empty: 'هنوز منبعی ثبت نشده' });
+    const oh = document.getElementById('stat-other-hosts');
+    if (oh) {
+        const rows = d.other_hosts || [];
+        oh.classList.toggle('hidden', !rows.length);
+        oh.innerHTML = rows.length ? `<h4 class="text-[11px] font-bold text-gray-500 mb-2">«سایر سایت‌ها» به تفکیک</h4>` + rows.map(h =>
+            `<div class="flex justify-between text-xs py-1" dir="ltr"><span class="text-gray-500">${_faNum(h.visits)}</span><span class="text-gray-700 truncate">${escHtml(h.host)}</span></div>`).join('') : '';
+    }
+    const cp = document.getElementById('stat-campaigns');
+    if (cp) {
+        const rows = d.campaigns || [];
+        cp.classList.toggle('hidden', !rows.length);
+        cp.innerHTML = rows.length ? `<h4 class="text-[11px] font-bold text-gray-500 mb-2">کمپین‌ها (utm_campaign)</h4>` + rows.map(c =>
+            `<div class="flex justify-between gap-3 text-xs py-1"><span class="text-gray-700 truncate">${escHtml(c.campaign)} <span class="text-gray-400">· ${escHtml(c.source || '')}</span></span><span class="text-gray-500 shrink-0">${_faNum(c.visits)}</span></div>`).join('') : '';
+    }
+
+    const content = d.content || [];
+    set('stat-content', content.length ? content.map((c, i) => {
+        const t = _AN_TYPES[c.type] || ['', 'fa-file'];
+        return `<div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-b-0">
+            <span class="text-[11px] text-gray-400 w-5 text-center shrink-0">${_faNum(i + 1)}</span>
+            <i class="fas ${t[1]} text-gray-400 w-4 text-center shrink-0" title="${t[0]}"></i>
+            <span class="flex-1 min-w-0 text-xs font-bold text-gray-700 truncate">${escHtml(c.title || (t[0] + ' ' + c.id))}</span>
+            <span class="text-[11px] text-gray-600 shrink-0">${_faNum(c.views)} بار <span class="text-gray-400">· ${_faNum(c.visitors)} نفر</span></span>
+        </div>`;
+    }).join('') : _anEmpty('هنوز محتوایی دیده نشده'));
+
+    const hourLabels = Array.from({ length: 24 }, (_, h) => _faNum(h));
+    _anColumns(document.getElementById('stat-hours'), d.hours || Array(24).fill(0), hourLabels,
+        (h, val) => `ساعت ${_faNum(h)} تا ${_faNum((h + 1) % 24)}<br><b>${_faNum(val)}</b> بازدید`, 3);
+    _anColumns(document.getElementById('stat-weekdays'), d.weekdays || Array(7).fill(0), _AN_WEEKDAYS,
+        (i, val) => `${_AN_WEEKDAYS[i]}<br><b>${_faNum(val)}</b> بازدید`);
+
+    _anBars(document.getElementById('stat-sections'), (d.sections || []).map(s => ({ label: escHtml(_AN_SCREENS[s.screen] || s.screen), value: s.views })));
+    _anBars(document.getElementById('stat-countries'), (d.countries || []).map(c => {
+        const k = _anCountry(c.code);
+        return { label: (k.flag ? k.flag + ' ' : '') + escHtml(k.name), value: c.visitors };
+    }));
+    const devIcons = { mobile:'fas fa-mobile-alt', desktop:'fas fa-desktop', tablet:'fas fa-tablet-alt', unknown:'fas fa-question-circle' };
+    _anBars(document.getElementById('stat-devices'), (d.devices || []).map(x => ({ label: escHtml(_AN_DEVICES[x.name] || x.name), icon: devIcons[x.name] || devIcons.unknown, value: x.visitors })));
+    _anBars(document.getElementById('stat-os'), (d.oses || []).map(x => ({ label: escHtml(_AN_OS[x.name] || x.name), value: x.visitors })));
+    _anBars(document.getElementById('stat-browsers'), (d.browsers || []).map(x => ({ label: escHtml(_AN_BROWSERS[x.name] || x.name), value: x.visitors })));
+
+    set('stat-since', d.tracking_since
+        ? ` آمار «بازدید»، «صفحه»، منبع ورود و محتوا از ${_faNum(d.tracking_since)} ثبت می‌شود؛ «بازدیدکننده»، کشور و دستگاه سابقهٔ کامل دارند.`
+        : ' آمار «بازدید»، «صفحه»، منبع ورود و محتوا از همین حالا ثبت می‌شود.');
 }
 
 // وضعیت سرویس پوش — تا ادمین بداند پیام همگانی به گوشی کسی می‌رسد یا نه
