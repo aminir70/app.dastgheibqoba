@@ -271,8 +271,8 @@ function buildTOC() {
     Object.keys(seasons).forEach(season=>{
         const pages=seasons[season];
         const sid='toc-season-'+seasonIndex;
-        // اولین بخش باز است، بقیه بسته
-        const isOpen = seasonIndex === 0;
+        // همهٔ سرفصل‌ها بسته شروع می‌شوند؛ کاربر خودش باز می‌کند
+        const isOpen = false;
         html+=`<div class="mb-2">
             <button onclick="toggleTocSeason('${sid}')" class="w-full flex items-center gap-2 mb-1 px-2 py-2 rounded-xl hover:bg-gray-100 transition text-right">
                 <i class="fas fa-chevron-${isOpen?'up':'down'} text-brand-500 text-xs toc-chevron" id="${sid}-chevron"></i>
