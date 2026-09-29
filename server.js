@@ -294,6 +294,7 @@ app.get('/manifest.json', (req, res) => {
             background_color: s.pwa_bg_color || '#ffffff',
             display: 'standalone',
             orientation: 'portrait',
+            categories: ['books', 'education'],
             start_url: '/',
             scope: '/',
             lang: 'fa',
@@ -2212,12 +2213,11 @@ app.post('/api/admin/favicon',adminAuth,uploadImage.single('favicon'),(req,res)=
 
     if (sharp) {
         // تبدیل به PNG و resize صحیح برای هر سایز
-        const tasks = [
+        _themeRgb().then(theme => Promise.all([
             ...anySizes.map(s => sharp(srcPath).resize(s,s,{fit:'contain',background:{r:255,g:255,b:255,alpha:0}}).png().toFile(path.join(iconsDir,`icon-${s}.png`))),
-            // آیکون maskable: آیکون اصلی با پس‌زمینه سفید و padding 10%
-            ...maskableSizes.map(s => sharp(srcPath).resize(Math.round(s*0.8),Math.round(s*0.8),{fit:'contain',background:{r:255,g:255,b:255,alpha:0}}).extend({top:Math.round(s*0.1),bottom:Math.round(s*0.1),left:Math.round(s*0.1),right:Math.round(s*0.1),background:{r:255,g:255,b:255,alpha:0}}).png().toFile(path.join(iconsDir,`icon-${s}-maskable.png`)))
-        ];
-        Promise.all(tasks).then(()=>{
+            // آیکون maskable: باید مات باشد (زمینهٔ کامل + طرح در ناحیهٔ امن)
+            ...maskableSizes.map(s => _buildMaskableIcon(srcPath, s, theme).then(img => img.toFile(path.join(iconsDir,`icon-${s}-maskable.png`))))
+        ])).then(()=>{
             const newVersion2 = Date.now().toString();
             mainDb.run('INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ("favicon_url",?,CURRENT_TIMESTAMP)',[fu],()=>{
                 mainDb.run('INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ("icon_version",?,CURRENT_TIMESTAMP)',[newVersion2],()=>{
@@ -3220,6 +3220,30 @@ app.use((err,req,res,next)=>{
     res.status(500).json({ error: failMsg(err) });
 });
 
+// آیکون maskable باید کاملاً مات باشد: اندروید آن را در دایره یا مربع‌گرد می‌برد و
+// هر بخش شفاف، پشتش سیاه یا سفید می‌افتد (آیکون برنامه کوچک و توی جعبه دیده می‌شود).
+// طرح اصلی ۶۶٪ بوم را می‌گیرد تا داخل «ناحیهٔ امن» (دایرهٔ ۸۰٪) بماند.
+// رنگ زمینه: اگر گوشهٔ آیکون مات باشد همان رنگ، وگرنه رنگ تم برنامه.
+function _themeRgb() {
+    return new Promise(ok => {
+        const fallback = { r: 13, g: 148, b: 136 };   // #0d9488
+        if (!mainDb) return ok(fallback);
+        mainDb.get(`SELECT value FROM settings WHERE key='pwa_theme_color'`, [], (err, row) => {
+            const m = /^#([0-9a-f]{6})$/i.exec((row && row.value) || '');
+            ok(m ? { r: parseInt(m[1].slice(0, 2), 16), g: parseInt(m[1].slice(2, 4), 16), b: parseInt(m[1].slice(4, 6), 16) } : fallback);
+        });
+    });
+}
+async function _buildMaskableIcon(input, size, themeRgb) {
+    const corner = await sharp(input).resize(32, 32, { fit: 'fill' }).ensureAlpha().raw().toBuffer();
+    const bg = corner[3] > 250 ? { r: corner[0], g: corner[1], b: corner[2] } : themeRgb;
+    const inner = Math.round(size * 0.66);
+    const art = await sharp(input).resize(inner, inner, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+    return sharp({ create: { width: size, height: size, channels: 3, background: bg } })
+        .composite([{ input: art, gravity: 'centre' }])
+        .removeAlpha().png();
+}
+
 // تولید خودکار آیکون‌های maskable هنگام راه‌اندازی سرور
 async function ensureMaskableIcons() {
     if (!sharp) return;
@@ -3227,19 +3251,22 @@ async function ensureMaskableIcons() {
     const src = path.join(iconsDir, 'icon-512.png');
     if (!fs.existsSync(src)) return;
     const srcMtime = fs.statSync(src).mtimeMs;
+    const theme = await _themeRgb();
+    let regenerated = false;
     for (const s of [192, 512]) {
         const dest = path.join(iconsDir, `icon-${s}-maskable.png`);
         let needsRegen = true;
-        try { needsRegen = !fs.existsSync(dest) || srcMtime > fs.statSync(dest).mtimeMs; } catch(e) {}
+        // نسخه‌های قدیمی شفاف بودند؛ اگر مات نباشند دوباره ساخته می‌شوند
+        try { needsRegen = !fs.existsSync(dest) || srcMtime > fs.statSync(dest).mtimeMs || !(await sharp(dest).stats()).isOpaque; } catch(e) {}
         if (!needsRegen) continue;
         try {
-            await sharp(src)
-                .resize(Math.round(s * 0.8), Math.round(s * 0.8), { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
-                .extend({ top: Math.round(s * 0.1), bottom: Math.round(s * 0.1), left: Math.round(s * 0.1), right: Math.round(s * 0.1), background: { r: 255, g: 255, b: 255, alpha: 0 } })
-                .png().toFile(dest);
+            await (await _buildMaskableIcon(src, s, theme)).toFile(dest);
+            regenerated = true;
             console.log(`✅ maskable icon ${s}x${s} generated`);
         } catch(e) { console.warn(`⚠️ maskable icon ${s} failed:`, e.message); }
     }
+    // آدرس آیکون‌ها در manifest با icon_version عوض می‌شود تا کش قدیمی کنار برود
+    if (regenerated && mainDb) mainDb.run(`INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('icon_version',?,CURRENT_TIMESTAMP)`, [Date.now().toString()]);
 }
 
 const server = app.listen(PORT,()=>{
