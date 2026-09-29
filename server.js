@@ -3244,6 +3244,36 @@ async function _buildMaskableIcon(input, size, themeRgb) {
         .removeAlpha().png();
 }
 
+// آیکون‌های اپ (icon-*.png) فایل زمان اجرا هستند نه بخشی از کد: ادمین آن‌ها را از
+// روی لوگوی آپلودشده می‌سازد. قبلاً در git بودند و هر git reset/checkout آن‌ها را به
+// آیکون پیش‌فرض برمی‌گرداند، در حالی که پنل ادمین هنوز لوگوی آپلودی را نشان می‌داد و
+// manifest (و APK ساخته‌شده با PWABuilder) آیکون قدیمی را می‌گرفت.
+// حالا در git نیستند؛ اگر نبودند از روی آیکونی که ادمین قبلاً آپلود کرده ساخته می‌شوند،
+// وگرنه از پیش‌فرض‌های public/icons/default کپی می‌شوند.
+const _ICON_SIZES = [72, 96, 128, 144, 152, 192, 384, 512];
+async function ensureIconSet() {
+    const iconsDir = path.join(__dirname, 'public', 'icons');
+    const defaultsDir = path.join(iconsDir, 'default');
+    const missing = _ICON_SIZES.filter(s => !fs.existsSync(path.join(iconsDir, `icon-${s}.png`)));
+    if (!missing.length) return;
+    let custom = null;
+    if (sharp && mainDb) {
+        const row = await new Promise(ok => mainDb.get(`SELECT value FROM settings WHERE key='favicon_url'`, [], (e, r) => ok(r)));
+        const base = row && row.value ? path.basename(String(row.value)) : '';
+        const p = base && !/^icon-/.test(base) ? path.join(iconsDir, base) : null;
+        try { if (p && fs.statSync(p).isFile()) custom = p; } catch (e) {}
+    }
+    for (const s of missing) {
+        const dest = path.join(iconsDir, `icon-${s}.png`);
+        const fallback = () => { try { fs.copyFileSync(path.join(defaultsDir, `icon-${s}.png`), dest); } catch (e) {} };
+        if (!custom) { fallback(); continue; }
+        try { await sharp(custom).resize(s, s, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } }).png().toFile(dest); }
+        catch (e) { fallback(); }
+    }
+    console.log(`✅ آیکون‌های اپ ساخته شد (${custom ? 'از روی آیکون آپلودشدهٔ ادمین' : 'پیش‌فرض'}): ${missing.join(', ')}`);
+    if (mainDb) mainDb.run(`INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('icon_version',?,CURRENT_TIMESTAMP)`, [Date.now().toString()]);
+}
+
 // تولید خودکار آیکون‌های maskable هنگام راه‌اندازی سرور
 async function ensureMaskableIcons() {
     if (!sharp) return;
@@ -3273,7 +3303,7 @@ const server = app.listen(PORT,()=>{
     console.log(`\n🚀 سرور: http://localhost:${PORT}`);
     console.log(`🔐 ادمین: http://localhost:${PORT}/admin`);
     console.log('');
-    ensureMaskableIcons();
+    ensureIconSet().then(ensureMaskableIcons).catch(e => console.warn('⚠️ آیکون‌ها:', e.message));
 });
 
 // یک reject/throw بدون هندلر نباید کل پروسه را ببندد (قبلاً سرور می‌مرد)
