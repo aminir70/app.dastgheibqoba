@@ -1256,11 +1256,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
         بدون آن، اپ اندروید با نوار آدرس کروم باز می‌شود. اگر اپ را با کلید امضای دیگری هم منتشر کرده‌اید، هر دو اثر انگشت را در آرایهٔ
         <span dir="ltr" class="font-mono">sha256_cert_fingerprints</span> نگه دارید. این مقدار در دیتابیس ذخیره می‌شود و با آپدیت سرور (git) از بین نمی‌رود.
       </p>
+      <p class="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-4 leading-relaxed">
+        <b>کافه‌بازار:</b> برای انتشار در کافه‌بازار، برای هر پکیج یک ردیف جدا با
+        <span dir="ltr" class="font-mono">namespace: cafebazaar_twa</span> (همان پکیج و همان اثر انگشت) لازم است؛ وگرنه آپلود با خطای «فضای نام اجباری cafebazaar_twa تعریف نشده» رد می‌شود.
+        دکمهٔ «افزودن ردیف کافه‌بازار» آن را می‌سازد. مقدار <span dir="ltr" class="font-mono">relation</span> آن را طبق پیام‌های خود بازار تنظیم کنید.
+      </p>
       <div id="al-status" class="text-xs rounded-xl px-3 py-2 mb-3 bg-gray-50 border border-gray-100 text-gray-600"></div>
       <textarea id="al-text" dir="ltr" rows="11" spellcheck="false" class="w-full font-mono text-xs bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-teal-200 focus:bg-white transition" placeholder='[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "android_app", "package_name": "info.dastgheibqoba.app.twa", "sha256_cert_fingerprints": ["AA:BB:..."] } }]'></textarea>
       <div id="al-summary" class="mt-3 flex flex-col gap-1.5"></div>
       <div class="flex flex-wrap items-center gap-2 mt-4">
         <button onclick="saveAssetLinks()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition"><i class="fas fa-save ml-2"></i>ذخیرهٔ اتصال اپ</button>
+        <button onclick="addBazaarStatement()" title="کافه‌بازار برای هر پکیج یک ردیف با namespace «cafebazaar_twa» می‌خواهد" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-plus ml-2"></i>افزودن ردیف کافه‌بازار</button>
         <button onclick="resetAssetLinks()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-undo ml-2"></i>حذف مقدار ذخیره‌شده</button>
         <a href="/.well-known/assetlinks.json" target="_blank" rel="noopener" class="text-teal-600 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-teal-50 transition"><i class="fas fa-external-link-alt ml-1"></i>دیدن نسخهٔ زنده</a>
       </div>
@@ -3320,7 +3326,8 @@ function _alSummary(text) {
     const t = (it && it.target) || {};
     const fps = Array.isArray(t.sha256_cert_fingerprints) ? t.sha256_cert_fingerprints : [];
     return `<div class="text-xs bg-teal-50/60 border border-teal-100 rounded-xl px-3 py-2" dir="ltr">
-      <div class="font-bold text-gray-700"><i class="fab fa-android text-teal-600 mr-1"></i>${escHtml(t.package_name || '—')}</div>
+      <div class="font-bold text-gray-700"><i class="fab fa-android text-teal-600 mr-1"></i>${escHtml(t.package_name || '—')}
+        <span class="ml-2 text-[10px] font-mono font-normal bg-white border border-teal-100 text-teal-700 rounded-md px-1.5 py-0.5">${escHtml(t.namespace || '')}</span></div>
       ${fps.map(f => `<div class="font-mono text-[10px] text-gray-500 break-all"><i class="fas fa-fingerprint text-gray-300 mr-1"></i>${escHtml(f)}</div>`).join('')}
     </div>`;
   }).join('');
@@ -3338,6 +3345,23 @@ async function loadAssetLinks() {
     st.innerHTML = `<i class="fas ${msg[0]} ml-1"></i>${msg[1]}`;
     document.getElementById('al-summary').innerHTML = _alSummary(d.content);
   } catch(e) {}
+}
+// کافه‌بازار برای هر پکیج یک ردیف جدا با namespace «cafebazaar_twa» می‌خواهد (همان پکیج و اثر انگشت)
+function addBazaarStatement() {
+  const box = document.getElementById('al-text');
+  let arr; try { arr = JSON.parse(box.value); } catch(e) { return showToast('اول باید JSON معتبر باشد', false); }
+  if (!Array.isArray(arr)) return showToast('فایل باید یک آرایه باشد', false);
+  const have = new Set(arr.filter(x => x && x.target && x.target.namespace === 'cafebazaar_twa').map(x => x.target.package_name));
+  let added = 0;
+  arr.slice().forEach(x => {
+    const t = x && x.target;
+    if (!t || t.namespace !== 'android_app' || have.has(t.package_name)) return;
+    arr.push({ relation: ['check_validation'], target: { namespace: 'cafebazaar_twa', package_name: t.package_name, sha256_cert_fingerprints: [...(t.sha256_cert_fingerprints || [])] } });
+    have.add(t.package_name); added++;
+  });
+  box.value = JSON.stringify(arr, null, 2);
+  document.getElementById('al-summary').innerHTML = _alSummary(box.value);
+  showToast(added ? 'ردیف کافه‌بازار اضافه شد؛ برای اعمال «ذخیرهٔ اتصال اپ» را بزنید' : 'ردیف کافه‌بازار از قبل هست');
 }
 async function saveAssetLinks() {
   const content = document.getElementById('al-text').value;

@@ -114,6 +114,11 @@ adb install app-release-signed.apk
 ## مرحله ۷: انتشار
 
 ### Cafe Bazaar
+0. **قبل از آپلود:** بازار برای هر پکیج یک ردیف جدا در `assetlinks.json` با `"namespace": "cafebazaar_twa"`
+   می‌خواهد (همان پکیج و همان اثر انگشت)؛ وگرنه آپلود با خطای «فضای نام اجباری cafebazaar_twa برای نام بسته … تعریف نشده است»
+   رد می‌شود. در پنل ادمین ← تنظیمات ← «اتصال اپ اندروید» دکمهٔ «افزودن ردیف کافه‌بازار» آن را می‌سازد
+   (با `"relation": ["check_validation"]`؛ این مقدار از نمونه‌های عمومی گرفته شده و مرجعش صفحهٔ رسمی TWA در
+   developers.cafebazaar.ir است — اگر بازار پیام دیگری داد، مقدار را همان‌جا در کادر عوض کنید).
 1. ثبت‌نام در [https://developers.cafebazaar.ir](https://developers.cafebazaar.ir)
 2. آپلود `app-release-bundle.aab`
 3. توضیحات و تصاویر اسکرین‌شات

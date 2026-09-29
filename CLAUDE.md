@@ -108,6 +108,9 @@ document.querySelector('[data-nav="X"]').classList.add('active');
   فایل `public/.well-known/assetlinks.json` (داخل git) اولویت دارد؛ حذف مقدار، به
   فایل برمی‌گردد. POST اعتبارسنجی سخت‌گیرانه دارد (نام پکیج، فرمت SHA-256) و
   اثر انگشت‌ها را بزرگ‌حرف/بدون تکرار ذخیره می‌کند. رابط: پنل ادمین ← تنظیمات.
+  namespace مجاز: `android_app` (relation باید `delegate_permission/common.handle_all_urls`
+  داشته باشد) و namespace فروشگاه‌ها با پسوند `_twa` مثل `cafebazaar_twa` (کافه‌بازار
+  برای هر پکیج یک ردیف جدا می‌خواهد؛ relation دلخواه).
 - `POST /api/admin/tickets/:id/reply` — پاسخ به تیکت. **multipart/form-data**
   با فیلدهای `text`، `reply_to` (اختیاری) و `ticket_file` (اختیاری). پیوست
   می‌تواند تصویر، PDF یا صوت باشد (سقف ۲۵ مگابایت — کاربر ۵ مگابایت). پیام

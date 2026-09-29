@@ -113,10 +113,18 @@ function _validateAssetLinks(text) {
     for (let i = 0; i < arr.length; i++) {
         const it = arr[i], n = `مورد ${i + 1}: `;
         if (!it || typeof it !== 'object') return { error: n + 'باید یک شیء باشد' };
-        if (!Array.isArray(it.relation) || !it.relation.includes('delegate_permission/common.handle_all_urls'))
-            return { error: n + 'relation باید شامل delegate_permission/common.handle_all_urls باشد' };
         const t = it.target;
-        if (!t || t.namespace !== 'android_app') return { error: n + 'target.namespace باید android_app باشد' };
+        const ns = t && t.namespace;
+        // android_app: تأیید گوگل/کروم برای اپ. فروشگاه‌های ایرانی ردیف جداگانهٔ خودشان را
+        // می‌خواهند (مثلاً cafebazaar_twa با relation دلخواه خودشان، مثل check_validation).
+        if (ns !== 'android_app' && !(typeof ns === 'string' && /^[a-z][a-z0-9]*(_[a-z0-9]+)*_twa$/.test(ns)))
+            return { error: n + 'target.namespace باید android_app یا namespace فروشگاه (مثل cafebazaar_twa) باشد' };
+        if (ns === 'android_app') {
+            if (!Array.isArray(it.relation) || !it.relation.includes('delegate_permission/common.handle_all_urls'))
+                return { error: n + 'relation باید شامل delegate_permission/common.handle_all_urls باشد' };
+        } else if (!Array.isArray(it.relation) || !it.relation.length || it.relation.some(r => typeof r !== 'string' || !r.trim())) {
+            return { error: n + 'relation باید آرایهٔ غیرخالی از متن باشد (مثلاً ["check_validation"])' };
+        }
         if (typeof t.package_name !== 'string' || !PKG.test(t.package_name)) return { error: n + 'package_name نامعتبر است (مثل info.dastgheibqoba.app.twa)' };
         if (!Array.isArray(t.sha256_cert_fingerprints) || !t.sha256_cert_fingerprints.length) return { error: n + 'sha256_cert_fingerprints خالی است' };
         const fps = [];
@@ -125,7 +133,7 @@ function _validateAssetLinks(text) {
             if (!FP.test(up)) return { error: n + `اثر انگشت نامعتبر است: «${String(f).slice(0, 40)}» (باید ۳۲ جفت رقم هگز با «:» باشد)` };
             fps.push(up);
         }
-        out.push({ relation: it.relation, target: { namespace: 'android_app', package_name: t.package_name, sha256_cert_fingerprints: [...new Set(fps)] } });
+        out.push({ relation: it.relation, target: { namespace: ns, package_name: t.package_name, sha256_cert_fingerprints: [...new Set(fps)] } });
     }
     return { value: JSON.stringify(out, null, 2) };
 }
