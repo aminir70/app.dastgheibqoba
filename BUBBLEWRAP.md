@@ -59,7 +59,13 @@ SHA256 Fingerprint: AB:CD:EF:12:34:...
 
 ## مرحله ۴: آپدیت assetlinks.json روی سرور
 
-فایل `/opt/myapp/public/.well-known/assetlinks.json` را روی سرور پروداکشن باز کنید و fingerprint را جایگزین کنید:
+**روش پیشنهادی:** پنل ادمین ← تنظیمات ← «اتصال اپ اندروید (Digital Asset Links)». محتوای `assetlinks.json` را
+(که PWABuilder یا Bubblewrap می‌دهد) بچسبانید و ذخیره کنید. مقدار در دیتابیس می‌ماند و با `git pull`/`git reset`
+عوض نمی‌شود، و قبل از ذخیره اعتبارسنجی می‌شود (نام پکیج و فرمت اثر انگشت). اگر اپ را با دو کلید امضا منتشر کرده‌اید،
+هر دو اثر انگشت را داخل `sha256_cert_fingerprints` بگذارید.
+
+**روش دستی** (فایل داخل git است و `git reset --hard` آن را برمی‌گرداند؛ فقط اگر پنل در دسترس نیست):
+فایل `/opt/myapp/public/.well-known/assetlinks.json` را روی سرور باز کنید و fingerprint را جایگزین کنید:
 
 ```bash
 nano /opt/myapp/public/.well-known/assetlinks.json

@@ -103,6 +103,11 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 - `POST /api/admin/login` — ورود ادمین (کوکی `admin_token` ست می‌شود)
 - `POST /api/admin/logout` — خروج (کوکی پاک می‌شود)
 - `GET /api/admin/auth-check` — بررسی وضعیت session
+- `GET|POST|DELETE /api/admin/assetlinks` — محتوای `/.well-known/assetlinks.json`
+  (اتصال اپ اندروید TWA). در جدول `settings` (کلید `assetlinks`) ذخیره می‌شود و بر
+  فایل `public/.well-known/assetlinks.json` (داخل git) اولویت دارد؛ حذف مقدار، به
+  فایل برمی‌گردد. POST اعتبارسنجی سخت‌گیرانه دارد (نام پکیج، فرمت SHA-256) و
+  اثر انگشت‌ها را بزرگ‌حرف/بدون تکرار ذخیره می‌کند. رابط: پنل ادمین ← تنظیمات.
 - `POST /api/admin/tickets/:id/reply` — پاسخ به تیکت. **multipart/form-data**
   با فیلدهای `text`، `reply_to` (اختیاری) و `ticket_file` (اختیاری). پیوست
   می‌تواند تصویر، PDF یا صوت باشد (سقف ۲۵ مگابایت — کاربر ۵ مگابایت). پیام

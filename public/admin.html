@@ -1247,6 +1247,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
       <button onclick="saveSettings()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-sm transition flex-1 text-sm"><i class="fas fa-save ml-2"></i>ذخیره تمام تنظیمات</button>
       <button onclick="loadSettings()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-xl text-sm"><i class="fas fa-sync-alt ml-2"></i>بازنشانی</button>
     </div>
+
+    <!-- Digital Asset Links (اپ اندروید) — جدا از «ذخیره تمام تنظیمات»؛ دکمهٔ ذخیرهٔ خودش را دارد -->
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h2 class="text-lg font-black mb-2 border-b pb-4"><i class="fab fa-android text-teal-600 ml-2"></i>اتصال اپ اندروید (Digital Asset Links)</h2>
+      <p class="text-xs text-gray-500 leading-relaxed mt-3 mb-4">
+        بعد از ساختن APK با PWABuilder، محتوای فایل <span dir="ltr" class="font-mono">assetlinks.json</span> داخل زیپ را اینجا بچسبانید و ذخیره کنید.
+        بدون آن، اپ اندروید با نوار آدرس کروم باز می‌شود. اگر اپ را با کلید امضای دیگری هم منتشر کرده‌اید، هر دو اثر انگشت را در آرایهٔ
+        <span dir="ltr" class="font-mono">sha256_cert_fingerprints</span> نگه دارید. این مقدار در دیتابیس ذخیره می‌شود و با آپدیت سرور (git) از بین نمی‌رود.
+      </p>
+      <div id="al-status" class="text-xs rounded-xl px-3 py-2 mb-3 bg-gray-50 border border-gray-100 text-gray-600"></div>
+      <textarea id="al-text" dir="ltr" rows="11" spellcheck="false" class="w-full font-mono text-xs bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-teal-200 focus:bg-white transition" placeholder='[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "android_app", "package_name": "info.dastgheibqoba.app.twa", "sha256_cert_fingerprints": ["AA:BB:..."] } }]'></textarea>
+      <div id="al-summary" class="mt-3 flex flex-col gap-1.5"></div>
+      <div class="flex flex-wrap items-center gap-2 mt-4">
+        <button onclick="saveAssetLinks()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition"><i class="fas fa-save ml-2"></i>ذخیرهٔ اتصال اپ</button>
+        <button onclick="resetAssetLinks()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-undo ml-2"></i>حذف مقدار ذخیره‌شده</button>
+        <a href="/.well-known/assetlinks.json" target="_blank" rel="noopener" class="text-teal-600 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-teal-50 transition"><i class="fas fa-external-link-alt ml-1"></i>دیدن نسخهٔ زنده</a>
+      </div>
+    </div>
   </div>
 
   <!-- PAGE CONTENT TAB -->
@@ -1466,7 +1484,7 @@ function switchTab(tab) {
   if(tab==='analytics') { loadAnalytics(); if(analyticsInterval) clearInterval(analyticsInterval); analyticsInterval=setInterval(()=>{if(document.visibilityState!=='hidden')loadAnalytics();}, 30000); }
   else if(analyticsInterval) { clearInterval(analyticsInterval); analyticsInterval=null; }
   if(tab==='users') loadUsers();
-  if(tab==='settings') loadSettings();
+  if(tab==='settings') { loadSettings(); loadAssetLinks(); }
   if(tab==='pagecontent') initPageContentTab();
   if(tab==='shortcuts') loadShortcuts();
   if(tab==='linkshortcuts') loadLinkShortcuts();
@@ -3294,6 +3312,53 @@ async function saveLiveSettings(){
 }
 
 // SETTINGS
+// ── اتصال اپ اندروید: assetlinks.json ──
+function _alSummary(text) {
+  let arr; try { arr = JSON.parse(text); } catch(e) { return ''; }
+  if (!Array.isArray(arr)) return '';
+  return arr.map(it => {
+    const t = (it && it.target) || {};
+    const fps = Array.isArray(t.sha256_cert_fingerprints) ? t.sha256_cert_fingerprints : [];
+    return `<div class="text-xs bg-teal-50/60 border border-teal-100 rounded-xl px-3 py-2" dir="ltr">
+      <div class="font-bold text-gray-700"><i class="fab fa-android text-teal-600 mr-1"></i>${escHtml(t.package_name || '—')}</div>
+      ${fps.map(f => `<div class="font-mono text-[10px] text-gray-500 break-all"><i class="fas fa-fingerprint text-gray-300 mr-1"></i>${escHtml(f)}</div>`).join('')}
+    </div>`;
+  }).join('');
+}
+async function loadAssetLinks() {
+  const box = document.getElementById('al-text'); if (!box) return;
+  try {
+    const r = await adminFetch('/api/admin/assetlinks');
+    const d = await r.json();
+    box.value = d.content || '';
+    const st = document.getElementById('al-status');
+    const msg = { db: ['fa-check-circle text-green-600', 'مقدار ذخیره‌شده در تنظیمات فعال است.'],
+                  file: ['fa-exclamation-triangle text-amber-500', 'مقداری ذخیره نشده؛ فایل پیش‌فرض روی سرور استفاده می‌شود (ممکن است با آپدیت git برگردد). برای ماندگار شدن ذخیره کنید.'],
+                  empty: ['fa-exclamation-triangle text-amber-500', 'هنوز چیزی تنظیم نشده است.'] }[d.source] || ['fa-question-circle', ''];
+    st.innerHTML = `<i class="fas ${msg[0]} ml-1"></i>${msg[1]}`;
+    document.getElementById('al-summary').innerHTML = _alSummary(d.content);
+  } catch(e) {}
+}
+async function saveAssetLinks() {
+  const content = document.getElementById('al-text').value;
+  try {
+    const r = await adminFetch('/api/admin/assetlinks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return showToast(d.error || 'ذخیره نشد', false);
+    showToast('اتصال اپ ذخیره شد');
+    loadAssetLinks();
+  } catch(e) { showToast('خطا در ارتباط با سرور', false); }
+}
+async function resetAssetLinks() {
+  if (!confirm('مقدار ذخیره‌شده حذف شود و فایل پیش‌فرض سرور استفاده شود؟')) return;
+  try {
+    const r = await adminFetch('/api/admin/assetlinks', { method: 'DELETE' });
+    if (!r.ok) return showToast('حذف نشد', false);
+    showToast('مقدار ذخیره‌شده حذف شد');
+    loadAssetLinks();
+  } catch(e) { showToast('خطا در ارتباط با سرور', false); }
+}
+
 async function loadSettings(){
   try{
     const r=await adminFetch('/api/admin/settings');

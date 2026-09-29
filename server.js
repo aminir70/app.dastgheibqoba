@@ -81,23 +81,54 @@ let JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(48).toString('hex'
 const JWT_USER_TTL = '30d';
 const JWT_ADMIN_TTL = '24h';
 
-// Digital Asset Links — قبل از هر middleware تا هیچ‌چیزی بلاکش نکنه
+// Digital Asset Links — قبل از هر middleware تا هیچ‌چیزی بلاکش نکنه.
+// مقدار از تنظیمات (پنل ادمین) خوانده می‌شود و اگر نبود از فایل public/.well-known.
+// (فایل داخل git است و git reset آن را برمی‌گرداند؛ تنظیمات دیتابیس از آن در امان است.)
+function _readAssetLinks(cb) {
+    const fromDisk = () => {
+        try { return cb(fs.readFileSync(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'), 'utf8'), 'file'); }
+        catch(e) { return cb('[]', 'empty'); }
+    };
+    if (!mainDb) return fromDisk();
+    mainDb.get(`SELECT value FROM settings WHERE key='assetlinks'`, [], (err, row) => {
+        if (row && row.value && row.value.trim()) return cb(row.value, 'db');
+        fromDisk();
+    });
+}
 app.get('/.well-known/assetlinks.json', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-cache');
-    const sendFromDisk = () => {
-        try {
-            return res.end(fs.readFileSync(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'), 'utf8'));
-        } catch(e) { return res.end('[]'); }
-    };
-    // پنل ادمین مقدار را در settings ذخیره می‌کند؛ قبلاً فقط از دیسک خوانده می‌شد
-    // و ذخیره‌های ادمین هیچ اثری نداشتند.
-    if (!mainDb) return sendFromDisk();
-    mainDb.get(`SELECT value FROM settings WHERE key='assetlinks'`, [], (err, row) => {
-        if (row && row.value && row.value.trim()) return res.end(row.value);
-        sendFromDisk();
-    });
+    _readAssetLinks(content => res.end(content));
 });
+
+// اعتبارسنجی سخت‌گیرانه: یک غلط تایپی در اثر انگشت یا نام پکیج باعث می‌شود اپ اندروید
+// بی‌صدا با نوار آدرس کروم باز شود. خروجی: { error } یا { value } (نسخهٔ مرتب‌شده).
+function _validateAssetLinks(text) {
+    let arr;
+    try { arr = JSON.parse(text); } catch(e) { return { error: 'JSON نامعتبر است' }; }
+    if (!Array.isArray(arr) || !arr.length) return { error: 'فایل باید یک آرایه با حداقل یک مورد باشد (با [ شروع می‌شود)' };
+    const PKG = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/;
+    const FP = /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/;
+    const out = [];
+    for (let i = 0; i < arr.length; i++) {
+        const it = arr[i], n = `مورد ${i + 1}: `;
+        if (!it || typeof it !== 'object') return { error: n + 'باید یک شیء باشد' };
+        if (!Array.isArray(it.relation) || !it.relation.includes('delegate_permission/common.handle_all_urls'))
+            return { error: n + 'relation باید شامل delegate_permission/common.handle_all_urls باشد' };
+        const t = it.target;
+        if (!t || t.namespace !== 'android_app') return { error: n + 'target.namespace باید android_app باشد' };
+        if (typeof t.package_name !== 'string' || !PKG.test(t.package_name)) return { error: n + 'package_name نامعتبر است (مثل info.dastgheibqoba.app.twa)' };
+        if (!Array.isArray(t.sha256_cert_fingerprints) || !t.sha256_cert_fingerprints.length) return { error: n + 'sha256_cert_fingerprints خالی است' };
+        const fps = [];
+        for (const f of t.sha256_cert_fingerprints) {
+            const up = typeof f === 'string' ? f.trim().toUpperCase() : '';
+            if (!FP.test(up)) return { error: n + `اثر انگشت نامعتبر است: «${String(f).slice(0, 40)}» (باید ۳۲ جفت رقم هگز با «:» باشد)` };
+            fps.push(up);
+        }
+        out.push({ relation: it.relation, target: { namespace: 'android_app', package_name: t.package_name, sha256_cert_fingerprints: [...new Set(fps)] } });
+    }
+    return { value: JSON.stringify(out, null, 2) };
+}
 
 // ---------------------------------------------------------------
 // پروکسی چت‌بات هوشمند (RAG) — سرویس Python روی همین سرور
@@ -2100,11 +2131,22 @@ app.post('/api/admin/settings',adminAuth,(req,res)=>{
     stmt.finalize(err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
 });
 // ذخیره assetlinks.json برای TWA Android
+app.get('/api/admin/assetlinks', adminAuth, (req, res) => {
+    _readAssetLinks((content, source) => res.json({ content, source }));
+});
 app.post('/api/admin/assetlinks', adminAuth, (req, res) => {
-    const { content } = req.body;
-    if (!content) return res.status(400).json({ error: 'محتوا الزامی است' });
-    try { JSON.parse(content); } catch(e) { return res.status(400).json({ error: 'JSON نامعتبر است' }); }
-    mainDb.run(`INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('assetlinks',?,CURRENT_TIMESTAMP)`, [content], err =>
+    const content = req.body && req.body.content;
+    if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: 'محتوا الزامی است' });
+    if (content.length > 20000) return res.status(400).json({ error: 'محتوا بیش از حد بزرگ است' });
+    const v = _validateAssetLinks(content);
+    if (v.error) return res.status(400).json({ error: v.error });
+    mainDb.run(`INSERT OR REPLACE INTO settings (key,value,updated_at) VALUES ('assetlinks',?,CURRENT_TIMESTAMP)`, [v.value], err =>
+        err ? res.status(500).json({ error:failMsg(err) }) : res.json({ success: true, content: v.value })
+    );
+});
+// حذف مقدار ذخیره‌شده: دوباره فایل پیش‌فرض روی سرور خوانده می‌شود
+app.delete('/api/admin/assetlinks', adminAuth, (req, res) => {
+    mainDb.run(`DELETE FROM settings WHERE key='assetlinks'`, [], err =>
         err ? res.status(500).json({ error:failMsg(err) }) : res.json({ success: true })
     );
 });
