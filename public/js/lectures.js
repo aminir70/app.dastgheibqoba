@@ -1,6 +1,5 @@
 // ====================================================
-// wrapper: هر pushNavHistory در این فایل section را می‌داند
-function _pnh(fn){ pushNavHistory(fn,'lectures'); }
+function _pnhLectures(fn){ pushBack(fn,'lectures'); }
 // متغیرهای سخنرانی‌ها
 // ====================================================
 // همه درخواست‌های WP API از طریق سرور پروکسی می‌شوند (رفع CORS و مشکلات شبکه)
@@ -18,6 +17,7 @@ let allWPCats = [];
 let wpState = { view: 'main', mainCat: { id: null, name: '' }, currentCat: { id: null, name: '' } };
 const TARGET_MAIN_CATS = ['تفسیر قرآن', 'محرم الحرام', 'مناسبت ها', 'رمضان المبارک'];
 let cachedPosts = [];
+let _lecPostsCache = { catId: null, posts: [] };
 
 
 function _renderLecturesList(pairs) {
@@ -100,7 +100,7 @@ function handleCategoryClick(catId, catName) {
 }
 
 function showWPSubCategories(parentId, parentName, children) {
-    _pnh(function() { withoutHistory(showWPMainCategories); });
+    _pnhLectures(showWPMainCategories);
     exitReadingMode();
     wpState.view = 'sub';
     document.getElementById('lectures-header-title').textContent = parentName;
@@ -116,7 +116,7 @@ function showWPSubCategories(parentId, parentName, children) {
 async function showWPPostsView(catId, catName) {
     const _prevView = wpState.view;
     const _prevMainCat = { ...wpState.mainCat };
-    _pnh(function() {
+    _pnhLectures(function() {
         withoutHistory(function() {
             if (_prevView === 'sub' && _prevMainCat.id) {
                 const children = allWPCats.filter(c => c.parent === _prevMainCat.id && c.count > 0);
@@ -133,8 +133,14 @@ async function showWPPostsView(catId, catName) {
     const postsView = document.getElementById('lectures-posts-view');
     postsView.classList.remove('hidden');
     postsView.classList.add('flex');
-    postsView.innerHTML = '';
     document.getElementById('lectures-header-title').textContent = catName;
+    // برگشت (back) از متن: همان فهرستِ قبلاً گرفته‌شده — بدون دریافت دوباره
+    if (_skipHistoryPush && _lecPostsCache.catId === catId && _lecPostsCache.posts.length) {
+        cachedPosts = _lecPostsCache.posts;
+        _renderLecturesList();
+        return;
+    }
+    postsView.innerHTML = '';
 
     setWPLoading(true);
     try {
@@ -149,6 +155,7 @@ async function showWPPostsView(catId, catName) {
             page++;
         }
         cachedPosts = allPosts;
+        _lecPostsCache = { catId: catId, posts: allPosts };
 
         if (cachedPosts.length === 0) {
             postsView.innerHTML = `<div class="text-center py-20 text-gray-400 text-sm font-bold">هیچ نوشته‌ای در این بخش یافت نشد.</div>`;
@@ -339,7 +346,7 @@ async function showWPSingleView(postId) {
 
     const _prevCatId = wpState.currentCat.id;
     const _prevCatName = wpState.currentCat.name;
-    _pnh(function() {
+    _pnhLectures(function() {
         withoutHistory(function() {
             if (_prevCatId) {
                 showWPPostsView(_prevCatId, _prevCatName);
@@ -428,20 +435,8 @@ async function showWPSingleView(postId) {
     else { imgContainer.classList.add('hidden'); }
 }
 
-function wpNavBack() {
-    if (wpState.view === 'single') {
-        const fromHome = wpState._fromHome;
-        wpState._fromHome = false;
-        if (fromHome) { navToScreen('home'); return; }
-        showWPPostsView(wpState.currentCat.id, wpState.currentCat.name);
-    } else if (wpState.view === 'posts') {
-        if (wpState.mainCat.id && wpState.mainCat.id !== wpState.currentCat.id) {
-            const children = allWPCats.filter(c => c.parent === wpState.mainCat.id && c.count > 0);
-            showWPSubCategories(wpState.mainCat.id, wpState.mainCat.name, children);
-        } else showWPMainCategories();
-    } else if (wpState.view === 'sub') showWPMainCategories();
-    else navToScreen('home');
-}
+// دکمهٔ بازگشت هدر — همان مسیر دکمهٔ بک گوشی
+function wpNavBack() { handleBackButton(); }
 
 // ====================================================
 // آخرین سخنرانی‌ها (صفحه اصلی)
@@ -479,19 +474,8 @@ function openLatestPost(postId) {
         wpFetch('categories?per_page=100').then(r=>r.json()).then(cats=>{allWPCats=cats;});
     }
     cachedPosts = posts;
-    // ثبت بازگشت به صفحه اصلی
-    _pnh(function() { withoutHistory(function() { navToScreen('home'); }); });
-    // سوئیچ به صفحه سخنرانی‌ها (بدون initWP)
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    const lecturesScreen = document.getElementById('screen-lectures');
-    if (lecturesScreen) lecturesScreen.classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    const navBtn = document.querySelector('[data-nav="lectures"]');
-    if (navBtn) navBtn.classList.add('active');
-    const liveEl = document.getElementById('live-embed-container');
-    if (liveEl) liveEl.innerHTML = '';
-    // علامت‌گذاری برای بازگشت به خانه از طریق دکمه header
-    wpState._fromHome = true;
+    // سوئیچ به صفحه سخنرانی‌ها (بدون initWP) — یک entry: back مستقیم به صفحهٔ قبل
+    navToScreen('lectures', { init: false });
     // نمایش پست بدون ثبت مجدد در تاریخچه
     withoutHistory(function() { showWPSingleView(postId); });
 }

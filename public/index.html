@@ -18,7 +18,7 @@
     <link href="/vendor/fonts/shabnam/font-face-local.css" rel="stylesheet">
     <link rel="stylesheet" href="/vendor/fa/all.local.min.css">
 
-    <link rel="stylesheet" href="/css/tailwind.dist.css?v=47">
+    <link rel="stylesheet" href="/css/tailwind.dist.css?v=48">
     <link rel="stylesheet" href="/css/app.css?v=46">
 </head>
 <body class="font-vazir antialiased text-gray-800">
@@ -441,7 +441,7 @@
             <!-- نوار عنوان پلی‌لیست صوت — خارج از scroll تا همیشه بالا بچسبه -->
             <div id="audio-playlist-header-bar" class="hidden shrink-0 bg-white px-4 py-2 border-b border-gray-100 shadow-sm z-10">
                 <div class="flex items-center gap-2">
-                    <button onclick="backToAudioCategories()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                    <button onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                     <h2 id="audio-cat-title" class="font-bold text-sm text-gray-800 truncate flex-1"></h2>
                     <div class="relative shrink-0">
                         <button id="audio-sort-btn" onclick="toggleAudioSortDropdown()" class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1.5 rounded-lg font-bold flex items-center gap-1"><i class="fas fa-sort-amount-down text-[9px]"></i><span id="audio-sort-label">ترتیب</span></button>
@@ -474,7 +474,7 @@
                     <!-- نمای دسته‌بندی‌ها -->
                     <div class="flex flex-col gap-3 w-full">
                       <div id="video-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                        <button id="video-cats-back-btn" onclick="backToVideoCategories()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <button id="video-cats-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                         <h2 id="video-cats-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری ویدیو</h2>
                       </div>
                       <button id="video-reels-banner" onclick="openAllVideoReels()" class="hidden w-full mb-1 bg-gradient-to-l from-rose-500 to-pink-600 text-white rounded-2xl p-3.5 flex items-center gap-3 shadow-md active:scale-[0.98] transition">
@@ -491,7 +491,7 @@
                     <!-- نمای لیست ویدیوها -->
                     <div id="video-list-view" class="hidden flex-col gap-3 w-full">
                         <div class="flex items-center gap-2 mb-1 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                            <button onclick="backToVideoCategories()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <button onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                             <h2 id="video-cat-title" class="font-bold text-sm text-gray-800 truncate flex-1">ویدیوها</h2>
                             <button onclick="openVideoReels()" id="video-reels-btn" class="text-[10px] bg-rose-50 text-rose-500 px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 shrink-0 hover:bg-rose-100 transition"><i class="fas fa-film text-[9px]"></i>ریلز</button>
                             <div class="relative shrink-0">
@@ -513,7 +513,7 @@
                     <!-- نمای پخش ویدیو -->
                     <div id="video-player-view" class="hidden flex-col gap-4 w-full">
                         <div class="flex items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                            <button onclick="backToVideoList()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <button onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                             <h2 id="video-player-title" class="font-bold text-xs text-gray-800 line-clamp-2 flex-1 leading-snug">پخش ویدیو</h2>
                         </div>
                         <!-- پلیر آپارات -->
@@ -532,7 +532,7 @@
                     <!-- نمای دسته‌بندی‌ها -->
                     <div class="flex flex-col gap-3 w-full">
                       <div id="audio-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                        <button id="audio-cats-back-btn" onclick="backToAudioCategories()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <button id="audio-cats-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                         <h2 id="audio-cats-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری صوت</h2>
                       </div>
                       <div id="audio-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
@@ -604,7 +604,7 @@
                     <!-- نمای دسته‌بندی‌ها -->
                     <div class="flex flex-col gap-3 w-full">
                       <div id="gallery-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                        <button id="gallery-back-btn" onclick="backToGalleryCategories()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <button id="gallery-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                         <h2 id="gallery-cat-list-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری عکس</h2>
                       </div>
                       <div id="gallery-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
@@ -613,7 +613,7 @@
                     <!-- نمای تصاویر داخل دسته -->
                     <div id="gallery-photos-view" class="hidden flex-col gap-3 w-full">
                         <div class="flex items-center gap-2 mb-3 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                            <button onclick="backToGalleryCategories()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <button onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                             <h2 id="gallery-category-title" class="font-bold text-sm text-gray-800 truncate flex-1">تصاویر</h2>
                             <span id="gallery-photo-count" class="text-[10px] text-gray-400 font-medium shrink-0"></span>
                         </div>
@@ -1002,7 +1002,7 @@
     <header class="shrink-0 pt-3 pb-2 px-6 bg-white border-b border-gray-100 shadow-sm">
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-3 min-w-0">
-                <button onclick="history.back()" class="w-10 h-10 bg-gray-50 text-gray-500 rounded-2xl flex items-center justify-center shrink-0">
+                <button onclick="handleBackButton()" class="w-10 h-10 bg-gray-50 text-gray-500 rounded-2xl flex items-center justify-center shrink-0">
                     <i class="fas fa-arrow-right"></i>
                 </button>
                 <h1 class="font-black text-lg text-gray-800 truncate" id="toc-book-title">کتاب</h1>
@@ -1048,7 +1048,7 @@
 <div id="reader-overlay" class="theme-light">
     <header id="reader-header" class="fixed top-0 inset-x-0 h-16 glass border-b border-gray-200/50 flex items-center justify-between px-4 z-[210] fade-transform">
         <div class="flex items-center flex-1 min-w-0">
-            <button onclick="history.back()" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 text-gray-600 ml-3 shrink-0">
+            <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 text-gray-600 ml-3 shrink-0">
                 <i class="fas fa-arrow-right"></i>
             </button>
             <div class="truncate pr-1">
@@ -1364,7 +1364,7 @@
 <!-- ====== CONTENT PAGE OVERLAY ====== -->
 <div id="content-page-overlay" class="fixed inset-0 z-[290] hidden flex-col bg-gray-50">
   <header class="shrink-0 pt-3 pb-3 px-4 bg-white/90 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center gap-3">
-    <button onclick="history.back()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0">
+    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0">
       <i class="fas fa-arrow-right"></i>
     </button>
     <h1 id="content-page-title" class="font-black text-lg text-gray-800 truncate"></h1>
@@ -1416,14 +1416,14 @@
 
 <script src="/vendor/pdfjs/pdf.min.js"></script>
 <script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.js';</script>
-<script src="/js/dist/utils.min.js?v=47"></script>
-<script src="/js/dist/offline.min.js?v=47"></script>
-<script src="/js/dist/books.min.js?v=47"></script>
-<script src="/js/dist/lectures.min.js?v=47"></script>
-<script src="/js/dist/media.min.js?v=47"></script>
-<script src="/js/dist/news.min.js?v=47"></script>
-<script src="/js/dist/aichat.min.js?v=47"></script>
-<script src="/js/dist/app.min.js?v=47"></script>
+<script src="/js/dist/utils.min.js?v=48"></script>
+<script src="/js/dist/offline.min.js?v=48"></script>
+<script src="/js/dist/books.min.js?v=48"></script>
+<script src="/js/dist/lectures.min.js?v=48"></script>
+<script src="/js/dist/media.min.js?v=48"></script>
+<script src="/js/dist/news.min.js?v=48"></script>
+<script src="/js/dist/aichat.min.js?v=48"></script>
+<script src="/js/dist/app.min.js?v=48"></script>
 
 <!-- PWA Install Modal -->
 <div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" onclick="closePwaModal()">

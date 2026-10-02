@@ -1,6 +1,5 @@
 // ====================================================
-// wrapper: هر pushNavHistory در این فایل section را می‌داند
-function _pnh(fn){ pushNavHistory(fn,'news'); }
+function _pnhNews(fn){ pushBack(fn,'news'); }
 // موتور اخبار (News)
 // ====================================================
 let newsState = { view: 'main', currentCat: { id: null, name: '' } };
@@ -8,19 +7,19 @@ let cachedNewsPosts = [];
 
 // باز کردن پست خبری درون اپ (از اسلایدر)
 async function openNewsPostInApp(postId, fallbackUrl) {
-    // withoutHistory تا initNews صدا زده نشه و با showNewsSingle race نکنه
-    withoutHistory(() => navToScreen('news'));
-    try { history.pushState({ app: true, screen: 'news' }, '', '#news'); } catch(e) {}
+    // init:false تا initNews صدا زده نشه و با showNewsSingle race نکنه.
+    // یک entry برای کل کار: back از خبر مستقیم به صفحهٔ قبل
+    navToScreen('news', { init: false });
     // اگر قبلاً لود شده
     const cached = cachedNewsPosts.find(p => p.id === postId);
-    if (cached) { showNewsSingle(postId); return; }
+    if (cached) { noBackPush(() => showNewsSingle(postId)); return; }
     setNewsLoading(true);
     try {
         const res = await wpFetch(`posts/${postId}?_embed=1`);
         if (res.ok) {
             const post = await res.json();
             cachedNewsPosts = [post, ...cachedNewsPosts.filter(p => p.id !== post.id)];
-            showNewsSingle(post.id);
+            noBackPush(() => showNewsSingle(post.id));
             return;
         }
     } catch(e) {}
@@ -115,7 +114,7 @@ async function showNewsPosts(catId, catName) {
 function showNewsSingle(postId) {
     const post = cachedNewsPosts.find(p => p.id === postId);
     if (!post) return;
-    _pnh(function() {
+    _pnhNews(function() {
         withoutHistory(function() {
             newsState.view = 'posts';
             const scr = document.getElementById('screen-news');
@@ -141,14 +140,8 @@ function showNewsSingle(postId) {
     renderWPSingle(post, 'news');
 }
 
-function newsNavBack() {
-    if (newsState.view === 'single') {
-        const screen = document.getElementById('screen-news');
-        if (screen) screen.classList.remove('reading-mode');
-        showNewsAllPosts();
-    }
-    else navToScreen('home');
-}
+// دکمهٔ بازگشت هدر — همان مسیر دکمهٔ بک گوشی
+function newsNavBack() { handleBackButton(); }
 
 // ====================================================
 // موتور بیانیه‌ها (Statements)
@@ -244,7 +237,7 @@ async function showStatementsPosts(catId, catName) {
 function showStatementsSingle(postId) {
     const post = cachedStatementsPosts.find(p => p.id === postId);
     if (!post) return;
-    _pnh(function() {
+    _pnhNews(function() {
         withoutHistory(function() {
             statementsState.view = 'posts';
             const scr = document.getElementById('screen-statements');
@@ -269,14 +262,7 @@ function showStatementsSingle(postId) {
     renderWPSingle(post, 'statements');
 }
 
-function statementsNavBack() {
-    if (statementsState.view === 'single') {
-        const screen = document.getElementById('screen-statements');
-        if (screen) screen.classList.remove('reading-mode');
-        showStatementsAllPosts();
-    }
-    else navToScreen('home');
-}
+function statementsNavBack() { handleBackButton(); }
 
 // ====================================================
 // توابع مشترک WP برای اخبار و بیانیه‌ها

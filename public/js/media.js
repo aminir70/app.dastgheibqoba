@@ -1,6 +1,4 @@
 // ====================================================
-// wrapper: هر pushNavHistory در این فایل section را می‌داند
-function _pnh(fn){ pushNavHistory(fn,'media'); }
 // متغیرهای رسانه
 // ====================================================
 
@@ -288,7 +286,8 @@ function switchMediaTab(tab) {
         if (_hb) _hb.classList.add('hidden');
     }
     if (!_skipHistoryPush) {
-        try { history.replaceState({ app: true, screen: 'media', mediaTab: tab }, '', '#media-' + tab); } catch(e) {}
+        // عوض کردن تب هم یک صفحه است: back به تب قبلی برمی‌گردد
+        if (tab !== _prevTab) pushBack(function() { switchMediaTab(_prevTab); }, 'media');
         if (tab === 'video') initVideoGallery();
         if (tab === 'photo') initGallery();
         if (tab === 'audio') initAudioGallery();
@@ -596,14 +595,15 @@ async function loadVideoCategories(parentId, parentName) {
 
 function videoNavToSub(catId, catName) {
     _videoNavStack.push({id: catId, name: catName});
-    try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'video-cat', id: catId }, '', '#media-v-cat-' + catId); } catch(e) {}
+    pushBack(backToVideoCategories, 'media');
     _videoCatsLoaded = false;
     loadVideoCategories(catId, catName);
 }
 
 async function loadVideoList(categoryId, title, count) {
     if (typeof _clearMediaBanner === 'function') _clearMediaBanner();
-    try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'video-list', id: categoryId }, '', '#media-v-list-' + categoryId); } catch(e) {}
+    // فقط وقتی از دسته‌ها وارد لیست می‌شویم (بارگذاری دوبارهٔ همین لیست entry نمی‌خواهد)
+    if (!_isShown('video-list-view')) pushBack(backToVideoCategories, 'media');
     _currentVideoCatId = categoryId;
     setMediaLoading(true);
     const catsView = document.getElementById('video-categories-view');
@@ -645,7 +645,8 @@ function playVideoItem(itemId) {
     const item = videoCachedItems.find(v => v.id === itemId);
     if(!item) return;
 
-    try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'video-play', id: itemId }, '', '#media-v-play-' + itemId); } catch(e) {}
+    // back از پخش: به لیستی که از آن آمدیم (پخش ویدیوی دیگر از همین‌جا entry نمی‌سازد)
+    if (!_isShown('video-player-view')) pushBack(_isShown('video-list-view') ? backToVideoList : backToVideoCategories, 'media');
 
     const listView = document.getElementById('video-list-view');
     const playerView = document.getElementById('video-player-view');
@@ -1020,13 +1021,13 @@ async function loadGalleryCategories(parentId, parentName) {
 
 function galleryNavToSub(catId, catName) {
     _galleryNavStack.push({id: catId, name: catName});
-    try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'photo-cat', id: catId }, '', '#media-p-cat-' + catId); } catch(e) {}
+    pushBack(backToGalleryCategories, 'media');
     _galleryCatsLoaded = false;
     loadGalleryCategories(catId, catName);
 }
 
 async function loadGalleryPhotos(categoryId, title, count) {
-    try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'photo-list', id: categoryId }, '', '#media-p-list-' + categoryId); } catch(e) {}
+    if (!_isShown('gallery-photos-view')) pushBack(backToGalleryCategories, 'media');
     setMediaLoading(true);
     const catsView = document.getElementById('gallery-categories-view');
     const photosView = document.getElementById('gallery-photos-view');
@@ -1336,7 +1337,7 @@ async function loadAudioCategories(parentId, parentName) {
 
 function audioNavToSub(catId, catName) {
     _audioNavStack.push({id: catId, name: catName});
-    try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'audio-cat', id: catId }, '', '#media-a-cat-' + catId); } catch(e) {}
+    pushBack(backToAudioCategories, 'media');
     _audioCatsLoaded = false;
     loadAudioCategories(catId, catName);
 }
@@ -1615,16 +1616,24 @@ function _renderCalResults() {
     }
 }
 
+// رفتن از تقویم به یک نتیجه: یک entry که back را به همین تقویم (همان روز) برمی‌گرداند
+function _csLeaveTo(screenName) {
+    const tab = _csTab, y = _csYear, m = _csMonth, d = _csSelDay;
+    const prevMediaTab = ['video', 'audio', 'photo', 'favorites'].find(t => _isShown('media-content-' + t));
+    closeCalendarScreen();
+    navToScreen(screenName, { init: false, onBack: function() {
+        if (prevMediaTab) switchMediaTab(prevMediaTab);
+        _csYear = y; _csMonth = m;
+        Promise.resolve(openCalendarScreen(tab)).then(function() { if (d) csSelectDay(d); }).catch(function() {});
+    } });
+}
+
 function _csPlayAudio(idx) {
     const filtered = (_csCache.audio||[]).filter(it=>{ try{const[y,m,d]=_csItemDate(it);return y===_csYear&&m===_csMonth&&d===_csSelDay;}catch(e){return false;} });
     const sy=_csYear, sm=_csMonth, sd=_csSelDay;
     audioCurrentTracks = filtered; audioCurrentIndex = -1; _currentAudioCatId = null;
-    closeCalendarScreen();
-    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-    document.getElementById('screen-media')?.classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    document.querySelector('[data-nav="media"]')?.classList.add('active');
-    switchMediaTab('audio');
+    _csLeaveTo('media');
+    noBackPush(() => switchMediaTab('audio'));
     const catsView = document.getElementById('audio-categories-view');
     const plView = document.getElementById('audio-playlist-view');
     if (catsView) catsView.classList.add('hidden');
@@ -1640,12 +1649,8 @@ function _csPlayVideo(itemId) {
     const filtered = (_csCache.video||[]).filter(it=>{ try{const[y,m,d]=_csItemDate(it);return y===_csYear&&m===_csMonth&&d===_csSelDay;}catch(e){return false;} });
     const sy=_csYear, sm=_csMonth, sd=_csSelDay;
     videoCachedItems = filtered;
-    closeCalendarScreen();
-    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-    document.getElementById('screen-media')?.classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    document.querySelector('[data-nav="media"]')?.classList.add('active');
-    switchMediaTab('video');
+    _csLeaveTo('media');
+    noBackPush(() => switchMediaTab('video'));
     document.getElementById('video-categories-view')?.classList.add('hidden');
     const listView = document.getElementById('video-list-view');
     if (listView) { listView.classList.remove('hidden'); listView.classList.add('flex'); }
@@ -1658,11 +1663,7 @@ function _csPlayVideo(itemId) {
 async function _csOpenLecture(postId) {
     const post = (_csCache.lecture||[]).find(p=>p.id===postId);
     const sy=_csYear, sm=_csMonth;
-    closeCalendarScreen();
-    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-    document.getElementById('screen-lectures')?.classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-    document.querySelector('[data-nav="lectures"]')?.classList.add('active');
+    _csLeaveTo('lectures');
     if (post) {
         if (_csCache.lecture) cachedPosts = _csCache.lecture;
         wpState.view = 'posts';
@@ -1670,7 +1671,7 @@ async function _csOpenLecture(postId) {
         if (typeof allWPCats !== 'undefined' && allWPCats.length === 0) {
             try { allWPCats = await wpFetch('categories?per_page=100').then(r=>r.json()); } catch(e) {}
         }
-        showWPSingleView(postId);
+        noBackPush(() => showWPSingleView(postId));
     }
 }
 
@@ -1696,7 +1697,7 @@ async function setVideoSort(sort) {
 
 async function loadAudioPlaylist(categoryId, title, count) {
     if (typeof _clearMediaBanner === 'function') _clearMediaBanner();
-    try { if (!_skipHistoryPush) history.pushState({ app: true, screen: 'media', mediaLevel: 'audio-list', id: categoryId }, '', '#media-a-list-' + categoryId); } catch(e) {}
+    if (!_isShown('audio-playlist-view')) pushBack(backToAudioCategories, 'media');
     _currentAudioCatId = categoryId;
     if (_mediaViewMode !== 'list') {
         _mediaViewMode = 'list';
@@ -1943,38 +1944,9 @@ async function downloadCurrentAudio() {
     }
 }
 
-// ====================================================
-// مدیریت دکمه Back برای sub-navigation رسانه
-// ====================================================
-function handleMediaBack() {
-    // فقط وقتی screen-media فعاله
-    const mediaScreen = document.getElementById('screen-media');
-    if (!mediaScreen || !mediaScreen.classList.contains('active')) return false;
-
-    const isVis = id => {
-        const el = document.getElementById(id);
-        return el && !el.classList.contains('hidden') && el.style.display !== 'none';
-    };
-
-    // ویدیو: player → list (اگه پر باشه) → categories
-    if (isVis('video-player-view')) {
-        const vItems = document.getElementById('video-items-list');
-        if (vItems && vItems.children.length > 0) backToVideoList();
-        else backToVideoCategories();
-        return true;
-    }
-    if (isVis('video-list-view'))     { backToVideoCategories();   return true; }
-    if (_videoNavStack.length > 0)    { backToVideoCategories();   return true; }
-
-    // گالری عکس: photos → categories
-    if (isVis('gallery-photos-view')) { backToGalleryCategories(); return true; }
-    if (_galleryNavStack.length > 0)  { backToGalleryCategories(); return true; }
-
-    // صوت: playlist → categories
-    if (isVis('audio-playlist-view')) { backToAudioCategories();   return true; }
-    if (_audioNavStack.length > 0)    { backToAudioCategories();   return true; }
-
-    return false;
+function _isShown(id) {
+    const el = document.getElementById(id);
+    return !!el && !el.classList.contains('hidden') && el.style.display !== 'none';
 }
 
 // ====================================================
@@ -2041,7 +2013,8 @@ async function openVideoItemById(itemId) {
                 _videoNavStack = [];
                 await initVideoGallery();
                 await loadVideoList(cat.id, cat.name, items.length);
-                setTimeout(() => playVideoItem(itemId), 300);
+                await new Promise(r => setTimeout(r, 300));
+                playVideoItem(itemId);
                 return;
             }
         }

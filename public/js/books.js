@@ -99,10 +99,6 @@ function openPdfBook(bookId) {
 async function openBook(bookId, targetPageNum, searchQuery) {
     let _searchHit = false;
     localStorage.setItem('book_'+bookId+'_last_read', Date.now().toString());
-    // اطمینان از حضور صفحه کتابخانه در navigation stack
-    if (typeof _screenStack !== 'undefined' && _screenStack[_screenStack.length - 1] !== 'library') {
-        _screenStack.push('library');
-    }
     const ls=document.getElementById('loading-screen');
     ls.style.display='flex';
     ls.classList.remove('hidden');
@@ -233,25 +229,40 @@ function openToc() {
     updateTocProgressUI();
     buildBookmarksTab();
     buildNotesTab();
-    document.getElementById('toc-overlay').classList.add('open');
-    // هر بار که فهرست باز میشه یک history entry منحصربه‌فرد می‌زنیم
-    if (currentBookId != null) {
-        try { history.pushState({ app: true, view: 'toc', t: Date.now() }, '', '#book-' + currentBookId); } catch(e) {}
-    }
+    const toc = document.getElementById('toc-overlay');
+    const reader = document.getElementById('reader-overlay');
+    if (toc.classList.contains('open')) return;
+    const readerWasOpen = reader.classList.contains('open');
+    toc.classList.add('open');
+    // back: فهرست بسته شود (و اگر متن زیرش باز بود، همان بماند)
+    pushBack(function() {
+        closeToc();
+        if (readerWasOpen) reader.classList.add('open');
+    }, 'toc');
 }
 function closeToc() { document.getElementById('toc-overlay').classList.remove('open'); }
+// رفتن از فهرست به متن. ورق زدن، اسلایدر و پرش به صفحه وقتی متن باز است
+// entry تازه نمی‌سازند — وگرنه بعد از چند ورق، back چند بار روی همان متن می‌ماند.
 function openReader() {
-    document.getElementById('reader-overlay').classList.add('open');
-    // history entry برای reader — جداگانه از فهرست
-    if (currentBookId != null) {
-        try { history.pushState({ app: true, view: 'reader', t: Date.now() }, '', '#book-' + currentBookId + '-read'); } catch(e) {}
+    const toc = document.getElementById('toc-overlay');
+    const reader = document.getElementById('reader-overlay');
+    const tocWasOpen = toc.classList.contains('open');
+    if (tocWasOpen) toc.classList.remove('open');
+    if (reader.classList.contains('open')) {
+        // فهرستی که روی همین متن باز شده بود با انتخاب فصل بسته شد → entryش هم برود
+        if (tocWasOpen) dropBack('toc');
+        return;
     }
+    reader.classList.add('open');
+    // back: متن بسته شود و فهرست (اگر از آن آمده بودیم) دوباره دیده شود
+    pushBack(function() {
+        closeReader();
+        if (tocWasOpen) toc.classList.add('open');
+    }, 'reader');
 }
 function closeReader() {
     _flushSavePage();
     document.getElementById('reader-overlay').classList.remove('open');
-    // openToc اینجا صدا زده نمیشه — popstate مستقیم toc رو باز میکنه
-    // (هنگام بک گوشی) یا دکمه هدر history.back() صدا میزنه
 }
 function _flushSavePage() {
     if (_savePageTimer) {
@@ -347,7 +358,7 @@ function goToPage(index) {
     const bmi=document.getElementById('menu-bookmark-icon');
     if(bmi) bmi.className=bookmarks.includes(currentIndex)?'fas fa-bookmark ml-3 w-4 text-center text-brand-600':'far fa-bookmark ml-3 w-4 text-center';
     if(currentBookId) _scheduleSavePage(currentBookId, currentIndex);
-    closeToc(); openReader();
+    openReader();
 }
 let _savePageTimer = null;
 function _scheduleSavePage(bookId, idx) {

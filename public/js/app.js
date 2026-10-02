@@ -1,53 +1,111 @@
 // ====================================================
-// ناوبری — هر صفحه URL منحصربه‌فرد semantic دارد
-// #home, #library, #media, #book-<id>, #book-<id>-read, ...
+// ناوبری و دکمهٔ بازگشت
+// یک پشتهٔ واحد برای کل اپ: هر «رفتن به صفحهٔ بعد» (تب، کتاب، فهرست، متن،
+// دسته‌ها، ...) یک تابع بازگرداننده در _backStack و یک history entry با
+// {app, idx} می‌گذارد. هر back — دکمهٔ گوشی یا دکمه‌های بازگشت داخل اپ (که
+// history.back() می‌زنند) — در popstate دقیقاً تا همان idx از پشته برمی‌گردد.
+// پس هر بار بک فقط یک صفحه عقب می‌رود و entry تکراری/مرده ساخته نمی‌شود.
+//   entry پایه   {app, idx:-1}  ← برای «یک‌بار دیگر بزنید تا خارج شوید»
+//   entry ریشه   {app, idx:0}   ← خانه
+//   entry n      {app, idx:n}   ← _backStack[n-1]
 // ====================================================
-let _navHistory = [];
-let _skipHistoryPush = false;
+let _backStack = [];          // [{restore, section}] — طولش همیشه = idx entry فعلی
+let _skipHistoryPush = false; // داخل withoutHistory: نه entry، نه init صفحه
+let _suppressBack = 0;        // داخل noBackPush: init اجرا می‌شود ولی entry نه
 let _wantToExit = false;
-let _navDepth = 0;
-
-// نگاشت نام صفحه → prefix URL (legacy — برای pushNavHistory)
-const _URL_PREFIX = {
-    home:'home', library:'library', media:'media',
-    news:'news', lectures:'lectures', statements:'statements',
-    live:'live', auth:'auth', qa:'qa'
-};
+let _atBase = false;          // بعد از اولین back در خانه روی entry پایه‌ایم
+let _syncPops = 0;            // popstateهایی که خودمان با history.go ساخته‌ایم
+let _syncTimer = null;
 
 function withoutHistory(fn) {
     const prev = _skipHistoryPush;
     _skipHistoryPush = true;
-    try { fn(); } finally { _skipHistoryPush = prev; }
+    try { return fn(); } finally { _skipHistoryPush = prev; }
 }
 
-// legacy — برای overlay های قدیمی (content-page و غیره)
-function pushNavHistory(restoreFn, section) {
-    if (_skipHistoryPush) return;
-    _navHistory.push(restoreFn);
-    if (_navHistory.length > 50) _navHistory.shift();
-    _navDepth++;
-    const prefix = (section && _URL_PREFIX[section]) || (section) || 'n';
-    try {
-        history.pushState(
-            { app: true, legacy: true, depth: _navDepth },
-            '',
-            '#' + prefix + '-' + _navDepth
-        );
-    } catch(e) {}
+// کار را انجام بده (init صفحه‌ها هم اجرا شود) ولی entry تازه‌ای نساز —
+// برای وقتی که صدا زننده خودش یک entry برای کل کار گذاشته
+function noBackPush(fn) {
+    _suppressBack++;
+    try { return fn(); } finally { _suppressBack--; }
 }
 
-// صفحات اصلی (تب‌های نوار پایین)
-const _MAIN_SCREENS = new Set(['home','library','media','lectures','qa','news','statements','auth','live','payment','favorites']);
+function _histGo(delta) {
+    if (!delta) return;
+    _syncPops++;
+    clearTimeout(_syncTimer);
+    // اگر history.go به هر دلیل popstate نداد، شمارنده نباید back بعدی را ببلعد
+    _syncTimer = setTimeout(function() { _syncPops = 0; }, 600);
+    try { history.go(delta); } catch(e) { _syncPops = 0; }
+}
 
-function navToScreen(name) {
-    const prevActive = document.querySelector('.screen.active');
-    const prevName = prevActive ? prevActive.id.replace('screen-', '') : 'home';
+function _armRoot() {
+    if (!_atBase) return;
+    _atBase = false;
+    try { history.pushState({ app: true, idx: 0 }, '', '#home'); } catch(e) {}
+}
+
+// ثبت یک صفحهٔ جدید. restoreFn صفحهٔ قبلی را برمی‌گرداند (با withoutHistory اجرا می‌شود).
+function pushBack(restoreFn, section) {
+    if (_skipHistoryPush || _suppressBack) return;
+    _armRoot();
+    _backStack.push({ restore: restoreFn, section: section || '' });
+    const n = _backStack.length;
+    try { history.pushState({ app: true, idx: n }, '', '#' + (section || 'n') + '-' + n); } catch(e) {}
+}
+// نام قدیمی
+function pushNavHistory(restoreFn, section) { pushBack(restoreFn, section); }
+
+// اگر بالای پشته از این بخش است، بدون اجرای restore برش دار (مثلاً فهرستی که با
+// انتخاب فصل بسته شد) تا back بعدی مرده نباشد
+function dropBack(section) {
+    const top = _backStack[_backStack.length - 1];
+    if (!top || top.section !== section) return false;
+    _backStack.pop();
+    _histGo(-1);
+    return true;
+}
+
+// یک کار چندمرحله‌ای (مثل لینک بنر: تب → دسته → پخش) باید فقط یک entry باشد:
+// entryهای بالاتر از n بدون restore برداشته می‌شوند و back مستقیم به entry n می‌رسد
+function collapseBack(n) {
+    const extra = _backStack.length - n;
+    if (extra <= 0) return;
+    _backStack.length = n;
+    _histGo(-extra);
+}
+
+function _popBackTo(idx) {
+    while (_backStack.length > idx) {
+        const it = _backStack.pop();
+        try { withoutHistory(it.restore); } catch(ex) { console.warn('back restore failed:', ex); }
+    }
+}
+
+function _activeScreenName() {
+    const s = document.querySelector('.screen.active');
+    return s ? s.id.replace('screen-', '') : 'home';
+}
+
+// opts.init=false: صفحه بدون مقداردهی اولیه (وقتی صدا زننده خودش محتوا را می‌چیند)
+// opts.onBack: کار اضافه هنگام برگشتن از این صفحه (قبل از برگرداندن صفحهٔ قبل)
+function navToScreen(name, opts) {
+    opts = opts || {};
+    if (name === 'payment') {
+        // صفحهٔ پرداخت بیرون از اپ است؛ جای کاربر عوض نمی‌شود
+        if (!_skipHistoryPush) window.open('https://dastgheibqoba.info/pay/', '_blank');
+        return;
+    }
+    const prevName = _activeScreenName();
 
     if (typeof closeImageModal === 'function') closeImageModal();
 
-    // بستن overlayهای کتاب‌خوان هنگام تغییر صفحه
+    // بستن overlayهای کتاب‌خوان هنگام تغییر صفحه (با back دوباره باز می‌شوند)
     const readerEl = document.getElementById('reader-overlay');
     const tocEl = document.getElementById('toc-overlay');
+    const wasReader = !!(readerEl && readerEl.classList.contains('open'));
+    const wasToc = !!(tocEl && tocEl.classList.contains('open'));
+    if (wasReader && typeof _flushSavePage === 'function') { try { _flushSavePage(); } catch(e) {} }
     if (readerEl) readerEl.classList.remove('open');
     if (tocEl) tocEl.classList.remove('open');
 
@@ -63,32 +121,32 @@ function navToScreen(name) {
     });
     if (prevName !== name) trackView(name);
 
-    // ثبت تاریخچه با URL منحصربه‌فرد semantic
-    if (!_skipHistoryPush && prevName !== name) {
-        try {
-            const state = { app: true, screen: name };
-            const url = '#' + name;
-
-            // بین دو تب (هیچ‌کدام home نیست) → replace
-            // تا back از media مستقیم به home بره نه library
-            const prevIsTab = _MAIN_SCREENS.has(prevName) && prevName !== 'home';
-            const nameIsTab = _MAIN_SCREENS.has(name) && name !== 'home';
-
-            if (prevIsTab && nameIsTab) {
-                history.replaceState(state, '', url);
-            } else {
-                history.pushState(state, '', url);
-            }
-        } catch(e) {}
+    // هر رفتن به صفحهٔ دیگر (حتی بین دو تب) یک entry — back همیشه به صفحهٔ قبل
+    if (prevName !== name || wasReader || wasToc || opts.onBack) {
+        const onBack = opts.onBack;
+        pushBack(function() {
+            if (onBack) onBack();
+            navToScreen(prevName);
+            if (wasToc && tocEl) tocEl.classList.add('open');
+            if (wasReader && readerEl) readerEl.classList.add('open');
+        }, name);
     }
 
-    // مقداردهی اولیه صفحه
-    if (!_skipHistoryPush) {
+    // پخش زنده فقط وقتی همین صفحه باز است
+    if (name !== 'live') {
+        const c = document.getElementById('live-embed-container');
+        if (c) c.innerHTML = '';
+    } else if (prevName !== 'live' && (_skipHistoryPush || opts.init === false)) {
+        initLiveScreen();
+    }
+    if (name !== 'library') {
+        const wpPlayer = document.getElementById('wp-media-player-container');
+        if (wpPlayer) wpPlayer.innerHTML = "";
+    }
+
+    // مقداردهی اولیه صفحه — entryهایی که initها بسازند لازم نیست (همین entry کافی است)
+    if (!_skipHistoryPush && opts.init !== false) noBackPush(function() {
         if (name === 'live') initLiveScreen();
-        else {
-            const c = document.getElementById('live-embed-container');
-            if (c) c.innerHTML = '';
-        }
         if (name === 'home') loadBanners();
         if (name === 'lectures') { initWP(prevName === 'lectures'); loadSectionContent('lectures'); }
         if (name === 'news') initNews();
@@ -97,15 +155,7 @@ function navToScreen(name) {
         if (name === 'qa') { updateQAUserUI(); if (qaUser) renderQATickets(); else showQAAuth(); }
         if (name === 'media') initMedia();
         if (name === 'library') loadSectionContent('library');
-        else {
-            const wpPlayer = document.getElementById('wp-media-player-container');
-            if (wpPlayer) wpPlayer.innerHTML = "";
-        }
-        if (name === 'payment') {
-            window.open('https://dastgheibqoba.info/pay/', '_blank');
-            withoutHistory(function() { navToScreen('home'); });
-        }
-    }
+    });
 }
 
 // ====================================================
@@ -471,8 +521,9 @@ function openHomeImage(idx) {
 function openHomeVideo(idx) {
     const v = _homeLatestVideos[idx];
     if (!v) return;
-    navToScreen('media');
-    switchMediaTab('video');
+    // یک entry: back از پخش مستقیم به صفحهٔ قبل (و پخش متوقف شود)
+    navToScreen('media', { onBack: function() { if (typeof backToVideoCategories === 'function') backToVideoCategories(); } });
+    noBackPush(function() { switchMediaTab('video'); });
     videoCachedItems = _homeLatestVideos;
     setTimeout(() => {
         const catsView = document.getElementById('video-categories-view');
@@ -747,6 +798,23 @@ function _secSliderStart(page) {
     st.timer = setInterval(() => _secSliderGo(page, st.index + 1), 4000);
 }
 
+// لینک بنر یک «صفحه» است: هر چند مرحله که باز کردنش طول بکشد، یک back به صفحهٔ قبل برمی‌گردد
+function _deepLink(screen, open) {
+    const base = _backStack.length;
+    navToScreen(screen);
+    setTimeout(async () => {
+        try { await open(); } catch(e) {}
+        collapseBack(base + 1);
+    }, 150);
+}
+function _deepLinkMedia(tab, opener, id) {
+    _deepLink('media', async () => {
+        if (typeof switchMediaTab === 'function') switchMediaTab(tab);
+        await new Promise(r => setTimeout(r, 300));
+        if (typeof opener === 'function') await opener(id);
+    });
+}
+
 function handleBannerLink(link) {
     if (!link) return;
     if (!link.startsWith('app://')) { openWebView(link); return; }
@@ -755,39 +823,31 @@ function handleBannerLink(link) {
     const type = m[1], id = +m[2];
     switch (type) {
         case 'book':
-            navToScreen('library');
-            setTimeout(() => openBook(id), 150);
+            _deepLink('library', () => openBook(id));
             break;
         case 'audio_cat':
-            navToScreen('media');
-            setTimeout(() => { if (typeof switchMediaTab === 'function') switchMediaTab('audio'); setTimeout(() => { if (typeof openAudioCatById === 'function') openAudioCatById(id); }, 300); }, 150);
+            _deepLinkMedia('audio', typeof openAudioCatById === 'function' && openAudioCatById, id);
             break;
         case 'audio':
-            navToScreen('media');
-            setTimeout(() => { if (typeof switchMediaTab === 'function') switchMediaTab('audio'); setTimeout(() => { if (typeof openAudioTrackById === 'function') openAudioTrackById(id); }, 300); }, 150);
+            _deepLinkMedia('audio', typeof openAudioTrackById === 'function' && openAudioTrackById, id);
             break;
         case 'video_cat':
-            navToScreen('media');
-            setTimeout(() => { if (typeof switchMediaTab === 'function') switchMediaTab('video'); setTimeout(() => { if (typeof openVideoCatById === 'function') openVideoCatById(id); }, 300); }, 150);
+            _deepLinkMedia('video', typeof openVideoCatById === 'function' && openVideoCatById, id);
             break;
         case 'video':
-            navToScreen('media');
-            setTimeout(() => { if (typeof switchMediaTab === 'function') switchMediaTab('video'); setTimeout(() => { if (typeof openVideoItemById === 'function') openVideoItemById(id); }, 300); }, 150);
+            _deepLinkMedia('video', typeof openVideoItemById === 'function' && openVideoItemById, id);
             break;
         case 'news':
             if (typeof openNewsPostInApp === 'function') openNewsPostInApp(id, null);
             break;
         case 'news_cat':
-            navToScreen('news');
-            setTimeout(() => { if (typeof openNewsCatById === 'function') openNewsCatById(id); }, 300);
+            _deepLink('news', async () => { await new Promise(r => setTimeout(r, 150)); if (typeof openNewsCatById === 'function') await openNewsCatById(id); });
             break;
         case 'lecture':
-            navToScreen('lectures');
-            setTimeout(() => { if (typeof openLecturePostById === 'function') openLecturePostById(id); }, 300);
+            _deepLink('lectures', async () => { await new Promise(r => setTimeout(r, 150)); if (typeof openLecturePostById === 'function') await openLecturePostById(id); });
             break;
         case 'lecture_cat':
-            navToScreen('lectures');
-            setTimeout(() => { if (typeof openLectureCatById === 'function') openLectureCatById(id); }, 300);
+            _deepLink('lectures', async () => { await new Promise(r => setTimeout(r, 150)); if (typeof openLectureCatById === 'function') await openLectureCatById(id); });
             break;
     }
 }
@@ -1866,20 +1926,21 @@ async function _openSearchMedia(i) {
     if (!m) return;
     const tab = m.type === 'audio' ? 'audio' : 'video';
     // به media برو و تب درست را visible کن (بدون initMedia تا race نشود)
+    // یک entry برای کل کار: back از نتیجه مستقیم به صفحهٔ قبل
+    navToScreen('media', { init: false });
     withoutHistory(function() {
-        navToScreen('media');
         if (typeof switchMediaTab === 'function') switchMediaTab(tab);
     });
     try {
         if (m.type === 'audio') {
             // مستقیم همان دسته‌ی track را بارگذاری کن (categoryId از سرور)
-            await loadAudioPlaylist(m.categoryId, m.categoryName || '', 0);
+            await noBackPush(() => loadAudioPlaylist(m.categoryId, m.categoryName || '', 0));
             const list = (typeof audioCurrentTracks !== 'undefined' && audioCurrentTracks) || [];
             const idx = list.findIndex(t => String(t.id) === String(m.id));
             selectAudioTrack(idx >= 0 ? idx : 0, true);
         } else {
-            await loadVideoList(m.categoryId, m.categoryName || '', 0);
-            setTimeout(function() { playVideoItem(m.id); }, 200);
+            await noBackPush(() => loadVideoList(m.categoryId, m.categoryName || '', 0));
+            setTimeout(function() { noBackPush(function() { playVideoItem(m.id); }); }, 200);
         }
     } catch(e) {
         // fallback: روش جستجوی دسته‌ها
@@ -2140,7 +2201,6 @@ async function openContentPage(pageId, title) {
     body.innerHTML = '<div class="text-center py-16 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-3"></i><p class="text-sm">در حال بارگذاری...</p></div>';
     overlay.classList.remove('hidden');
     overlay.classList.add('flex');
-    pushNavHistory(() => closeContentPage());
     try {
         const r = await fetch('/api/page-content/' + pageId);
         const d = await r.json();
@@ -2166,31 +2226,39 @@ function _resetBackCounter() {
     if (_backPressTimer) { clearTimeout(_backPressTimer); _backPressTimer = null; }
 }
 
-// لیست modal/overlay هایی که back آنها رو می‌بنده
+function _settingsOpen() {
+    const m = document.getElementById('settings-modal');
+    return !!m && /translateY\(0(px)?\)/.test(m.style.transform);
+}
+
+// modal/overlayهایی که entry ندارند و back فقط آن‌ها را می‌بندد (بالاترین اول)
 function _closeAnyTransientModal() {
-    if (_isVisible('aic-ruling'))           { aicCloseRuling();     return true; }
-    if (_isVisible('ai-chat-screen'))       { closeAIChat();        return true; }
     if (_isVisible('exit-confirm-modal'))   { closeExitDialog();    return true; }
     if (_isVisible('pwa-install-modal'))    { closePwaModal(false); return true; }
+    if (_isVisible('share-image-modal'))    { closeShareImageModal(); return true; }
+    if (_isVisible('aic-ruling'))           { aicCloseRuling();     return true; }
+    if (_isVisible('ai-chat-screen'))       { closeAIChat();        return true; }
+    if (_isVisible('video-reels-screen'))   { closeVideoReels();    return true; }
     if (_isVisible('image-modal'))          { closeImageModal();    return true; }
     if (_isVisible('audio-single-screen'))  { closeAudioSingleScreen(); return true; }
+    if (_isVisible('calendar-screen'))      { closeCalendarScreen(); return true; }
     if (_isVisible('webview-modal'))        { closeWebView();       return true; }
     if (_isVisible('content-page-overlay')) { closeContentPage();   return true; }
+    if (_isVisible('notif-detail-modal'))   { closeNotifDetail();   return true; }
     if (_isVisible('notif-panel'))          { closeNotifications(); return true; }
     if (_isVisible('global-search-modal'))  { closeGlobalSearch();  return true; }
     if (_isVisible('note-modal'))           { closeNoteModal();     return true; }
     if (_isVisible('search-modal'))         { closeSearch();        return true; }
-    if (_isVisible('settings-overlay'))     { closeSettings();      return true; }
+    if (_settingsOpen())                    { closeSettings();      return true; }
     if (_isVisible('qa-conversation'))      { closeQAConversation();return true; }
     return false;
 }
 
-// از دکمه‌های back هدر صدا زده میشه — به browser history سپرده میشه
+// دکمه‌های بازگشت داخل اپ — دقیقاً همان مسیر دکمهٔ بک گوشی
 function handleBackButton() {
-    // اول transient modal ها رو ببند
     if (_closeAnyTransientModal()) { _resetBackCounter(); return; }
-    // باقی به browser back سپرده میشه (popstate handler می‌گیره)
-    try { history.back(); } catch(e) {}
+    if (_backStack.length) { try { history.back(); } catch(e) {} return; }
+    if (_activeScreenName() !== 'home') withoutHistory(function() { navToScreen('home'); });
 }
 
 function showExitDialog() {
@@ -2208,128 +2276,64 @@ function confirmExit() {
     if (modal) modal.classList.add('hidden');
     _wantToExit = true;
     try { window.close(); } catch(e) {}   // در TWA/PWA standalone کار می‌کند
-    // در مرورگر معمولی: برگشت به قبل از باز شدن اپ
-    setTimeout(function() { history.go(-(_navDepth + 3)); }, 100);
+    // در مرورگر معمولی: برگشت به قبل از باز شدن اپ (entry پایه + ریشه + پشته)
+    setTimeout(function() { history.go(-(_backStack.length + 2)); }, 100);
 }
 
 // ====================================================
-// مدیریت دکمه Back
-// رویکرد: هر صفحه یک URL دارد (#n1, #n2...).
-// back مرورگر هر بار یک entry پاپ می‌کند → ما restore می‌کنیم.
-// وقتی به پایه (#home) رسیدیم، یک re-anchor می‌زنیم تا از اپ خارج نشویم.
+// مدیریت دکمه Back (گوشی/مرورگر)
 // ====================================================
 (function initBackHandler() {
-    // base entry — URL یکتا (pathname خالی، state=null)
-    try { history.replaceState(null, '', location.pathname + location.search); } catch(e) {}
-    // home entry — اولین entry با state
-    try { history.pushState({ app: true, screen: 'home' }, '', '#home'); } catch(e) {}
+    // entry پایه (state بدون idx معتبر → -1) و entry ریشه (خانه)
+    try { history.replaceState({ app: true, idx: -1 }, '', location.pathname + location.search); } catch(e) {}
+    try { history.pushState({ app: true, idx: 0 }, '', '#home'); } catch(e) {}
+
+    // روی entry پایه هر لمسی ریشه را دوباره می‌سازد تا back بعدی از اپ بیرون نزند
+    document.addEventListener('pointerdown', _armRoot, true);
+    document.addEventListener('keydown', _armRoot, true);
 
     window.addEventListener('popstate', function(e) {
         if (_wantToExit) return;
+        if (_syncPops > 0) { _syncPops--; return; }
 
-        const state = e.state;
+        const st = e.state;
+        const idx = (st && st.app && typeof st.idx === 'number') ? st.idx : -1;
+        const len = _backStack.length;
 
-        // اگر modal/overlay بازه: ببندش
+        // forward مرورگر به entryای که قبلاً از آن برگشته‌ایم → سر جای خودمان بمان
+        if (idx > len) { _histGo(len - idx); return; }
+
+        // modal باز است: فقط همان بسته شود و جای کاربر عوض نشود
         if (_closeAnyTransientModal()) {
             _resetBackCounter();
-            // اگر state popped-to با وضعیت فعلی (reader/toc/screen) match نکنه، state رو دوباره push کن
-            // تا کاربر جا‌به‌جا نشه. اگه match کنه (مثلاً content-page که خودش state داشت)، نیازی نیست.
-            const activeScreen = document.querySelector('.screen.active');
-            const screenName = activeScreen ? activeScreen.id.replace('screen-', '') : 'home';
-            const reader = document.getElementById('reader-overlay');
-            const toc = document.getElementById('toc-overlay');
-
-            // وضعیت واقعی الان چیه؟
-            const inReader = reader && reader.classList.contains('open');
-            const inToc = !inReader && toc && toc.classList.contains('open');
-
-            // وضعیت popped-to state چیه؟
-            const stateMatchesActual =
-                (inReader && state && state.app && state.view === 'reader') ||
-                (inToc && state && state.app && state.view === 'toc') ||
-                (!inReader && !inToc && state && state.app && state.screen === screenName);
-
-            if (!stateMatchesActual) {
-                try {
-                    if (inReader && typeof currentBookId !== 'undefined' && currentBookId != null) {
-                        history.pushState({ app: true, view: 'reader', book: currentBookId }, '', '#book-' + currentBookId + '-read');
-                    } else if (inToc && typeof currentBookId !== 'undefined' && currentBookId != null) {
-                        history.pushState({ app: true, view: 'toc', book: currentBookId }, '', '#book-' + currentBookId);
-                    } else {
-                        history.pushState({ app: true, screen: screenName }, '', '#' + screenName);
-                    }
-                } catch(ex) {}
-            }
+            _histGo(len - idx);
             return;
         }
 
-        // popped past home to base → exit dialog (double-back)
-        if (!state || !state.app) {
-            try { history.pushState({ app: true, screen: 'home' }, '', '#home'); } catch(ex) {}
+        if (idx >= 0) {
+            _resetBackCounter();
+            _popBackTo(idx);
+            return;
+        }
+
+        // idx === -1 → از ریشه هم عقب رفتیم
+        _popBackTo(0);
+        if (_activeScreenName() !== 'home') {
+            // ریشه همیشه خانه است
+            _resetBackCounter();
             withoutHistory(function() { navToScreen('home'); });
-
-            if (_backPressedOnce) {
-                _resetBackCounter();
-                showExitDialog();
-            } else {
-                _backPressedOnce = true;
-                if (typeof showToast === 'function') showToast('برای خروج، یک‌بار دیگر دکمه بازگشت را بزنید');
-                if (_backPressTimer) clearTimeout(_backPressTimer);
-                _backPressTimer = setTimeout(function() { _backPressedOnce = false; _backPressTimer = null; }, 3000);
-            }
+            _histGo(1);
             return;
         }
-
-        _resetBackCounter();
-
-        const reader = document.getElementById('reader-overlay');
-        const toc = document.getElementById('toc-overlay');
-
-        // popped to TOC state (از reader)
-        if (state.view === 'toc') {
-            if (reader && reader.classList.contains('open')) {
-                try { if (typeof _flushSavePage === 'function') _flushSavePage(); } catch(ex) {}
-                reader.classList.remove('open');
-            }
-            if (toc) toc.classList.add('open');
-            return;
-        }
-
-        // popped to reader state (forward — استثنا)
-        if (state.view === 'reader') {
-            if (toc) toc.classList.remove('open');
-            if (reader) reader.classList.add('open');
-            return;
-        }
-
-        // popped to a screen state
-        if (state.screen) {
-            // اول: media internal back رو امتحان کن
-            const activeScreen = document.querySelector('.screen.active');
-            if (activeScreen && activeScreen.id === 'screen-media' &&
-                typeof handleMediaBack === 'function' && handleMediaBack()) {
-                // media handled it — URL is already correct from popstate, no re-push needed
-                return;
-            }
-
-            // بستن overlay ها و سوییچ screen
-            if (reader) reader.classList.remove('open');
-            if (toc) toc.classList.remove('open');
-            withoutHistory(function() { navToScreen(state.screen); });
-            return;
-        }
-
-        // legacy state (از pushNavHistory)
-        if (state.legacy) {
-            if (_navHistory.length > 0) {
-                const restore = _navHistory.pop();
-                try { restore(); } catch(ex) { console.warn('back restore failed:', ex); }
-            }
-            return;
-        }
-
-        // ناشناخته — fallback
-        console.warn('Unknown back state:', state);
+        // خانه: بار اول پیام، بار دوم (روی entry پایه) مرورگر/TWA خودش خارج می‌شود
+        _atBase = true;
+        _backPressedOnce = true;
+        if (typeof showToast === 'function') showToast('برای خروج، یک‌بار دیگر دکمه بازگشت را بزنید');
+        if (_backPressTimer) clearTimeout(_backPressTimer);
+        _backPressTimer = setTimeout(function() {
+            _backPressedOnce = false; _backPressTimer = null;
+            if (_atBase) { _atBase = false; _histGo(1); }
+        }, 2500);
     });
 })();
 

@@ -57,6 +57,22 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 
 **صفحات موجود:** `home`, `books`, `media` (صوت/ویدیو/گالری), `lectures`, `favorites`
 
+در عمل از `navToScreen(name, opts?)` استفاده کنید (نه دستکاری مستقیم کلاس‌ها) تا دکمهٔ بازگشت درست کار کند.
+
+### دکمهٔ بازگشت (`app.js`)
+یک پشتهٔ واحد `_backStack` برای کل اپ؛ هر history entry حالت `{app, idx}` دارد و
+`idx` همیشه برابر طول پشته است (entry پایه `idx:-1`، ریشه/خانه `idx:0`).
+- هر «رفتن به صفحهٔ بعد» → `pushBack(restoreFn, section)`؛ `restoreFn` صفحهٔ قبل را
+  برمی‌گرداند و داخل `withoutHistory` اجرا می‌شود (پس entry نمی‌سازد).
+- دکمهٔ بک گوشی → `popstate` تا همان `idx` از پشته pop می‌کند. دکمه‌های بازگشت داخل
+  اپ همه `handleBackButton()` هستند (که `history.back()` می‌زند) — یعنی دقیقاً یک مسیر.
+- modalهای گذرا (تنظیمات فونت، جستجو، تقویم، صوت جدا، …) entry ندارند؛ در
+  `_closeAnyTransientModal()` ثبت می‌شوند و back فقط آن‌ها را می‌بندد.
+- کاری که نباید entry بسازد: `withoutHistory(fn)` (بدون init صفحه) یا `noBackPush(fn)`
+  (init اجرا می‌شود). کار چندمرحله‌ای async (لینک بنر) → `collapseBack(n)`.
+- کتاب‌خوان: `openReader()` فقط وقتی متن بسته است entry می‌گذارد؛ ورق زدن و اسلایدر entry نمی‌سازند.
+- در خانه: بک اول پیام «یک‌بار دیگر بزنید»، بک دوم (تا ۲.۵ ثانیه) از اپ خارج می‌شود.
+
 ---
 
 ## APIهای Backend (server.js)
