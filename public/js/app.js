@@ -479,7 +479,7 @@ async function loadHomeStories() {
             const thumb = safeUrl(v.thumbnail || v._catCover || '');
             const t = thumb ? `<img src="${thumb}" loading="lazy" class="w-full h-full object-cover" onerror="this.style.display='none'">` : '';
             return `<div onclick="openHomeStory(${v.id})" class="snap-start shrink-0 w-24 cursor-pointer active:scale-95 transition">
-                <div class="w-24 rounded-2xl overflow-hidden bg-gray-900 relative shadow-sm ring-2 ring-rose-500" style="aspect-ratio:9/16">
+                <div class="w-24 rounded-2xl overflow-hidden bg-white relative shadow-sm ring-2 ring-rose-500" style="aspect-ratio:9/16">
                     ${t}
                     <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                     <div class="absolute bottom-1.5 inset-x-1.5"><p class="text-white text-[9px] font-bold line-clamp-2 leading-tight">${escHtml(v.title || '')}</p></div>
@@ -579,7 +579,7 @@ async function loadHomeLatestMedia() {
                     ? `<img src="${thumb}" onerror="_videoImgErr(this,'${catCover}')" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-xl"></i></div>`;
                 return `<div onclick="openHomeVideo(${i})" class="snap-start shrink-0 w-36 cursor-pointer active:scale-95 transition">
-                    <div class="w-full rounded-xl overflow-hidden bg-gray-900 relative mb-1.5" style="aspect-ratio:16/9">
+                    <div class="w-full rounded-xl overflow-hidden bg-white relative mb-1.5" style="aspect-ratio:16/9">
                         ${thumbHtml}
                         <div class="absolute inset-0 bg-black/25 flex items-center justify-center"><div class="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center border border-white/40"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div>
                     </div>

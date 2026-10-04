@@ -74,7 +74,7 @@ function renderFavoritesTab() {
                     : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-xl"></i></div>`;
                 return `
                 <div class="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100">
-                    <div class="w-20 h-[45px] bg-gray-900 rounded-lg overflow-hidden relative shrink-0 cursor-pointer" onclick="playFavVideo(${v.id})">
+                    <div class="w-20 h-[45px] bg-white rounded-lg overflow-hidden relative shrink-0 cursor-pointer" onclick="playFavVideo(${v.id})">
                         ${thumbHtml}
                         <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
                             <i class="fas fa-play text-white text-xs"></i>
@@ -413,7 +413,7 @@ async function performMediaSearch(q) {
                     : `<div class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,#1e293b,#0f172a)"><i class="fas fa-video text-white/50 text-base"></i></div>`;
                 window._mfTmp['video_' + v.id] = {id:v.id,title:v.title,description:v.description||'',thumbnail:thumb,_catCover:v._catCover||'',embed_url:v.embed_url||''};
                 return `<div onclick="playVideoItem(${v.id})" class="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-3 p-3">
-                    <div class="w-24 h-[54px] bg-gray-900 rounded-xl overflow-hidden relative shrink-0">
+                    <div class="w-24 h-[54px] bg-white rounded-xl overflow-hidden relative shrink-0">
                         ${thumbHtml}
                         <div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center border border-white/40"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div>
                     </div>
@@ -571,7 +571,7 @@ async function loadVideoCategories(parentId, parentName) {
                 const clickFn = cat.sub_count > 0 ? `videoNavToSub(${cat.id},'${cat.name.replace(/'/g,"\\'")}')` : `loadVideoList(${cat.id},'${cat.name.replace(/'/g,"\\'")}',${cat.video_count})`;
                 if (_mediaViewMode === 'list') return `
                 <div onclick="${clickFn}" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
-                    <div class="w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-900 relative">${coverHtml}</div>
+                    <div class="w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-white relative">${coverHtml}</div>
                     <div class="flex-1 min-w-0"><h3 class="font-black text-xs text-gray-800 line-clamp-1">${cat.name}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
                     <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
                 </div>`;
@@ -687,7 +687,7 @@ function _renderVideoItems(pairs) {
         const dateStr = v.publish_date ? `<p class="text-[10px] text-gray-400 mt-0.5">${toFa(v.publish_date)}</p>` : '';
         if (_mediaViewMode === 'grid') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
-            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-gray-900 overflow-hidden relative">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-white overflow-hidden relative">${thumbHtml}${playBtn}</div>
             <div class="px-2 py-2 flex flex-col gap-0.5">
                 <div class="flex items-start gap-1">
                     <h4 onclick="playVideoItem(${v.id})" class="font-bold text-[11px] text-gray-800 line-clamp-2 leading-snug flex-1">${v.title}</h4>
@@ -698,7 +698,7 @@ function _renderVideoItems(pairs) {
         </div>`;
         if (_mediaViewMode === 'large') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all active:scale-[0.98] flex flex-col">
-            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-gray-900 overflow-hidden relative">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-white overflow-hidden relative">${thumbHtml}${playBtn}</div>
             <div class="p-3 flex items-start gap-2">
                 <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
                     <h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
@@ -710,7 +710,7 @@ function _renderVideoItems(pairs) {
         </div>`;
         return `
         <div class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
-            <div onclick="playVideoItem(${v.id})" class="w-28 h-[63px] bg-gray-900 rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
+            <div onclick="playVideoItem(${v.id})" class="w-28 h-[63px] bg-white rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
             <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
                 <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
                 ${v.description ? `<p class="text-[10px] text-gray-400 mt-0.5 line-clamp-1">${v.description}</p>` : ''}
@@ -1597,7 +1597,7 @@ function _renderCalResults() {
             const thumb = v.thumbnail || '';
             const th = thumb ? `<img src="${thumb}" class="w-full h-full object-cover opacity-90">` : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-2xl"></i></div>`;
             return `<div onclick="_csPlayVideo('${v.id}')" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
-                <div class="w-28 h-16 bg-gray-900 rounded-xl overflow-hidden relative shadow-sm shrink-0">${th}<div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center border border-white/30"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div></div>
+                <div class="w-28 h-16 bg-white rounded-xl overflow-hidden relative shadow-sm shrink-0">${th}<div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center border border-white/30"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div></div>
                 <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>${v.publish_date?`<p class="text-xs text-teal-500 mt-1">${toFa(v.publish_date)}</p>`:''}</div>
             </div>`;
         }).join('');
