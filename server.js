@@ -777,6 +777,15 @@ function sanUrl(u){
     if (v.startsWith('/') && !v.startsWith('//')) return v.slice(0, 500);   // مسیر داخلی
     return '';
 }
+// لینک بنر/اسلایدر: علاوه بر sanUrl، لینک داخلی اپ به شکل app://<نوع>/<شناسهٔ عددی>
+// (sanUrl آن را حذف می‌کرد و لینک داخلی هرگز ذخیره نمی‌شد)
+const APP_LINK_TYPES = ['book','audio_cat','audio','video_cat','video','news','news_cat','lecture','lecture_cat'];
+function sanLink(u){
+    if (typeof u !== 'string') return '';
+    const m = u.trim().match(/^app:\/\/([a-z_]+)\/(\d{1,12})$/);
+    if (m && APP_LINK_TYPES.includes(m[1])) return 'app://' + m[1] + '/' + m[2];
+    return sanUrl(u);
+}
 // فیلدهای متن ساده: هیچ HTML ای مجاز نیست
 function sanText(s){
     if (typeof s !== 'string') return s;
@@ -2321,7 +2330,7 @@ app.put('/api/admin/banners/:pos',adminAuth,uploadImage.single('banner_image'),(
         }
         const act=req.body.active==='1'||req.body.active==='true'?1:0;
         const title=sanText(req.body.title||'');
-        const link=sanUrl(req.body.link||'');
+        const link=sanLink(req.body.link||'');
         const validSections=['after_slider','after_shortcuts','after_books','after_lectures','after_images','after_videos','after_audio'];
         const pageSec=validSections.includes(req.body.page_section)?req.body.page_section:(bn&&bn.page_section||'after_books');
         const deskSec=validSections.includes(req.body.desktop_section)?req.body.desktop_section:'';
@@ -2364,7 +2373,7 @@ app.post('/api/admin/sliders',adminAuth,uploadImage.single('slider_image'),(req,
         const section = ['main','after_books','after_shortcuts','after_lectures','after_banners'].includes(req.body.display_section) ? req.body.display_section : 'main';
         const validSliderPages=['home','media_video','media_audio','media_photo','lectures','library'];
         const sliderPages=(req.body.pages||'home').split(',').filter(p=>validSliderPages.includes(p)).join(',') || 'home';
-        mainDb.run('INSERT INTO sliders (title,image,link,sort_order,display_section,pages) VALUES (?,?,?,?,?,?)',[sanText(req.body.title||''),img,sanUrl(req.body.link||''),r?r.c:0,section,sliderPages],function(err){
+        mainDb.run('INSERT INTO sliders (title,image,link,sort_order,display_section,pages) VALUES (?,?,?,?,?,?)',[sanText(req.body.title||''),img,sanLink(req.body.link||''),r?r.c:0,section,sliderPages],function(err){
             if(err) return res.status(500).json({error:failMsg(err)});
             res.json({success:true,id:this.lastID,image:img});
         });
