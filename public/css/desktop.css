@@ -423,17 +423,19 @@ body.global-dark #home-desktop-header { background: rgba(15, 23, 42, .92) !impor
 #home-col-lectures, #home-media-audio-section, #home-media-videos-section { margin-bottom: 0 !important; }
 #home-lectures-section,
 #home-media-audio-section,
-#home-media-videos-section {
+#home-media-videos-section { margin-bottom: 0 !important; padding: 0 !important; }
+/* کارتِ هر ستون = ردیف عنوان (نیمهٔ بالا) + فهرست (نیمهٔ پایین)؛ نه کل بخش —
+   چون بنرهای after_audio/after_videos داخل همان بخش‌اند و باید زیر کارت بیایند */
+#home-scroll-content #home-lectures-section > .justify-between.mb-3,
+#home-scroll-content #home-media-audio-section > .justify-between.mb-3,
+#home-scroll-content #home-media-videos-section > .justify-between.mb-3 {
     background: var(--d-surface);
     border: 1px solid var(--d-border);
-    border-radius: 22px;
-    padding: 20px 16px 12px;
-    box-shadow: var(--d-shadow);
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+    padding: 20px 22px 12px !important;
     margin-bottom: 0 !important;
 }
-#home-lectures-section > .justify-between,
-#home-media-audio-section > .justify-between,
-#home-media-videos-section > .justify-between { padding: 0 6px !important; margin-bottom: 12px !important; }
 #home-lectures-section h3, #home-media-audio-section h3, #home-media-videos-section h3 { font-size: 16.5px !important; }
 
 #home-lectures-container, #home-latest-audio, #home-latest-videos {
@@ -441,7 +443,12 @@ body.global-dark #home-desktop-header { background: rgba(15, 23, 42, .92) !impor
     flex-direction: column !important;
     gap: 2px !important;
     overflow: visible !important;
-    padding: 0 !important;
+    background: var(--d-surface);
+    border: 1px solid var(--d-border);
+    border-top: 0;
+    border-radius: 0 0 22px 22px;
+    padding: 0 16px 12px !important;
+    box-shadow: 0 10px 18px -14px rgba(15, 23, 42, .18);
 }
 #home-lectures-container > *, #home-latest-audio > *, #home-latest-videos > * {
     width: auto !important;
@@ -486,7 +493,7 @@ body.global-dark #home-desktop-header { background: rgba(15, 23, 42, .92) !impor
 #home-latest-videos > *:nth-child(n+6) { display: none !important; }
 #home-banner-after_lectures:not(:empty),
 #home-banner-after_audio:not(:empty),
-#home-banner-after_videos:not(:empty) { grid-template-columns: 1fr; margin-top: 14px; }
+#home-banner-after_videos:not(:empty) { grid-template-columns: 1fr; margin-top: 18px !important; }
 
 /* شبکه‌های اجتماعی */
 #home-link-shortcuts-wrapper {
@@ -496,19 +503,17 @@ body.global-dark #home-desktop-header { background: rgba(15, 23, 42, .92) !impor
     padding: 22px 24px;
     box-shadow: var(--d-shadow);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 28px;
+    gap: 18px;
     margin-bottom: 0 !important;
 }
-#home-link-shortcuts-wrapper > div:first-child { margin-bottom: 0 !important; flex-shrink: 0; }
-#home-link-shortcuts-wrapper h3 { font-size: 16.5px !important; }
-#home-link-shortcuts-section { flex-wrap: wrap; gap: 18px 22px !important; overflow: visible !important; padding: 0 !important; flex: 1; }
+#home-link-shortcuts-wrapper > div:first-child { margin-bottom: 0 !important; justify-content: center; }
+#home-link-shortcuts-wrapper h3 { font-size: 16.5px !important; text-align: center; }
+#home-link-shortcuts-section { flex-wrap: wrap; justify-content: center; gap: 18px 26px !important; overflow: visible !important; padding: 0 !important; width: 100%; }
 #home-link-shortcuts-section .shortcut-item > div { width: 46px !important; height: 46px !important; border-radius: 14px !important; transition: transform .2s var(--d-ease); }
 #home-link-shortcuts-section .shortcut-item:hover > div { transform: translateY(-3px); }
 #home-link-shortcuts-section .shortcut-label { font-size: 12px !important; }
-@media (max-width: 1023px) {
-    #home-link-shortcuts-wrapper { flex-direction: column; align-items: flex-start; gap: 16px; }
-}
 
 /* =====================================================================
    کتابخانه
