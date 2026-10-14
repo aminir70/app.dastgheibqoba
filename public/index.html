@@ -18,8 +18,10 @@
     <link href="/vendor/fonts/shabnam/font-face-local.css" rel="stylesheet">
     <link rel="stylesheet" href="/vendor/fa/all.local.min.css">
 
-    <link rel="stylesheet" href="/css/tailwind.dist.css?v=49">
+    <link rel="stylesheet" href="/css/tailwind.dist.css?v=50">
     <link rel="stylesheet" href="/css/app.css?v=46">
+    <!-- چیدمان دسکتاپ: فقط از ۶۴۰px به بالا بارگذاری/اعمال می‌شود؛ موبایل از آن اثر نمی‌گیرد -->
+    <link rel="stylesheet" href="/css/desktop.css?v=1" media="(min-width: 640px)">
 </head>
 <body class="font-vazir antialiased text-gray-800">
 
@@ -80,23 +82,26 @@
 
     <!-- DESKTOP SIDEBAR -->
     <aside id="desktop-sidebar">
-        <div id="sd-brand">
-            <div id="sd-avatar"><img src="/icons/icon-96.png" alt="logo" style="width:40px;height:40px;object-fit:contain;border-radius:8px;" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><i class="fas fa-user" style="display:none;"></i></div>
-            <div id="sd-brand-name">نرم افزار آیت الله دستغیب</div>
-            <div id="sd-brand-sub">DastgheibQoba.info</div>
+        <div id="sd-brand" onclick="_sdGo(function(){navToScreen('home')})">
+            <div id="sd-avatar"><i class="fas fa-book-open"></i></div>
+            <div class="sd-brand-text">
+                <div id="sd-brand-name">نرم افزار آیت الله دستغیب</div>
+                <div id="sd-brand-sub">DastgheibQoba.info</div>
+            </div>
         </div>
+        <div class="sd-label">منو</div>
         <nav id="sd-nav">
-            <button class="nav-item sdi" data-nav="home"     onclick="navToScreen('home')">    <i class="fas fa-home"></i><span>خانه</span></button>
-            <button class="nav-item sdi" data-nav="library"  onclick="navToScreen('library')"> <i class="fas fa-book"></i><span>کتابخانه</span></button>
-            <button class="nav-item sdi" data-nav="media"    onclick="navToScreen('media')">   <i class="fas fa-photo-film"></i><span>رسانه</span></button>
-            <button class="nav-item sdi" data-nav="lectures" onclick="navToScreen('lectures')"><i class="fas fa-microphone-alt"></i><span>سخنرانی</span></button>
-            <button class="nav-item sdi" data-nav="qa"       onclick="navToScreen('qa')">      <i class="fas fa-question-circle"></i><span>سوال و پاسخ</span></button>
+            <button class="nav-item sdi active" data-nav="home"     onclick="_sdGo(function(){navToScreen('home')})">    <i class="fas fa-home"></i><span>خانه</span></button>
+            <button class="nav-item sdi" data-nav="library"  onclick="_sdGo(function(){navToScreen('library')})"> <i class="fas fa-book"></i><span>کتابخانه</span></button>
+            <button class="nav-item sdi" data-nav="media"    onclick="_sdGo(function(){navToScreen('media')})">   <i class="fas fa-photo-film"></i><span>رسانه</span></button>
+            <button class="nav-item sdi" data-nav="lectures" onclick="_sdGo(function(){navToScreen('lectures')})"><i class="fas fa-microphone-alt"></i><span>سخنرانی</span></button>
+            <button class="nav-item sdi" data-nav="qa"       onclick="_sdGo(function(){navToScreen('qa')})">      <i class="fas fa-question-circle"></i><span>سوال و پاسخ</span></button>
         </nav>
         <div id="sd-footer">
-            <button class="sdi" onclick="openGlobalSearch()">   <i class="fas fa-search"></i><span>جستجو</span></button>
-            <button class="sdi" onclick="toggleGlobalTheme()">  <i class="fas fa-adjust"></i><span>حالت تاریک</span></button>
-            <button class="sdi" onclick="openNotifications()">  <i class="fas fa-bell"></i><span>اطلاعیه‌ها</span></button>
-            <button class="sdi" onclick="navToScreen('auth')">  <i class="fas fa-user"></i><span>حساب کاربری</span></button>
+            <button class="sdi" onclick="_sdGo(openGlobalSearch)"><i class="fas fa-search"></i><span>جستجو</span></button>
+            <button class="sdi" id="sd-theme-btn" onclick="toggleGlobalTheme()"><i class="fas fa-adjust"></i><span>حالت تاریک</span></button>
+            <button class="sdi" onclick="_sdGo(openNotifications)"><i class="far fa-bell"></i><span id="notif-badge-sd" class="sd-badge hidden"></span><span>اطلاعیه‌ها</span></button>
+            <button class="nav-item sdi" data-nav="auth" onclick="_sdGo(function(){navToScreen('auth')})"><i class="fas fa-user"></i><span>حساب کاربری</span></button>
         </div>
     </aside>
 
@@ -1416,14 +1421,14 @@
 
 <script src="/vendor/pdfjs/pdf.min.js"></script>
 <script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.js';</script>
-<script src="/js/dist/utils.min.js?v=49"></script>
-<script src="/js/dist/offline.min.js?v=49"></script>
-<script src="/js/dist/books.min.js?v=49"></script>
-<script src="/js/dist/lectures.min.js?v=49"></script>
-<script src="/js/dist/media.min.js?v=49"></script>
-<script src="/js/dist/news.min.js?v=49"></script>
-<script src="/js/dist/aichat.min.js?v=49"></script>
-<script src="/js/dist/app.min.js?v=49"></script>
+<script src="/js/dist/utils.min.js?v=50"></script>
+<script src="/js/dist/offline.min.js?v=50"></script>
+<script src="/js/dist/books.min.js?v=50"></script>
+<script src="/js/dist/lectures.min.js?v=50"></script>
+<script src="/js/dist/media.min.js?v=50"></script>
+<script src="/js/dist/news.min.js?v=50"></script>
+<script src="/js/dist/aichat.min.js?v=50"></script>
+<script src="/js/dist/app.min.js?v=50"></script>
 
 <!-- PWA Install Modal -->
 <div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" onclick="closePwaModal()">

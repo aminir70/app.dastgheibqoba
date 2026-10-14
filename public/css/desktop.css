@@ -1,0 +1,753 @@
+/* =====================================================================
+   نسخهٔ دسکتاپ (عرض ۶۴۰px به بالا)
+   این فایل با <link media="(min-width: 640px)"> بارگذاری می‌شود؛ یعنی روی
+   گوشی مرورگر اصلاً آن را اعمال نمی‌کند و نسخهٔ موبایل از آن اثر نمی‌گیرد.
+   ۶۴۰ تا ۱۱۹۹: نوار کناری جمع‌وجور (آیکن)؛ ۱۲۰۰ به بالا: نوار کامل.
+
+   ستون محتوا: به‌جای max-width روی ظرف اسکرول (که اسکرول‌بار را وسط
+   صفحه می‌آورد) از padding-inline: var(--gut) استفاده می‌شود تا محتوا وسط
+   بنشیند و اسکرول‌بار کنار صفحه بماند.
+   ===================================================================== */
+
+:root {
+    --sb-w: 268px;
+    --cw: 1180px;                                     /* پهنای ستون محتوا */
+    --gut: max(32px, calc((100% - var(--cw)) / 2));   /* فاصلهٔ دو طرف ستون محتوا */
+    --gut-read: max(32px, calc((100% - 780px) / 2));  /* ستون خواندن متن */
+    --gut-narrow: max(32px, calc((100% - 880px) / 2));
+
+    --d-bg: #f3f5f8;
+    --d-surface: #ffffff;
+    --d-soft: #f7f9fb;
+    --d-border: #e6eaf0;
+    --d-text: #0f172a;
+    --d-muted: #64748b;
+    --d-faint: #94a3b8;
+    --d-brand: #0d9488;
+    --d-brand-dark: #0f766e;
+    --d-brand-soft: #ecfdf8;
+    --d-radius: 20px;
+    --d-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 2px 10px rgba(15, 23, 42, .04);
+    --d-shadow-hover: 0 10px 30px rgba(15, 23, 42, .10);
+    --d-ease: cubic-bezier(.2, .8, .2, 1);
+}
+@media (max-width: 1199px) {
+    :root { --sb-w: 88px; --gut: 28px; }
+}
+body.global-dark {
+    --d-bg: #0b1220;
+    --d-surface: #131c2e;
+    --d-soft: #172236;
+    --d-border: rgba(255, 255, 255, .07);
+    --d-text: #e2e8f0;
+    --d-muted: #94a3b8;
+    --d-faint: #64748b;
+    --d-brand: #2dd4bf;
+    --d-brand-soft: rgba(45, 212, 191, .12);
+    --d-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+    --d-shadow-hover: 0 10px 30px rgba(0, 0, 0, .45);
+}
+
+/* ---------------------------------------------------------------------
+   پوستهٔ اصلی: نوار کناری + ناحیهٔ محتوا
+   --------------------------------------------------------------------- */
+html, body { background: var(--d-bg) !important; }
+
+#app-wrapper {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    flex-direction: row !important;
+    background: var(--d-bg) !important;
+}
+#bottom-nav { display: none !important; }
+#screens-wrapper {
+    flex: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+.screen { background: var(--d-bg) !important; }
+.screen.active { animation: dFade .25s var(--d-ease); }
+/* فقط opacity: انیمیشنِ transform (با fill-mode) والد را «containing block» عناصر
+   fixed داخلش می‌کند و هدر/فوتر کتاب‌خوان جابه‌جا می‌شد */
+@keyframes dFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* اسکرول‌بار ظریف و قابل دیدن (با ماوس لازم است) */
+#app-wrapper ::-webkit-scrollbar { width: 10px; height: 10px; }
+#app-wrapper ::-webkit-scrollbar-thumb { background: #cfd6df; border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+#app-wrapper ::-webkit-scrollbar-thumb:hover { background-color: #b4bec9; }
+body.global-dark #app-wrapper ::-webkit-scrollbar-thumb { background-color: #2a3650; }
+
+/* ---------------------------------------------------------------------
+   نوار کناری
+   --------------------------------------------------------------------- */
+#desktop-sidebar {
+    display: flex !important;
+    flex-direction: column;
+    width: var(--sb-w);
+    min-width: var(--sb-w);
+    flex-shrink: 0;
+    background: var(--d-surface);
+    border-left: 1px solid var(--d-border);
+    padding: 20px 16px 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    z-index: 60;
+}
+#sd-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 6px 20px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--d-border);
+    cursor: pointer;
+    text-align: right;
+}
+#sd-avatar {
+    width: 46px; height: 46px;
+    border-radius: 14px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    color: #fff;
+    font-size: 20px;
+    box-shadow: 0 6px 18px rgba(13, 148, 136, .28);
+}
+#sd-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#sd-avatar.has-logo { background: #fff; box-shadow: 0 0 0 1px var(--d-border), 0 6px 18px rgba(15, 23, 42, .08); }
+#sd-avatar.has-logo img { object-fit: contain; padding: 3px; }
+.sd-brand-text { min-width: 0; }
+#sd-brand-name {
+    font-size: 14px; font-weight: 900; line-height: 1.55;
+    color: var(--d-text);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+#sd-brand-sub { font-size: 11.5px; font-weight: 600; color: var(--d-faint); direction: ltr; text-align: right; margin-top: 1px; }
+.sd-label { font-size: 11.5px; font-weight: 800; color: var(--d-faint); padding: 14px 12px 8px; }
+
+#sd-nav { display: flex; flex-direction: column; gap: 4px; }
+#sd-footer {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--d-border);
+    display: flex; flex-direction: column; gap: 2px;
+}
+
+.sdi {
+    display: flex !important;
+    flex-direction: row !important;
+    flex: none !important;
+    align-items: center;
+    justify-content: flex-start !important;
+    gap: 13px;
+    width: 100%;
+    height: 46px;
+    padding: 0 14px !important;
+    border: 0;
+    border-radius: 13px;
+    background: transparent;
+    color: #475569;
+    font-family: Vazir, Tahoma, sans-serif;
+    font-size: 14.5px;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+    cursor: pointer;
+    position: relative;
+    transition: background .18s, color .18s;
+}
+.sdi i { width: 22px; text-align: center; font-size: 17px !important; color: var(--d-faint) !important; transform: none !important; flex-shrink: 0; transition: color .18s; }
+.sdi .nav-icon-img { width: 22px !important; height: 22px !important; flex-shrink: 0; }
+.sdi span { display: block !important; font-size: 14.5px !important; color: inherit !important; font-weight: 700 !important; }
+.sdi:hover { background: var(--d-soft); color: var(--d-text); }
+.sdi:hover i { color: var(--d-brand) !important; }
+.nav-item.sdi.active { background: var(--d-brand-soft); color: var(--d-brand); }
+.nav-item.sdi.active i { color: var(--d-brand) !important; }
+.nav-item.sdi.active span { color: var(--d-brand) !important; font-weight: 800 !important; }
+.nav-item.sdi.active::before {
+    content: '';
+    position: absolute;
+    right: -16px; top: 11px; bottom: 11px;
+    width: 4px;
+    border-radius: 4px 0 0 4px;
+    background: var(--d-brand);
+}
+.sdi.hidden, .sdi span.hidden { display: none !important; }
+.sdi .sd-badge {
+    position: absolute; top: 12px; right: 27px;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #ef4444; border: 2px solid var(--d-surface);
+}
+body.global-dark .sdi { color: #94a3b8; }
+
+/* نوار جمع‌وجور برای ۶۴۰ تا ۱۱۹۹ */
+@media (max-width: 1199px) {
+    #desktop-sidebar { padding: 16px 10px 12px; }
+    #sd-brand { justify-content: center; padding: 2px 0 16px; }
+    .sd-brand-text, .sd-label { display: none; }
+    .sdi {
+        flex-direction: column !important;
+        justify-content: center !important;
+        height: auto;
+        min-height: 58px;
+        padding: 8px 2px !important;
+        gap: 5px;
+        text-align: center;
+    }
+    .sdi span { font-size: 10.5px !important; white-space: normal; line-height: 1.4; }
+    .nav-item.sdi.active::before { right: -10px; }
+    .sdi .sd-badge { top: 8px; right: calc(50% - 14px); }
+}
+
+/* ---------------------------------------------------------------------
+   متن‌های ریز موبایل در دسکتاپ کمی بزرگ‌تر شوند
+   --------------------------------------------------------------------- */
+:is(#screens-wrapper, #toc-overlay, #calendar-screen, #audio-single-screen, #global-search-modal, #notif-panel, #notif-detail-modal, #content-page-overlay) .text-\[9px\]  { font-size: 11px !important; }
+:is(#screens-wrapper, #toc-overlay, #calendar-screen, #audio-single-screen, #global-search-modal, #notif-panel, #notif-detail-modal, #content-page-overlay) .text-\[10px\] { font-size: 12px !important; }
+:is(#screens-wrapper, #toc-overlay, #calendar-screen, #audio-single-screen, #global-search-modal, #notif-panel, #notif-detail-modal, #content-page-overlay) .text-\[11px\] { font-size: 12.5px !important; }
+:is(#screens-wrapper, #toc-overlay, #calendar-screen, #audio-single-screen, #global-search-modal, #notif-panel, #notif-detail-modal, #content-page-overlay) .text-xs        { font-size: 13px !important; }
+:is(#screens-wrapper, #toc-overlay, #calendar-screen, #audio-single-screen, #global-search-modal, #notif-panel, #notif-detail-modal, #content-page-overlay) .text-sm        { font-size: 14.5px !important; }
+
+/* ---------------------------------------------------------------------
+   هدر صفحه‌ها
+   --------------------------------------------------------------------- */
+.screen > header,
+#qa-conversation > header,
+#qa-auth > header {
+    padding-inline: var(--gut) !important;
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+    min-height: 76px;
+    background: rgba(255, 255, 255, .88) !important;
+    backdrop-filter: saturate(1.4) blur(14px);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid var(--d-border) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+.screen > header h1 { font-size: 22px !important; letter-spacing: 0; }
+.screen > header button.rounded-full,
+.screen > header button.rounded-2xl {
+    transition: background .18s, color .18s, transform .18s;
+}
+.screen > header button:hover { background-color: #eef2f6 !important; color: var(--d-brand) !important; }
+body.global-dark .screen > header button:hover { background-color: rgba(255, 255, 255, .08) !important; }
+/* خانه: هدر موبایل پنهان، هدر دسکتاپ نمایش */
+#screen-home > header { display: none !important; }
+
+/* ---------------------------------------------------------------------
+   کارت‌ها: سایه و حالت hover یکدست
+   --------------------------------------------------------------------- */
+#screens-wrapper .bg-white.border-gray-100 { border-color: var(--d-border) !important; }
+#screens-wrapper [onclick].bg-white:is(.rounded-2xl, .rounded-3xl),
+#screens-wrapper [onclick].bg-white:is(.rounded-2xl, .rounded-3xl) {
+    transition: box-shadow .22s var(--d-ease), transform .22s var(--d-ease), border-color .22s;
+}
+#screens-wrapper [onclick].bg-white:is(.rounded-2xl, .rounded-3xl):hover {
+    box-shadow: var(--d-shadow-hover) !important;
+    transform: translateY(-2px);
+    border-color: transparent !important;
+}
+#screens-wrapper .active\:scale-95:active,
+#screens-wrapper .active\:scale-\[0\.98\]:active { transform: scale(.985); }
+
+/* =====================================================================
+   خانه
+   ===================================================================== */
+#home-desktop-header {
+    display: flex !important;
+    align-items: center;
+    gap: 20px;
+    min-height: 76px;
+    padding: 14px var(--gut) !important;
+    background: rgba(255, 255, 255, .88) !important;
+    backdrop-filter: saturate(1.4) blur(14px);
+    -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    border-bottom: 1px solid var(--d-border) !important;
+    position: relative;
+    z-index: 5;
+}
+body.global-dark #home-desktop-header { background: rgba(15, 23, 42, .92) !important; }
+#home-desktop-header h1 { font-size: 22px !important; }
+#home-desktop-header > button:first-of-type {
+    max-width: 560px;
+    height: 46px;
+    margin-inline: auto;
+    border-radius: 14px !important;
+    background: var(--d-soft) !important;
+    border-color: var(--d-border) !important;
+    transition: background .18s, box-shadow .18s, border-color .18s;
+}
+#home-desktop-header > button:first-of-type:hover { background: var(--d-surface) !important; border-color: #cfe9e5 !important; box-shadow: 0 0 0 4px rgba(13, 148, 136, .08); }
+#home-desktop-header > button:first-of-type span { font-size: 13.5px !important; }
+#home-desktop-header .w-9 { width: 42px !important; height: 42px !important; }
+
+#home-scroll-content {
+    padding: 28px var(--gut) 56px !important;
+}
+#home-scroll-content > div { margin-bottom: 36px !important; }
+/* فاصله‌های داخلی موبایل (px-4/px-6) در ستون دسکتاپ لازم نیست */
+#home-scroll-content :is(.px-4, .px-6):not(.shortcut-item):not(button) { padding-left: 0 !important; padding-right: 0 !important; }
+
+/* عنوان بخش‌ها */
+#home-scroll-content h3.text-sm.font-black { font-size: 18px !important; color: var(--d-text); }
+#home-scroll-content h3 + button,
+#home-scroll-content .justify-between > button.rounded-full {
+    font-size: 12.5px !important;
+    padding: 7px 16px !important;
+    transition: filter .18s, transform .18s;
+}
+#home-scroll-content .justify-between > button.rounded-full:hover { filter: brightness(.96); transform: translateX(-2px); }
+#home-scroll-content .justify-between.mb-3 { margin-bottom: 18px !important; }
+
+/* اسلایدر: کارت گرد داخل ستون */
+#home-slider {
+    border-radius: 24px !important;
+    max-height: 420px;
+    box-shadow: 0 18px 40px -18px rgba(15, 23, 42, .35);
+}
+#home-slider > button { width: 44px !important; height: 44px !important; background: rgba(255, 255, 255, .22) !important; transition: background .18s; }
+#home-slider > button:hover { background: rgba(255, 255, 255, .4) !important; }
+#home-slider > button:first-of-type { right: 18px !important; }
+#home-slider > button:last-of-type { left: 18px !important; }
+#slider-dots { bottom: 16px !important; }
+
+/* بنرها: کنار هم */
+[id^="home-banner-"]:not(:empty) {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 18px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+[id^="home-banner-"] > div { box-shadow: var(--d-shadow); transition: transform .22s var(--d-ease), box-shadow .22s; }
+[id^="home-banner-"] > div:hover { transform: translateY(-3px); box-shadow: var(--d-shadow-hover); }
+[id^="home-banner-"] img { display: block; height: 100%; }
+
+#home-live-banner { margin-top: 0 !important; }
+#home-live-banner > div { border-radius: 22px !important; padding: 20px 24px !important; }
+
+/* میانبرها: کاشی‌های یک‌اندازه */
+#home-col-shortcuts { padding: 0 !important; }
+#home-shortcuts-section {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)) !important;
+    gap: 14px !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+}
+#home-shortcuts-section .shortcut-item {
+    background: var(--d-surface);
+    border: 1px solid var(--d-border);
+    border-radius: 20px;
+    padding: 20px 10px 16px;
+    gap: 12px !important;
+    box-shadow: var(--d-shadow);
+    transition: transform .22s var(--d-ease), box-shadow .22s, border-color .22s;
+}
+#home-shortcuts-section .shortcut-item:hover { transform: translateY(-3px); box-shadow: var(--d-shadow-hover); border-color: transparent; }
+#home-shortcuts-section .shortcut-item > div { width: 56px !important; height: 56px !important; border-radius: 17px !important; font-size: 22px !important; box-shadow: 0 8px 18px -8px rgba(15, 23, 42, .45) !important; }
+#home-shortcuts-section .shortcut-label { font-size: 13px !important; color: var(--d-text) !important; }
+#home-shortcuts-section .shortcut-item:hover .shortcut-label { color: var(--d-brand) !important; }
+#home-banner-after_shortcuts:not(:empty) { margin-top: 24px; }
+
+/* کتاب‌ها: یک ردیف قفسه — هر تعداد که جا شود (کتاب‌های اضافه در ردیف‌های
+   بعدی با ارتفاع صفر پنهان می‌شوند؛ تعداد کل همان است که برنامه می‌فرستد) */
+#home-books-section { padding: 0 !important; }
+#home-books-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
+    grid-template-rows: auto;
+    grid-auto-rows: 0;
+    column-gap: 22px !important;
+    row-gap: 0 !important;
+    overflow: hidden !important;
+    padding: 8px 2px 22px !important;
+    margin: -8px -2px -22px;
+}
+#home-books-container > div:not(.book-card) { display: none !important; }
+#home-books-container > .book-card { width: auto !important; }
+#home-books-container .book-cover-wrap { border-radius: 14px !important; box-shadow: 0 10px 24px -12px rgba(15, 23, 42, .45) !important; }
+#home-books-container .book-title,
+#books-grid .book-title { font-size: 13.5px !important; line-height: 1.6 !important; margin-top: 10px !important; }
+#home-books-container .book-title + p,
+#books-grid .book-title + p { font-size: 12px !important; margin-top: 2px; }
+
+/* آخرین تصاویر: شبکه */
+#home-latest-images {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px !important;
+    overflow: visible !important;
+    padding: 0 !important;
+}
+#home-latest-images > div {
+    width: auto !important;
+    aspect-ratio: 4 / 5 !important;
+    border-radius: 18px !important;
+    transition: transform .25s var(--d-ease), box-shadow .25s;
+}
+#home-latest-images > div:hover { transform: translateY(-3px); box-shadow: var(--d-shadow-hover); }
+#home-latest-images img { transition: transform .5s var(--d-ease); }
+#home-latest-images > div:hover img { transform: scale(1.04); }
+@media (max-width: 1023px) {
+    #home-latest-images { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    #home-latest-images > div:nth-child(n+9) { display: none !important; }
+}
+
+/* استوری: نوار افقی با کارت‌های بزرگ‌تر */
+#home-story-strip { gap: 16px !important; padding: 4px 4px 12px !important; }
+#home-story-strip > div, #home-story-strip > div > div { width: 132px !important; }
+#home-story-strip p { font-size: 12px !important; }
+
+/* سه ستون: مطالب | صوت | ویدیو */
+#home-three-col-wrap {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 22px;
+    align-items: start;
+    padding: 0 !important;
+}
+@media (max-width: 1099px) {
+    #home-three-col-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+#home-col-lectures, #home-media-audio-section, #home-media-videos-section { margin-bottom: 0 !important; }
+#home-lectures-section,
+#home-media-audio-section,
+#home-media-videos-section {
+    background: var(--d-surface);
+    border: 1px solid var(--d-border);
+    border-radius: 22px;
+    padding: 20px 16px 12px;
+    box-shadow: var(--d-shadow);
+    margin-bottom: 0 !important;
+}
+#home-lectures-section > .justify-between,
+#home-media-audio-section > .justify-between,
+#home-media-videos-section > .justify-between { padding: 0 6px !important; margin-bottom: 12px !important; }
+#home-lectures-section h3, #home-media-audio-section h3, #home-media-videos-section h3 { font-size: 16.5px !important; }
+
+#home-lectures-container, #home-latest-audio, #home-latest-videos {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    overflow: visible !important;
+    padding: 0 !important;
+}
+#home-lectures-container > *, #home-latest-audio > *, #home-latest-videos > * {
+    width: auto !important;
+    display: grid !important;
+    grid-template-columns: 58px minmax(0, 1fr);
+    grid-auto-rows: min-content;
+    column-gap: 14px;
+    row-gap: 3px;
+    align-content: center;
+    padding: 9px 8px !important;
+    border-radius: 14px;
+    transition: background .18s;
+}
+#home-latest-videos > * { grid-template-columns: 104px minmax(0, 1fr); }
+#home-lectures-container > *:hover, #home-latest-audio > *:hover, #home-latest-videos > *:hover { background: var(--d-soft); }
+#home-lectures-container > * > :first-child,
+#home-latest-audio > * > :first-child,
+#home-latest-videos > * > :first-child {
+    grid-row: 1 / span 3;
+    grid-column: 1;
+    width: 58px !important;
+    height: 58px !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    border-radius: 13px !important;
+    align-self: center;
+}
+#home-latest-videos > * > :first-child { width: 104px !important; height: 58px !important; }
+#home-lectures-container > * > :not(:first-child),
+#home-latest-audio > * > :not(:first-child),
+#home-latest-videos > * > :not(:first-child) { grid-column: 2; padding: 0 !important; align-self: end; }
+#home-lectures-container > * > :nth-child(3),
+#home-latest-audio > * > :nth-child(3) { align-self: start; }
+#home-lectures-container h4, #home-latest-audio h4, #home-latest-videos h4 {
+    font-size: 13.5px !important;
+    line-height: 1.7 !important;
+    color: var(--d-text);
+}
+#home-latest-videos h4 { align-self: center !important; }
+#home-lectures-container > *:nth-child(n+6),
+#home-latest-audio > *:nth-child(n+6),
+#home-latest-videos > *:nth-child(n+6) { display: none !important; }
+#home-banner-after_lectures:not(:empty),
+#home-banner-after_audio:not(:empty),
+#home-banner-after_videos:not(:empty) { grid-template-columns: 1fr; margin-top: 14px; }
+
+/* شبکه‌های اجتماعی */
+#home-link-shortcuts-wrapper {
+    background: var(--d-surface);
+    border: 1px solid var(--d-border);
+    border-radius: 22px;
+    padding: 22px 24px;
+    box-shadow: var(--d-shadow);
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-bottom: 0 !important;
+}
+#home-link-shortcuts-wrapper > div:first-child { margin-bottom: 0 !important; flex-shrink: 0; }
+#home-link-shortcuts-wrapper h3 { font-size: 16.5px !important; }
+#home-link-shortcuts-section { flex-wrap: wrap; gap: 18px 22px !important; overflow: visible !important; padding: 0 !important; flex: 1; }
+#home-link-shortcuts-section .shortcut-item > div { width: 46px !important; height: 46px !important; border-radius: 14px !important; transition: transform .2s var(--d-ease); }
+#home-link-shortcuts-section .shortcut-item:hover > div { transform: translateY(-3px); }
+#home-link-shortcuts-section .shortcut-label { font-size: 12px !important; }
+@media (max-width: 1023px) {
+    #home-link-shortcuts-wrapper { flex-direction: column; align-items: flex-start; gap: 16px; }
+}
+
+/* =====================================================================
+   کتابخانه
+   ===================================================================== */
+#screen-library > .overflow-y-auto { padding: 32px var(--gut) 64px !important; }
+#books-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+    gap: 34px 26px !important;
+}
+#books-grid .book-cover-wrap { border-radius: 14px !important; box-shadow: 0 12px 28px -14px rgba(15, 23, 42, .5) !important; }
+.book-card:hover { transform: translateY(-5px); }
+.book-card:hover .book-cover-wrap { box-shadow: 0 22px 40px -16px rgba(15, 23, 42, .5) !important; }
+.book-card:hover .book-title { color: var(--d-brand) !important; }
+
+/* اسلایدر/بنر بالای صفحه‌های دیگر */
+:is(#library-slider-wrap, #media-slider-wrap, #lectures-slider-wrap) { border-radius: 22px !important; max-height: 380px; }
+:is(#library-banner-top, #media-banner-top, #lectures-banner-top):not(:empty) {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; padding: 0 !important; margin-bottom: 20px !important;
+}
+:is(#library-banner-top, #media-banner-top, #lectures-banner-top) > div { margin-bottom: 0 !important; }
+
+/* =====================================================================
+   رسانه
+   ===================================================================== */
+#screen-media > header { padding-top: 14px !important; padding-bottom: 14px !important; gap: 12px; }
+#screen-media > header > div { padding-left: 0 !important; padding-right: 0 !important; margin-left: 0 !important; margin-right: 0 !important; }
+#screen-media > header > div:first-child { padding-top: 0 !important; padding-bottom: 0 !important; }
+#screen-media > header h1 { text-align: right !important; }
+#screen-media > header > div:nth-child(2) { max-width: 560px; margin-bottom: 0 !important; padding: 5px !important; border-radius: 15px !important; }
+#screen-media > header > div:nth-child(2) > button { padding-top: 9px !important; padding-bottom: 9px !important; font-size: 13.5px !important; border-radius: 11px !important; }
+#screen-media > header > div:nth-child(2) > button:not(.bg-white):hover { color: #475569 !important; }
+#media-search-bar { max-width: 720px; padding-bottom: 0 !important; }
+#audio-playlist-header-bar { padding: 12px var(--gut) !important; }
+#screen-media > .overflow-y-auto { padding: 28px var(--gut) 64px !important; }
+
+/* نمای «فهرستی»: دو/سه ستون به‌جای یک ستون تمام‌عرض */
+:is(#video-categories-view, #audio-categories-view, #gallery-categories-view, #video-items-list).flex-col.gap-2:not(.hidden) {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px !important;
+}
+/* نمای «بزرگ» */
+:is(#video-categories-view, #audio-categories-view, #gallery-categories-view, #video-items-list).flex-col.gap-3:not(.hidden) {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px !important;
+}
+/* نمای «شبکه‌ای» */
+:is(#video-categories-view, #audio-categories-view, #gallery-categories-view, #video-items-list).grid-cols-2 {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 20px !important;
+}
+#gallery-photos-grid.grid-cols-3 { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important; gap: 14px !important; }
+#gallery-photos-grid.grid-cols-2 { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important; gap: 18px !important; }
+#gallery-photos-grid > div { border-radius: 16px !important; }
+#video-reels-banner { max-width: 100%; padding: 18px 20px !important; border-radius: 20px !important; }
+#video-reels-banner:hover { filter: brightness(1.04); }
+#media-search-results { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+#media-search-results.hidden { display: none !important; }
+
+/* پخش ویدیو: پلیر بزرگ و وسط */
+#video-player-view { max-width: 1000px; margin-inline: auto; }
+#video-player-view > div:nth-child(2) { border-radius: 22px !important; box-shadow: 0 24px 50px -24px rgba(0, 0, 0, .6) !important; }
+#video-player-title { font-size: 15px !important; }
+#video-player-desc { font-size: 14px !important; line-height: 2 !important; padding: 20px 22px !important; }
+
+/* پلی‌لیست صوت: پلیر کنار فهرست */
+@media (min-width: 1024px) {
+    #audio-playlist-view:not(.hidden):has(> #audio-player-card:not(.hidden)) {
+        display: grid !important;
+        grid-template-columns: 380px minmax(0, 1fr);
+        gap: 24px !important;
+        align-items: start;
+    }
+    #audio-playlist-view > #audio-player-card { position: sticky; top: 0; grid-column: 1; grid-row: 1; }
+    #audio-playlist-view > #audio-tracks-list { grid-column: 2; grid-row: 1; }
+}
+#audio-player-card { border-radius: 24px !important; }
+#audio-tracks-list > div { border-radius: 16px !important; }
+#audio-tracks-list > div:hover { box-shadow: var(--d-shadow-hover); }
+
+/* علاقه‌مندی‌ها */
+#media-content-favorites > div:first-child { max-width: 380px; }
+#fav-video-list:not(.hidden), #fav-audio-list:not(.hidden) { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px !important; }
+
+/* =====================================================================
+   سخنرانی، اخبار، بیانیه‌ها
+   ===================================================================== */
+:is(#screen-lectures, #screen-news, #screen-statements, #screen-live) > .overflow-y-auto { padding: 30px var(--gut) 64px !important; }
+:is(#lectures-categories-view, #news-categories-view, #statements-categories-view) {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 20px !important;
+}
+:is(#lectures-categories-view, #news-categories-view, #statements-categories-view) > div { padding: 30px 20px !important; border-radius: 22px !important; }
+:is(#lectures-categories-view, #news-categories-view, #statements-categories-view) h3 { font-size: 15px !important; }
+:is(#lectures-posts-view, #news-posts-view, #statements-posts-view):not(.hidden) {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 16px !important;
+}
+:is(#lectures-posts-view, #news-posts-view, #statements-posts-view) > div { padding: 14px !important; border-radius: 18px !important; }
+:is(#lectures-posts-view, #news-posts-view, #statements-posts-view) h4 { font-size: 14.5px !important; line-height: 1.8 !important; }
+:is(#lectures-posts-view, #news-posts-view, #statements-posts-view) img,
+:is(#lectures-posts-view, #news-posts-view, #statements-posts-view) > div > div:first-child.w-20 { width: 96px !important; height: 96px !important; border-radius: 14px !important; }
+
+/* متن کامل: ستون خواندن با پهنای مناسب */
+:is(#lectures-single-view, #news-single-view, #statements-single-view) { max-width: 780px; margin-inline: auto; width: 100%; }
+:is(#single-post-image, #news-single-image, #statements-single-image) { border-radius: 22px !important; margin-bottom: 30px !important; }
+:is(#single-post-image, #news-single-image, #statements-single-image) img { max-height: 440px !important; }
+:is(#single-post-title, #news-single-title, #statements-single-title) { font-size: 30px !important; line-height: 1.6 !important; }
+
+/* پخش زنده */
+#screen-live > .overflow-y-auto > .px-6 { max-width: 1000px; margin-inline: auto; padding: 0 !important; }
+
+/* =====================================================================
+   پرسش و پاسخ و حساب کاربری
+   ===================================================================== */
+#qa-ai-banner { padding: 24px var(--gut-narrow) 0 !important; }
+#qa-ai-banner > button { padding: 20px 22px !important; border-radius: 22px !important; }
+#qa-form { padding: 24px var(--gut-narrow) !important; }
+#qa-tickets-list { padding: 24px var(--gut-narrow) 64px !important; gap: 14px !important; }
+#qa-tickets-list > div { border-radius: 18px !important; }
+#qa-conv-messages { padding: 24px var(--gut-narrow) !important; }
+#qa-conv-reply > div, #qa-conv-reply-quote { margin-inline: var(--gut-narrow) !important; padding-inline: 0 !important; }
+#qa-conv-limit-msg { padding-inline: var(--gut-narrow) !important; }
+#qa-auth > div {
+    flex: none !important;
+    margin: auto !important;
+    max-width: 440px !important;
+    background: var(--d-surface);
+    border: 1px solid var(--d-border);
+    border-radius: 26px;
+    padding: 36px 32px !important;
+    box-shadow: 0 30px 60px -30px rgba(15, 23, 42, .3);
+}
+
+#screen-auth > .overflow-y-auto { padding: 48px 32px 64px !important; align-items: center; }
+#screen-auth > .overflow-y-auto > * { width: 100%; max-width: 460px; }
+#auth-form-box, #auth-profile-box { border-radius: 26px !important; box-shadow: 0 30px 60px -30px rgba(15, 23, 42, .3) !important; }
+#auth-login-form, #auth-register-form { padding: 28px !important; }
+
+/* =====================================================================
+   صفحه‌های تمام‌صفحهٔ موبایل در دسکتاپ داخل ناحیهٔ محتوا باز می‌شوند
+   (نوار کناری دیده می‌ماند) و محتوایشان وسط‌چین است.
+   ===================================================================== */
+#toc-overlay, #reader-overlay,
+#calendar-screen, #audio-single-screen,
+#global-search-modal, #content-page-overlay,
+#search-modal, #pdf-viewer-overlay, #ai-chat-screen {
+    left: 0 !important;
+    right: var(--sb-w) !important;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+#reader-header, #reader-footer {
+    left: 0 !important;
+    right: var(--sb-w) !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+}
+#reader-header.slide-up-hide { transform: translateY(-100%) !important; }
+#reader-footer.slide-down-hide { transform: translateY(100%) !important; }
+#reader-overlay.open, #toc-overlay.open { animation: dFade .22s var(--d-ease); }
+
+/* فهرست کتاب */
+#toc-overlay > header { padding: 18px var(--gut-narrow) 10px !important; box-shadow: none !important; }
+#toc-overlay > header h1 { font-size: 22px !important; }
+#toc-overlay > header > div:last-child { max-width: 520px; }
+#toc-overlay > .overflow-y-auto { padding: 26px var(--gut-narrow) 64px !important; }
+#toc-overlay #tab-content-toc > div:first-child { border-radius: 24px !important; padding: 24px 26px !important; transition: transform .22s var(--d-ease), box-shadow .22s; }
+#toc-overlay #tab-content-toc > div:first-child:hover { transform: translateY(-2px); box-shadow: var(--d-shadow-hover); }
+#main-toc-container button { transition: background .15s, color .15s; }
+
+/* کتاب‌خوان: خط‌های کوتاه‌تر برای خواندن راحت */
+/* هدر/فوتر fixed هستند و درصد padding از عرض viewport حساب می‌شود، پس با vw */
+#reader-header, #reader-footer > div { padding-inline: max(24px, calc((100vw - var(--sb-w) - 900px) / 2)) !important; }
+#content-container > div {
+    max-width: 780px !important;
+    margin-inline: auto !important;
+    padding-left: 40px !important;
+    padding-right: 40px !important;
+}
+#content-container { padding-top: 96px !important; }
+
+/* جستجوی سراسری */
+#global-search-modal > div:not(#global-search-results) { padding-inline: var(--gut-narrow) !important; }
+#global-search-modal > div:first-child { height: 76px !important; }
+#global-search-modal #global-search-input { font-size: 16px !important; }
+#global-search-results { padding: 20px var(--gut-narrow) 48px !important; }
+
+/* تقویم */
+#calendar-screen > div:not(:last-child) { padding-inline: var(--gut-narrow) !important; }
+#calendar-screen > div:first-child { min-height: 76px; }
+#calendar-screen > div:nth-child(2) > button { max-width: 200px; }
+#calendar-screen > div:nth-child(2) { justify-content: center; }
+#calendar-screen > .overflow-y-auto { padding: 0 var(--gut-narrow) !important; }
+#cs-cal-wrap { margin-inline: 0 !important; margin-top: 24px !important; border-radius: 22px !important; padding: 24px !important; }
+#cs-results { padding-inline: 0 !important; display: grid !important; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+
+/* پخش تکی صوت */
+#audio-single-screen > div:first-child { padding-inline: var(--gut-narrow) !important; min-height: 76px; }
+#audio-single-screen > .overflow-y-auto { padding: 40px 32px !important; }
+#audio-single-slot { max-width: 560px; margin: 0 auto; }
+
+/* صفحه‌های محتوا (زندگی‌نامه، ...) */
+#content-page-overlay > header { padding-inline: var(--gut-read) !important; min-height: 76px; }
+#content-page-overlay > :not(header) { padding-inline: var(--gut-read) !important; }
+
+/* جستجوی داخل کتاب */
+#search-modal > div:first-child { padding-inline: var(--gut-narrow) !important; height: 76px !important; }
+#search-results { padding: 20px var(--gut-narrow) !important; }
+
+/* =====================================================================
+   مودال‌ها و برگه‌های پایین‌صفحه: پنجرهٔ وسط صفحه
+   ===================================================================== */
+#settings-modal {
+    left: 0 !important;
+    right: 0 !important;
+    width: auto !important;
+    max-width: 520px !important;
+    margin: 0 auto !important;
+    bottom: 24px !important;
+    border-radius: 28px !important;
+}
+#note-modal { justify-content: center !important; align-items: center; }
+#note-modal > div { width: min(560px, calc(100% - 48px)); border-radius: 26px !important; }
+
+#notif-panel > div:last-child { max-width: 400px !important; box-shadow: -20px 0 50px rgba(15, 23, 42, .18) !important; }
+#notif-list { padding: 18px !important; }
+
+#toast { bottom: 36px !important; }
+#pwa-fab { left: 24px !important; }
+#update-banner { left: 0 !important; right: 0 !important; }
+#exit-confirm-modal { justify-content: center; }
+/* برگهٔ تنظیمات قلم بالاتر از لبهٔ پایین می‌نشیند؛ در حالت بسته کامل بیرون برود */
+#settings-modal:not([style*="translateY(0"]) { transform: translateY(calc(100% + 40px)) !important; }
+/* پخش ویدیو (مثلاً از صفحهٔ اصلی): بنر ریلز بالای پلیر لازم نیست */
+#media-content-video:has(#video-player-view:not(.hidden)) #video-reels-banner { display: none !important; }

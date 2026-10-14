@@ -39,6 +39,7 @@
     │       └── *.min.js
     └── css/
         ├── app.css        # استایل‌های اختصاصی
+        ├── desktop.css    # کل چیدمان دسکتاپ (فقط ≥640px؛ با media روی <link>)
         ├── style.css      # فونت‌ها (Vazir/Shabnam)، layout پایه
         └── tailwind.dist.css  # Tailwind compiled (generated — git tracked)
 ```
@@ -58,6 +59,19 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 **صفحات موجود:** `home`, `books`, `media` (صوت/ویدیو/گالری), `lectures`, `favorites`
 
 در عمل از `navToScreen(name, opts?)` استفاده کنید (نه دستکاری مستقیم کلاس‌ها) تا دکمهٔ بازگشت درست کار کند.
+
+### نسخهٔ دسکتاپ (`public/css/desktop.css`)
+- فایل با `<link media="(min-width: 640px)">` بارگذاری می‌شود؛ روی گوشی اصلاً اعمال
+  نمی‌شود. **هر تغییر دسکتاپ فقط در همین فایل** (یا در DOM نوار کناری `#desktop-sidebar`
+  که روی موبایل `display:none` است) — نه در کلاس‌های مشترک HTML یا تعدادهای JS
+  (مثلاً `slice(0,8)` کتاب‌های خانه) تا موبایل دست نخورد.
+- ۶۴۰–۱۱۹۹: نوار کناری جمع‌وجور (آیکن)، ۱۲۰۰+: نوار کامل. ستون محتوا با
+  `padding-inline: var(--gut)` وسط‌چین می‌شود (حداکثر ۱۱۸۰px).
+- صفحه‌های تمام‌صفحهٔ موبایل (فهرست/متن کتاب، تقویم، جستجو، پخش صوت، ...) در دسکتاپ
+  فقط ناحیهٔ محتوا را می‌پوشانند (`right: var(--sb-w)`) و نوار کناری می‌ماند؛
+  `_sdGo(fn)` قبل از رفتن به مقصد آن‌ها را می‌بندد.
+- آیتم‌های `#sd-nav` از همان `/api/nav-items` نوار پایین ساخته می‌شوند (`loadNavItems`).
+- انیمیشن با `transform` روی والدِ عناصر fixed نگذارید (والد containing block می‌شود).
 
 ### دکمهٔ بازگشت (`app.js`)
 یک پشتهٔ واحد `_backStack` برای کل اپ؛ هر history entry حالت `{app, idx}` دارد و

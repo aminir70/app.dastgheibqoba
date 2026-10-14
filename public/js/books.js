@@ -525,6 +525,16 @@ function applySettingsObject(s) {
         const logoWrapper = document.querySelector('#screen-home header .w-11');
         if (logoWrapper) logoWrapper.innerHTML = `<img src="${headerLogoUrl}" class="w-full h-full object-contain">`;
     }
+    // نوار کناری دسکتاپ
+    const sdName = document.getElementById('sd-brand-name');
+    const sdSub = document.getElementById('sd-brand-sub');
+    if (sdName && s.site_name) sdName.textContent = s.site_name;
+    if (sdSub && s.site_subtitle) sdSub.textContent = s.site_subtitle;
+    const sdAvatar = document.getElementById('sd-avatar');
+    if (sdAvatar && headerLogoUrl) {
+        sdAvatar.classList.add('has-logo');
+        sdAvatar.innerHTML = `<img src="${safeUrl(headerLogoUrl)}" alt="">`;
+    }
     if (s.favicon_url) {
         let link = document.querySelector("link[rel~='icon']");
         if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
@@ -543,6 +553,8 @@ function applySettingsObject(s) {
         if (s.dark_mode_enabled === '0') themeBtn.style.display = 'none';
         else themeBtn.style.display = '';
     }
+    const sdThemeBtn = document.getElementById('sd-theme-btn');
+    if (sdThemeBtn) sdThemeBtn.classList.toggle('hidden', s.dark_mode_enabled === '0');
     const liveBanner = document.getElementById('home-live-banner');
     if (liveBanner) liveBanner.style.display = s.live_active === '1' ? '' : 'none';
     const liveTitle = document.getElementById('home-live-title');

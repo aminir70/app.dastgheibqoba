@@ -638,6 +638,18 @@ async function loadNavItems() {
                 <span class="text-[9px] font-bold">${item.label||''}</span>
             </button>`;
         }).join('');
+        // نوار کناری دسکتاپ همان آیتم‌های تنظیم‌شده در پنل را نشان دهد
+        const sd = document.getElementById('sd-nav');
+        if (sd) sd.innerHTML = items.map(item => {
+            const action = item.action || 'screen:home';
+            let screen = 'home', go = "navToScreen('home')";
+            if (action.startsWith('screen:')) { screen = action.slice(7); go = `navToScreen('${screen}')`; }
+            else if (action.startsWith('media-tab:')) { screen = 'media'; go = `navToScreen('media');setTimeout(function(){switchMediaTab('${action.slice(10)}');},80)`; }
+            const iconHtml = item.image
+                ? `<img src="${safeUrl(item.image)}" class="nav-icon-img object-contain">`
+                : `<i class="${escHtml(item.icon || 'fas fa-circle')}"></i>`;
+            return `<button class="nav-item sdi" data-nav="${escHtml(screen)}" onclick="_sdGo(function(){${go}})">${iconHtml}<span>${escHtml(item.label || '')}</span></button>`;
+        }).join('');
         // re-apply active state for current screen
         const activeScreen = document.querySelector('.screen.active')?.id?.replace('screen-', '') || 'home';
         document.querySelectorAll(`[data-nav="${activeScreen}"]`).forEach(btn => {
@@ -1595,7 +1607,7 @@ function _guestMarkRead(id) {
 }
 function _updateNotifBadge() {
     const unread = _notifications.filter(n => !n.is_read).length;
-    document.querySelectorAll('#notif-badge, #notif-badge-desk').forEach(badge => {
+    document.querySelectorAll('#notif-badge, #notif-badge-desk, #notif-badge-sd').forEach(badge => {
         badge.classList.toggle('hidden', unread === 0);
     });
 }
@@ -2723,15 +2735,30 @@ function applyGlobalTheme(theme) {
         document.body.classList.add('global-dark');
         const icon = document.getElementById('global-theme-icon');
         if (icon) { icon.classList.remove('fa-moon'); icon.classList.add('fa-sun'); }
+        _sdThemeLabel(true);
     } else {
         document.body.classList.remove('global-dark');
         const icon = document.getElementById('global-theme-icon');
         if (icon) { icon.classList.remove('fa-sun'); icon.classList.add('fa-moon'); }
+        _sdThemeLabel(false);
     }
     localStorage.setItem('globalTheme', theme);
 }
+function _sdThemeLabel(dark) {
+    const b = document.getElementById('sd-theme-btn');
+    if (!b) return;
+    b.querySelector('i').className = dark ? 'fas fa-sun' : 'fas fa-moon';
+    b.querySelector('span').textContent = dark ? 'حالت روشن' : 'حالت تاریک';
+}
 
 function toggleGlobalTheme() { applyGlobalTheme(globalTheme === 'dark' ? 'light' : 'dark'); }
+
+// دکمه‌های نوار کناری دسکتاپ: اگر صفحه‌ای روی محتوا باز است (تقویم، جستجو،
+// پخش صوت، ...) اول بسته شود، بعد مقصد باز شود.
+function _sdGo(fn) {
+    for (let i = 0; i < 10 && _closeAnyTransientModal(); i++) {}
+    if (typeof fn === 'function') fn();
+}
 
 applyGlobalTheme(globalTheme);
 
