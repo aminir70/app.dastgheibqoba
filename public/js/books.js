@@ -933,16 +933,44 @@ function _pendingMarksOutside(range) {
 }
 
 // متن مؤثرِ عمل: تکه‌های منجمدشده + انتخاب زندهٔ فعلی، به ترتیب ظاهر در صفحه
+// متن یک محدوده با حفظ شکست خط‌ها. range.toString() و textContent تگ‌های <br> و
+// مرز پاراگراف‌ها را نادیده می‌گیرند و بندهای جدا به هم می‌چسبند.
+const _BLOCK_TAGS = /^(P|DIV|H[1-6]|LI|UL|OL|BLOCKQUOTE|TR|SECTION|ARTICLE|PRE|TABLE)$/;
+function _rangeText(range) {
+    let out = '';
+    const walk = node => {
+        // شکست خطِ خامِ داخل HTML در صفحه فاصله دیده می‌شود، نه خط جدید
+        if (node.nodeType === 3) { out += node.nodeValue.replace(/[ \t]*\n[ \t]*/g, ' '); return; }
+        if (node.nodeType !== 1 && node.nodeType !== 11) return;
+        if (node.nodeName === 'BR') { out += '\n'; return; }
+        const block = _BLOCK_TAGS.test(node.nodeName);
+        // بندها (p، تیتر، نقل‌قول) مثل صفحه با یک خط خالی جدا می‌شوند؛ بقیه با یک خط
+        const gap = /^(P|H[1-6]|BLOCKQUOTE)$/.test(node.nodeName) ? '\n\n' : '\n';
+        const brk = () => { if (out && !out.endsWith(gap)) out = out.replace(/\n*$/, '') + gap; };
+        if (block) brk();
+        node.childNodes.forEach(walk);
+        if (block) brk();
+    };
+    walk(range.cloneContents());
+    return out.replace(/[ \t\u00a0]+\n/g, '\n').replace(/\n[ \t\u00a0]+/g, '\n')
+              .replace(/\n{3,}/g, '\n\n').trim();
+}
+function _nodeText(node) {
+    const r = document.createRange();
+    r.selectNodeContents(node);
+    return _rangeText(r);
+}
+
 function _getSelectedActionText() {
     const sel0 = window.getSelection();
     const liveNow = (sel0 && sel0.rangeCount > 0 && !sel0.isCollapsed) ? sel0.getRangeAt(0) : null;
     const marks = _pendingMarksOutside(liveNow);
-    const parts = marks.map(m => m.textContent.trim()).filter(Boolean);
+    const parts = marks.map(_nodeText).filter(Boolean);
     restoreSelectionIfNeeded();
     const sel = window.getSelection();
     const live = (sel && sel.rangeCount > 0 && !sel.isCollapsed) ? sel.getRangeAt(0) : _savedRange;
     let liveText = '';
-    try { liveText = live ? live.toString().trim() : ''; } catch (e) {}
+    try { liveText = live ? _rangeText(live) : ''; } catch (e) {}
     if (liveText) {
         const after = marks.findIndex(m =>
             m.compareDocumentPosition(live.startContainer) & Node.DOCUMENT_POSITION_PRECEDING);
