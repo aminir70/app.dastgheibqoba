@@ -185,6 +185,30 @@ function injectCSSIntoPaymentWebView() {
 // ====================================================
 // موتور استخراج رسانه (مشترک بین سخنرانی، رسانه، اخبار)
 // ====================================================
+// صوت/ویدیوی تب‌های «صوت» و «فیلم» صفحهٔ مطلب (قالب جدید سایت). این‌ها در
+// REST وردپرس نیستند؛ سرور اپ خود صفحه را می‌خواند (/api/wp-post-media).
+function fetchPageMedia(postId) {
+    return fetch('/api/wp-post-media/' + encodeURIComponent(postId))
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null);
+}
+// فقط چیزی که در متن مطلب پیدا نشده از تب‌ها اضافه می‌شود (مطالب قدیمی دست نمی‌خورند)
+function mergePageMedia(media, pm) {
+    if (!pm || !pm.found) return media;
+    if (!media.iframes.length && !media.videos.length) {
+        media.iframes = (pm.aparat || []).map(h => `https://www.aparat.com/video/video/embed/videohash/${encodeURIComponent(h)}/vt/frame`)
+            .concat((pm.iframes || []).map(u => safeUrl(u)).filter(Boolean));
+        media.videos = (pm.videos || []).map(u => safeUrl(u)).filter(Boolean);
+    }
+    if (!media.audioTracks.length && pm.audio && pm.audio.length) {
+        media.audioTracks = pm.audio
+            .map(t => ({ src: safeUrl(t.src), title: escHtml(t.title || ''), duration: escHtml(t.duration || ''), thumb: '' }))
+            .filter(t => t.src);
+        media.audios = media.audioTracks.map(t => t.src);
+    }
+    return media;
+}
+
 function extractMediaFromPost(post) {
     const postString = JSON.stringify(post).replace(/\\u002F/g, '/').replace(/\\+\//g, '/');
 

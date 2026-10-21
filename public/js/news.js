@@ -306,6 +306,7 @@ async function renderWPSingle(post, screen) {
     if (featuredUrl0) { imgC0.classList.remove('hidden'); imgC0.querySelector('img').src = featuredUrl0; }
     else { imgC0.classList.add('hidden'); }
 
+    const pageMediaP = fetchPageMedia(post.id);
     const media = extractMediaFromPost(post);
 
     // پلی‌لیست صوتی: اگر فقط یک تراک استخراج شده، بقیه را از media endpoint بگیر
@@ -314,6 +315,10 @@ async function renderWPSingle(post, screen) {
         if (extra.length > media.audioTracks.length) {
             media.audioTracks = _mergeAudioTracks(extra, media.audioTracks);
         }
+    }
+
+    if (!media.audioTracks.length || (!media.iframes.length && !media.videos.length)) {
+        mergePageMedia(media, await pageMediaP);
     }
 
     let finalHtml = '';

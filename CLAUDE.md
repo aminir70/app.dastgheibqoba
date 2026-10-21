@@ -104,6 +104,7 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 | `GET /api/videos/all-dates` | همه تاریخ‌های انتشار ویدیو (برای تقویم) |
 | `GET /api/gallery/categories` | دسته‌بندی گالری |
 | `GET /api/wp?path=...` | پروکسی WordPress REST API |
+| `GET /api/wp-post-media/:id` | صوت/ویدیوی تب‌های «صوت» و «فیلم» صفحهٔ مطلب (از HTML خود صفحه؛ کش ۶ ساعت) |
 | `GET /api/proxy?url=...` | پروکسی امن خارجی (SSRF-protected) |
 | `GET /api/notifications/public` | اعلان‌های عمومی |
 | `GET /api/push/vapid-public-key` | کلید عمومی VAPID + وضعیت فعال بودن پوش |
@@ -229,6 +230,12 @@ showWPSubCategories(...)   // نمایش زیردسته‌ها
 showWPPostsView(catId, catName)  // نمایش پست‌ها با pagination کامل
 showWPSingleView(postId)   // نمایش پست منفرد
 ```
+
+**صوت و ویدیوی مطالب:** `extractMediaFromPost(post)` (utils.js) آن‌ها را از محتوای REST
+درمی‌آورد. در قالب جدید سایت صوت و ویدیو در تب‌های جدای صفحه‌اند
+(`<div data-mde-pane="audio|video">`) و در REST نیستند؛ پس `fetchPageMedia(id)` →
+`/api/wp-post-media/:id` (سرور خود صفحه را می‌خواند) و `mergePageMedia` فقط چیزی را که در
+متن پیدا نشده اضافه می‌کند. هم سخنرانی (`showWPSingleView`) و هم اخبار/بیانیه (`renderWPSingle`).
 
 **Pagination:** تابع `showWPPostsView` همه صفحات را fetch می‌کند (۱۰۰ پست در هر درخواست) تا محتوای بیش از ۱۰ ساله کامل نمایش داده شود.
 

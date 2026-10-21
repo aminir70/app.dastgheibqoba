@@ -340,9 +340,11 @@ function _buildAudioHtml(tracks) {
     return h;
 }
 
+let _wpSingleTok = 0;
 async function showWPSingleView(postId) {
     let post = cachedPosts.find(p => p.id === postId);
     if (!post) return;
+    const _tok = ++_wpSingleTok;
 
     const _prevCatId = wpState.currentCat.id;
     const _prevCatName = wpState.currentCat.name;
@@ -377,6 +379,8 @@ async function showWPSingleView(postId) {
     document.getElementById('single-post-title').innerHTML = post.title.rendered;
     document.getElementById('single-post-date').textContent = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
 
+    // تب‌های صوت/فیلم صفحه — هم‌زمان با دریافت دوبارهٔ مطلب شروع می‌شود
+    const pageMediaP = fetchPageMedia(postId);
     // Re-fetch individual post to get complete embedded data (esp. audio attachments)
     try {
         const r = await wpFetch(`posts/${postId}?_embed=1`);
@@ -396,6 +400,12 @@ async function showWPSingleView(postId) {
         if (extra.length > media.audioTracks.length) {
             media.audioTracks = _mergeAudioTracks(extra, media.audioTracks);
         }
+    }
+
+    if (!media.audioTracks.length || (!media.iframes.length && !media.videos.length)) {
+        mergePageMedia(media, await pageMediaP);
+        // کاربر در این فاصله برگشته یا مطلب دیگری باز کرده
+        if (_tok !== _wpSingleTok || wpState.view !== 'single') return;
     }
 
     // برای تک‌فایل بدون عنوان: از عنوان پست استفاده کن
