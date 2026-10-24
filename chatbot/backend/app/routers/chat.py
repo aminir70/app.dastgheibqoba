@@ -14,7 +14,8 @@ from ..limits import (check_global_budget, check_user_limits, record_usage,
                       user_quota)
 from ..models import Conversation, ConversationMessage, EndUser
 from ..rag import (NOT_FOUND, build_messages, find_ruling, format_sources,
-                   looks_not_found, retrieve, select_cited_sources)
+                   looks_not_found, retrieve, rewrite_query,
+                   select_cited_sources)
 from ..openai_client import chat_stream
 from ..schemas import ChatRequest, TokenResponse, UserCredentials
 from ..settings_store import get_setting
@@ -209,7 +210,9 @@ def chat_endpoint(
             prev_user = next((h.content for h in reversed(history) if h.role == "user"), None)
             retrieval_q = f"{prev_user}\n{question}" if prev_user else question
 
-            chunks, primary_ids, emb_tokens = retrieve(s, retrieval_q)
+            # سؤال محاوره‌ای → عبارت رسمی و اصطلاحات رساله (برای جستجو)
+            rw_query, rw_keywords, rw_p, rw_c = rewrite_query(s, question, history)
+            chunks, primary_ids, emb_tokens = retrieve(s, retrieval_q, (rw_query, rw_keywords))
             context, sources = format_sources(s, chunks, primary_ids)
 
             prices = get_setting(s, "model_prices", {})
@@ -232,7 +235,7 @@ def chat_endpoint(
                         conv.updated_at = datetime.utcnow()
                         s.commit()
                 record_usage(s, user_id, question, full, model, prices,
-                             p_tok, c_tok, emb_tokens, found)
+                             p_tok + rw_p, c_tok + rw_c, emb_tokens, found)
 
             if not chunks:
                 # small talk vs. real-but-missing question

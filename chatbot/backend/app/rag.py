@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 import operator
@@ -8,7 +9,7 @@ from sqlalchemy import case, desc, func, or_
 from sqlalchemy.orm import Session
 
 from .models import Chunk, Document
-from .openai_client import embed_texts
+from .openai_client import chat as chat_once, embed_texts
 from .settings_store import get_setting
 from .text_norm import normalize_fa
 
@@ -37,7 +38,14 @@ def looks_not_found(text: str) -> bool:
 # normalize Persian/Arabic digits to Latin so "۱۳" and "13" match
 _DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
 _STOP = {"بگو", "چیه", "این", "اون", "که", "از", "به", "با", "را", "رو",
-         "یه", "هست", "کن", "بده", "درباره", "مورد", "چی", "میشه", "بگید"}
+         "یه", "هست", "کن", "بده", "درباره", "مورد", "چی", "میشه", "بگید",
+         # conversational filler and the author's name: the whole corpus is his
+         # رساله, so they only add noise ("دستغیب" is rare in the text and its
+         # high IDF used to pull an unrelated chunk to the top)
+         "اقا", "اقای", "ایت", "ایتالله", "الله", "دستغیب",
+         "گفتن", "گفته", "گفتند", "میگن", "میگه", "فرمودن", "فرمودند",
+         "سلام", "خسته", "نباشید", "ممنون", "لطفا", "سوال", "میخواستم", "بپرسم",
+         "ایا", "اگه", "اگر", "یا", "و", "هم", "چطور", "چجوری", "چگونه"}
 
 # structural markers inside the text, e.g. "مسأله ۱۷", "ماده 5", "بند ۳"
 _LABEL_RE = re.compile(
@@ -60,26 +68,97 @@ def _norm_digits(s: str) -> str:
     return s.translate(_DIGITS)
 
 
-def vector_search(db: Session, query: str, top_k: int):
-    """Semantic search. Returns (rows, embedding_tokens) where each row is
-    (Chunk, filename, cosine_distance)."""
+def vector_search(db: Session, queries, top_k: int):
+    """Semantic search for one or more phrasings of the question (embedded in
+    one API call). Returns (list_of_rows_per_query, embedding_tokens) where each
+    row is (Chunk, filename, cosine_distance)."""
+    if isinstance(queries, str):
+        queries = [queries]
     emb_model = get_setting(db, "embedding_model", "text-embedding-3-large")
     emb_dims = int(get_setting(db, "embedding_dims", 1536))
-    vectors, emb_tokens = embed_texts([query], emb_model, emb_dims)
-    qvec = vectors[0]
-    rows = (
-        db.query(
-            Chunk,
-            Document.filename,
-            Chunk.embedding.cosine_distance(qvec).label("distance"),
+    vectors, emb_tokens = embed_texts(list(queries), emb_model, emb_dims)
+    results = []
+    for qvec in vectors:
+        results.append(
+            db.query(
+                Chunk,
+                Document.filename,
+                Chunk.embedding.cosine_distance(qvec).label("distance"),
+            )
+            .join(Document, Document.id == Chunk.document_id)
+            .filter(Document.status == "ready")
+            .order_by("distance")
+            .limit(top_k)
+            .all()
         )
-        .join(Document, Document.id == Chunk.document_id)
-        .filter(Document.status == "ready")
-        .order_by("distance")
-        .limit(top_k)
-        .all()
-    )
-    return rows, emb_tokens
+    return results, emb_tokens
+
+
+# ---------- query rewriting ----------
+# Users ask colloquially ("میشه پشت زن نماز جماعت بخونیم؟") while the رساله
+# uses formal terms ("امامت زن", "اقتدا"). Neither the embedding nor the keyword
+# search bridged that gap, so the ruling was never retrieved and the model
+# honestly said "not found" — until the user pasted the ruling text itself.
+# A small LLM call turns the question into the book's own vocabulary first.
+REWRITE_PROMPT = (
+    "تو دستیار جستجو در «رساله توضیح‌المسائل» هستی. وظیفه‌ات فقط ساختن عبارت جستجوست، نه پاسخ دادن.\n"
+    "سؤال کاربر (که ممکن است محاوره‌ای یا ادامه‌ی گفتگوی قبلی باشد) را بخوان و فقط یک JSON برگردان:\n"
+    '{"query": "...", "keywords": ["...", "..."]}\n'
+    "- query: همان سؤال، کامل و مستقل (اگر ادامه‌ی گفتگوست با توجه به پیام‌های قبلی کاملش کن)، "
+    "به فارسی رسمی و با اصطلاحات فقهی که در رساله به کار می‌رود.\n"
+    "- keywords: ۳ تا ۸ اصطلاح یا عبارت کوتاه (یک تا سه کلمه) که به احتمال زیاد عیناً در متن رساله آمده است؛ "
+    "مترادف‌های رسمیِ تعبیرهای محاوره‌ای را هم بیاور. مثال: «پشت زن نماز بخونیم» → "
+    '["امامت زن", "امام جماعت", "اقتدا", "زن", "ماموم"]؛ «نماز رو جا انداختم» → ["قضا", "نماز قضا"].\n'
+    "- نام آیت‌الله دستغیب، احوال‌پرسی و کلمه‌های محاوره‌ای را در keywords نیاور.\n"
+    "- اگر پیام فقط احوال‌پرسی یا تشکر است: {\"query\": \"\", \"keywords\": []}\n"
+    "فقط JSON بنویس، بدون هیچ توضیح دیگری."
+)
+
+
+def _parse_rewrite(text: str):
+    """(query, keywords) from the model's JSON reply; tolerant of code fences
+    and stray text. Returns (None, []) when it can't be read."""
+    m = re.search(r"\{[\s\S]*\}", text or "")
+    if not m:
+        return None, []
+    try:
+        data = json.loads(m.group(0))
+    except Exception:
+        return None, []
+    q = data.get("query") if isinstance(data, dict) else None
+    q = q.strip() if isinstance(q, str) else None
+    kws = []
+    for k in (data.get("keywords") or []) if isinstance(data, dict) else []:
+        if isinstance(k, str):
+            k = normalize_fa(k).strip()
+            if 2 <= len(k) <= 40 and k not in kws and k not in _STOP:
+                kws.append(k)
+    return (q or None), kws[:8]
+
+
+def rewrite_query(db: Session, question: str, history=None):
+    """Formal search phrasing + keywords for a question.
+
+    Returns (query or None, keywords, prompt_tokens, completion_tokens).
+    Any failure returns (None, [], 0, 0) so retrieval falls back to the plain
+    question — rewriting must never make the bot worse than before."""
+    if not bool(get_setting(db, "query_rewrite_enabled", True)):
+        return None, [], 0, 0
+    model = get_setting(db, "rewrite_model", "") or get_setting(db, "answer_model", "gpt-4o-mini")
+    msgs = [{"role": "system", "content": REWRITE_PROMPT}]
+    for h in (history or [])[-4:]:
+        role = getattr(h, "role", None) or (h.get("role") if isinstance(h, dict) else None)
+        content = getattr(h, "content", None) or (h.get("content") if isinstance(h, dict) else None)
+        if role in ("user", "assistant") and content:
+            msgs.append({"role": role, "content": content[:1500]})
+    msgs.append({"role": "user", "content": question})
+    try:
+        text, p_tok, c_tok = chat_once(model, msgs, 0)
+    except Exception:
+        log.exception("query rewrite failed; using the original question")
+        return None, [], 0, 0
+    q, kws = _parse_rewrite(text)
+    return q, kws, p_tok, c_tok
 
 
 # small numbers digit->word: users type "نماز ۳ رکعتی" while the source text
@@ -202,16 +281,28 @@ def _term_weights(db: Session, terms, conds):
     return weights
 
 
-def keyword_search(db: Session, query: str, limit: int = 6):
+def keyword_search(db: Session, query: str, limit: int = 6, extra_terms=None):
     """Literal keyword lookup, ranked by the IDF-weighted set of query terms a
     chunk contains. Previously each term independently returned its first two
     chunks by id, so a common word ("نماز") returned the earliest rulings in the
-    book while the chunk matching several distinctive terms was never surfaced."""
-    terms = _query_terms(normalize_fa(query))
+    book while the chunk matching several distinctive terms was never surfaced.
+
+    `extra_terms` are the rewrite's formal keywords; multi-word ones ("امامت زن")
+    match as a phrase, and being rarer they get a high IDF weight."""
+    terms = []
+    for t in (extra_terms or []):
+        t = re.sub(r"\s+", " ", normalize_fa(t)).strip()
+        # only letters/digits/spaces go into the regex
+        if t and re.fullmatch(r"[^\W_]+(?: [^\W_]+){0,2}", t) and t not in terms:
+            terms.append(t)
+    for t in _query_terms(normalize_fa(query)):
+        if t not in terms:
+            terms.append(t)
+    terms = terms[:12]
     if not terms:
         return []
     norm_content = _norm_content_expr()
-    conds = [norm_content.op("~")(r"\m" + t + r"\M") for t in terms]
+    conds = [norm_content.op("~")(r"\m" + t.replace(" ", r"\s+") + r"\M") for t in terms]
     try:
         weights = _term_weights(db, terms, conds)
     except Exception:                     # never let ranking break retrieval
@@ -247,11 +338,26 @@ def _neighbors(db: Session, chunk, radius: int):
     return prev + nxt
 
 
-def retrieve(db: Session, query: str):
+def _rrf(lists, k: int = 60):
+    """Reciprocal-rank fusion of several ranked lists of (Chunk, filename):
+    a chunk ranked well by more than one method rises to the top, and no single
+    method's raw scores have to be compared with another's."""
+    score, item = {}, {}
+    for lst in lists:
+        for rank, (c, f) in enumerate(lst):
+            score[c.id] = score.get(c.id, 0.0) + 1.0 / (k + rank + 1)
+            item.setdefault(c.id, (c, f))
+    return [item[cid] for cid in sorted(score, key=lambda i: -score[i])]
+
+
+def retrieve(db: Session, query: str, rewrite=None):
     """Hybrid retrieval + neighbor expansion. Returns (chunks, embedding_tokens)
     where chunks is a list of (Chunk, filename), sorted in document order so
     content spanning several chunks reads coherently. Empty list = nothing
-    relevant found."""
+    relevant found.
+
+    `rewrite` = (formal_query, keywords) from rewrite_query(); both are searched
+    alongside the original wording and merged by rank fusion."""
     top_k = int(get_setting(db, "top_k", 10))
     max_distance = float(get_setting(db, "max_distance", 0.85))
     max_chunks = int(get_setting(db, "max_context_chunks", 16))
@@ -264,28 +370,30 @@ def retrieve(db: Session, query: str):
     num_words = _number_word_terms(query)
     emb_query = query + (" " + " ".join(num_words) if num_words else "")
 
-    vec_rows, emb_tokens = vector_search(db, emb_query, top_k)
-    best = vec_rows[0][2] if vec_rows else None
+    rw_query, rw_keywords = (rewrite or (None, []))
+    rw_query = normalize_fa(rw_query) if rw_query else None
+    queries = [emb_query] + ([rw_query] if rw_query and rw_query != query else [])
+
+    vec_lists, emb_tokens = vector_search(db, queries, top_k)
+    best = min((rows[0][2] for rows in vec_lists if rows), default=None)
     ref_hits = reference_search(db, query)   # explicit "مساله N" lookups
-    kw_hits = keyword_search(db, query)
+    kw_hits = keyword_search(db, query, limit=8, extra_terms=rw_keywords)
 
     is_relevant = bool(ref_hits) or bool(kw_hits) or \
         (best is not None and best <= max_distance)
     if not is_relevant:
         return [], [], emb_tokens
 
-    # primary chunks: explicit references first (authoritative), then vector
-    # results by relevance, then keyword hits
+    # primary chunks: explicit references first (authoritative); then the best
+    # 3 of EACH method (keyword, original phrasing, formal phrasing) so a ruling
+    # only one method found — e.g. the exact phrase «امامت زن» — is never cut
+    # by the context cap; then everything else by reciprocal-rank fusion.
+    # (Before, keyword hits were appended after all 10 vector results, so with
+    # a 12-chunk cap only the first two keyword hits ever reached the model.)
+    lists = [kw_hits] + [[(c, f) for c, f, _d in rows] for rows in vec_lists]
+    guaranteed = [lst[i] for i in range(3) for lst in lists if i < len(lst)]
     primary, seen = [], set()
-    for c, f in ref_hits:
-        if c.id not in seen:
-            seen.add(c.id)
-            primary.append((c, f))
-    for c, f, _dist in vec_rows:
-        if c.id not in seen:
-            seen.add(c.id)
-            primary.append((c, f))
-    for c, f in kw_hits:
+    for c, f in list(ref_hits) + guaranteed + _rrf(lists):
         if c.id not in seen:
             seen.add(c.id)
             primary.append((c, f))
