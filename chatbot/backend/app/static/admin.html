@@ -344,12 +344,12 @@ async function loadSettings(){
       const v=currentSettings[fd.k];
       const cls="field"+(fd.full?" full":"");
       if(fd.type==="bool")return `<div class="${cls}"><label>${fd.label}</label>
-        <div class="switch"><input type="checkbox" id="s_${fd.k}" ${v?"checked":""}><span>فعال</span></div>
+        <div class="switch"><input type="checkbox" id="s_${fd.k}" ${v?"checked":""} ${v===undefined?'data-unset="1"':""}><span>فعال</span></div>
         ${fd.hint?`<div class="hint">${fd.hint}</div>`:""}</div>`;
       if(fd.type==="textarea")return `<div class="${cls}"><label>${fd.label}</label>
-        <textarea id="s_${fd.k}">${v??""}</textarea>${fd.hint?`<div class="hint">${fd.hint}</div>`:""}</div>`;
+        <textarea id="s_${fd.k}" ${v===undefined?'data-unset="1"':""}>${v??""}</textarea>${fd.hint?`<div class="hint">${fd.hint}</div>`:""}</div>`;
       return `<div class="${cls}"><label>${fd.label}</label>
-        <input type="${fd.type}" id="s_${fd.k}" value="${v??""}" ${fd.type==="number"?'step="any"':""}>
+        <input type="${fd.type}" id="s_${fd.k}" value="${v??""}" ${fd.type==="number"?'step="any"':""} ${v===undefined?'data-unset="1"':""}>
         ${fd.hint?`<div class="hint">${fd.hint}</div>`:""}</div>`;
     }).join("");
   }catch(e){ toast(e.message,true); }
@@ -358,6 +358,10 @@ async function saveSettings(){
   const values={};
   for(const fd of SETTING_FIELDS){
     const el=document.getElementById("s_"+fd.k);
+    // تنظیمی که هنوز در سرور مقدار ندارد (مثلاً گزینهٔ تازه پیش از ری‌استارت دستیار)
+    // و کاربر دستش نزده، ذخیره نشود؛ وگرنه «خاموش/خالی» ثبت می‌شد و پیش‌فرضِ
+    // سرور (مثلاً روشن) دیگر اعمال نمی‌شد.
+    if(el.dataset.unset&&(fd.type==="bool"?!el.checked:el.value===""))continue;
     if(fd.type==="bool")values[fd.k]=el.checked;
     else if(fd.type==="number")values[fd.k]=parseFloat(el.value);
     else values[fd.k]=el.value;
