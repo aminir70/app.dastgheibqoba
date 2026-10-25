@@ -34,6 +34,37 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   #sidebar-overlay:not(.hidden){display:block;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:39;}
   #main-content:not(.hidden){padding-top:3.5rem;}
 }
+/* محتوای بلند (نشانی، کلمهٔ طولانی) نباید ستون را از صفحه بیرون بزند */
+#main-content{min-width:0;}
+#main-content > [id^="tab-"]{min-width:0;}
+#support-messages > div > div{min-width:0;overflow-wrap:anywhere;}
+#active-support-title,#active-support-sub{overflow-wrap:anywhere;}
+#support-reply-input{min-width:0;}
+#support-reply-send{flex-shrink:0;height:2.5rem;}
+#support-chat-panel > div:first-child{gap:.75rem;}
+#support-chat-panel > div:first-child > div:first-child{min-width:0;}
+#ticket-status-btns > button{white-space:nowrap;}
+/* گوشی */
+@media(max-width:639px){
+  #main-content .p-6{padding:1rem;}
+  #tab-support{position:relative;overflow:hidden;}
+  #support-list-panel{min-width:0;}
+  #support-chat-panel{min-width:0;}
+  /* سربرگ گفتگو: عنوان یک ردیف، دکمه‌های وضعیت ردیف بعد با اسکرول افقی */
+  #support-chat-panel > div:first-child{flex-wrap:wrap;gap:.5rem;padding:.6rem .75rem;}
+  #support-chat-panel > div:first-child > div:first-child{flex:1 1 100%;min-width:0;gap:.5rem;}
+  #support-chat-panel > div:first-child > div:first-child > div:last-child{min-width:0;flex:1;}
+  #active-support-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  #ticket-status-btns:not(.hidden){display:flex;width:100%;overflow-x:auto;gap:.4rem;scrollbar-width:none;}
+  #ticket-status-btns::-webkit-scrollbar{display:none;}
+  #ticket-status-btns > button{flex:1 0 auto;white-space:nowrap;padding:.35rem .6rem;}
+  #support-messages{padding:.75rem;}
+  #support-messages > div > div{max-width:88%;}
+  #support-chat-panel .p-3.flex.gap-2.items-center{gap:.35rem;padding:.5rem;}
+  #support-reply-input{padding:.55rem .75rem;}
+  #support-reply-send{padding:0 .8rem;height:2.25rem;}
+  #support-attach-player{max-width:120px!important;}
+}
 </style>
 <script src="/vendor/Sortable.min.js"></script>
 <script src="/vendor/jalaali.js"></script>
@@ -1326,6 +1357,47 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
     <iframe id="chatbot-admin-frame" data-src="/chatbot/admin" class="absolute inset-0 w-full h-full border-0" style="display:block"></iframe>
   </div>
 
+  <!-- NAV ITEMS TAB -->
+  <div id="tab-navitems" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h2 class="text-lg font-black mb-1"><i class="fas fa-bars text-teal-600 ml-2"></i>نوار پایین</h2>
+      <p class="text-xs text-gray-500 mb-6">۵ آیتم نوار پایین را ویرایش کنید — آیکن FontAwesome، نام و مقصد هر دکمه قابل تغییر است.</p>
+      <div id="nav-items-editor" class="flex flex-col gap-4">
+        <div class="text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
+      </div>
+      <div class="mt-6 border-t pt-5">
+        <button onclick="saveNavItemsAdmin()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره نوار پایین</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHORTCUTS TAB -->
+  <div id="tab-linkshortcuts" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h2 class="text-lg font-black mb-2"><i class="fas fa-external-link-alt text-blue-600 ml-2"></i>لینک‌های پایین صفحه اصلی</h2>
+      <p class="text-xs text-gray-500 mb-6">۸ آیکن لینک در پایین صفحه اصلی (زیر آخرین ویدیوها) — هر آیکن می‌تواند به یک لینک خارجی وصل شود. آیکن‌های بدون عنوان نمایش داده نمی‌شوند.</p>
+      <div id="link-shortcuts-editor" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
+      </div>
+      <div class="mt-6 border-t pt-5">
+        <button onclick="saveLinkShortcuts()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره لینک‌ها</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-shortcuts" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+      <h2 class="text-lg font-black mb-2"><i class="fas fa-th text-teal-600 ml-2"></i>آیکن‌های صفحه اصلی</h2>
+      <p class="text-xs text-gray-500 mb-6">۸ آیکن میانبر را می‌توانید از اینجا سفارشی کنید — آیکن، نام، رنگ و عملکرد هر کدام قابل تغییر است. برای جابجایی ترتیب، کارت‌ها را با <i class="fas fa-grip-vertical text-gray-400"></i> بکشید.</p>
+      <div id="shortcuts-editor" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
+      </div>
+      <div class="mt-6 border-t pt-5">
+        <button onclick="saveShortcuts()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره آیکن‌ها</button>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-bold transition-all duration-300 opacity-0 pointer-events-none z-[9999]">پیام</div>
@@ -1459,8 +1531,8 @@ async function checkUnreadSupport() {
 }
 
 function switchTab(tab) {
-  const tabNames={books:'مدیریت کتاب‌ها',slider:'اسلایدر',banners:'بنرها',videogallery:'گالری ویدیو',live:'پخش زنده',gallery:'گالری عکس',audiogallery:'گالری صوت',support:'پشتیبانی',chatbot:'دستیار هوشمند',broadcast:'پیام همگانی',analytics:'آمار بازدید',users:'کاربران',settings:'تنظیمات',pagecontent:'صفحات محتوا',shortcuts:'آیکن‌های خانه',linkshortcuts:'لینک‌های خانه'};
-  const tabs=['books','slider','banners','videogallery','live','gallery','audiogallery','support','chatbot','broadcast','analytics','users','settings','pagecontent','shortcuts','linkshortcuts'];
+  const tabNames={books:'مدیریت کتاب‌ها',slider:'اسلایدر',banners:'بنرها',videogallery:'گالری ویدیو',live:'پخش زنده',gallery:'گالری عکس',audiogallery:'گالری صوت',support:'پشتیبانی',chatbot:'دستیار هوشمند',broadcast:'پیام همگانی',analytics:'آمار بازدید',users:'کاربران',settings:'تنظیمات',pagecontent:'صفحات محتوا',shortcuts:'آیکن‌های خانه',linkshortcuts:'لینک‌های خانه',navitems:'نوار پایین'};
+  const tabs=['books','slider','banners','videogallery','live','gallery','audiogallery','support','chatbot','broadcast','analytics','users','settings','pagecontent','shortcuts','linkshortcuts','navitems'];
   tabs.forEach(t=>{
     document.getElementById('tab-'+t).classList.add('hidden');
     document.getElementById('tab-'+t).classList.remove('flex');
@@ -5031,47 +5103,6 @@ async function saveNavItemsAdmin() {
   } catch(e) { showToast('خطا: ' + e.message, false); }
 }
 </script>
-
-<!-- NAV ITEMS TAB -->
-<div id="tab-navitems" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-  <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-    <h2 class="text-lg font-black mb-1"><i class="fas fa-bars text-teal-600 ml-2"></i>نوار پایین</h2>
-    <p class="text-xs text-gray-500 mb-6">۵ آیتم نوار پایین را ویرایش کنید — آیکن FontAwesome، نام و مقصد هر دکمه قابل تغییر است.</p>
-    <div id="nav-items-editor" class="flex flex-col gap-4">
-      <div class="text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
-    </div>
-    <div class="mt-6 border-t pt-5">
-      <button onclick="saveNavItemsAdmin()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره نوار پایین</button>
-    </div>
-  </div>
-</div>
-
-<!-- SHORTCUTS TAB -->
-<div id="tab-linkshortcuts" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-  <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-    <h2 class="text-lg font-black mb-2"><i class="fas fa-external-link-alt text-blue-600 ml-2"></i>لینک‌های پایین صفحه اصلی</h2>
-    <p class="text-xs text-gray-500 mb-6">۸ آیکن لینک در پایین صفحه اصلی (زیر آخرین ویدیوها) — هر آیکن می‌تواند به یک لینک خارجی وصل شود. آیکن‌های بدون عنوان نمایش داده نمی‌شوند.</p>
-    <div id="link-shortcuts-editor" class="grid grid-cols-1 md:grid-cols-2 gap-5">
-      <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
-    </div>
-    <div class="mt-6 border-t pt-5">
-      <button onclick="saveLinkShortcuts()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره لینک‌ها</button>
-    </div>
-  </div>
-</div>
-
-<div id="tab-shortcuts" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-  <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-    <h2 class="text-lg font-black mb-2"><i class="fas fa-th text-teal-600 ml-2"></i>آیکن‌های صفحه اصلی</h2>
-    <p class="text-xs text-gray-500 mb-6">۸ آیکن میانبر را می‌توانید از اینجا سفارشی کنید — آیکن، نام، رنگ و عملکرد هر کدام قابل تغییر است. برای جابجایی ترتیب، کارت‌ها را با <i class="fas fa-grip-vertical text-gray-400"></i> بکشید.</p>
-    <div id="shortcuts-editor" class="grid grid-cols-1 md:grid-cols-2 gap-5">
-      <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
-    </div>
-    <div class="mt-6 border-t pt-5">
-      <button onclick="saveShortcuts()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره آیکن‌ها</button>
-    </div>
-  </div>
-</div>
 
 <!-- Link Shortcuts Icon Picker Modal -->
 <div id="lsc-icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onclick="if(event.target===this)closeLscIconPicker()">
