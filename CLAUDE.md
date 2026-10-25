@@ -131,6 +131,8 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 - مدیریت کامل کتاب، صوت، ویدیو، گالری، بنر، اسلایدر
 - مدیریت کاربران و تیکت‌ها
 - تنظیمات سایت و برندینگ
+  (تب «تنظیمات» زیربخش دارد: عمومی، آیکن‌های خانه، لینک‌های خانه، نوار پایین —
+  `switchSettingsPane(pane)`؛ `switchTab('shortcuts'|'linkshortcuts'|'navitems')` هم به همان‌جا می‌رود)
 - `POST /api/admin/login` — ورود ادمین (کوکی `admin_token` ست می‌شود)
 - `POST /api/admin/logout` — خروج (کوکی پاک می‌شود)
 - `GET /api/admin/auth-check` — بررسی وضعیت session

@@ -44,8 +44,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 #support-chat-panel > div:first-child{gap:.75rem;}
 #support-chat-panel > div:first-child > div:first-child{min-width:0;}
 #ticket-status-btns > button{white-space:nowrap;}
+/* زیربخش‌های تنظیمات */
+.settings-subnav{position:sticky;top:-1.5rem;z-index:5;display:flex;gap:.35rem;padding:.35rem;background:#fff;border:1px solid #f1f5f9;border-radius:1rem;box-shadow:0 1px 2px rgba(0,0,0,.05);overflow-x:auto;scrollbar-width:none;margin-bottom:1.5rem;}
+.settings-subnav::-webkit-scrollbar{display:none;}
+.settings-subnav button{flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:.45rem;white-space:nowrap;padding:.6rem .9rem;border-radius:.75rem;font-size:.8rem;font-weight:700;color:#64748b;transition:background .15s,color .15s;}
+.settings-subnav button:hover{background:#f8fafc;color:#0f172a;}
+.settings-subnav button.active{background:#0d9488;color:#fff;}
+.settings-pane:not(.hidden){display:flex;flex-direction:column;gap:1.5rem;}
+/* کارت‌های آیکن/لینک/نوار پایین: هر جا جا باشد چندستونه، روی گوشی یک ستون */
+#shortcuts-editor,#link-shortcuts-editor{grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));}
+#nav-items-editor{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:1rem;}
+#nav-items-editor > .text-center{grid-column:1/-1;}
 /* گوشی */
 @media(max-width:639px){
+  .settings-subnav{top:-1rem;margin-bottom:1rem;display:grid;grid-template-columns:1fr 1fr;}
+  .settings-subnav button{padding:.55rem .5rem;font-size:.75rem;}
   #main-content .p-6{padding:1rem;}
   #tab-support{position:relative;overflow:hidden;}
   #support-list-panel{min-width:0;}
@@ -112,9 +125,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
     <button onclick="switchTab('users')" id="tab-btn-users" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-users w-5"></i>کاربران</button>
     <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-palette w-5"></i>تنظیمات</button>
     <button onclick="switchTab('pagecontent')" id="tab-btn-pagecontent" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-file-alt w-5"></i>صفحات محتوا</button>
-    <button onclick="switchTab('shortcuts')" id="tab-btn-shortcuts" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-th w-5"></i>آیکن‌های خانه</button>
-    <button onclick="switchTab('linkshortcuts')" id="tab-btn-linkshortcuts" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-external-link-alt w-5"></i>لینک‌های خانه</button>
-    <button onclick="switchTab('navitems')" id="tab-btn-navitems" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-bars w-5"></i>نوار پایین</button>
   </nav>
   <button onclick="logoutAdmin()" class="m-3 p-3 text-rose-400 hover:bg-slate-800 rounded-xl font-bold flex items-center justify-center gap-2 text-sm"><i class="fas fa-sign-out-alt"></i>خروج</button>
 </aside>
@@ -1015,291 +1025,336 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 
   <!-- SETTINGS TAB -->
   <div id="tab-settings" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-
-    <!-- Site Info -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-info-circle text-teal-600 ml-2"></i>اطلاعات سایت</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div><label class="block text-xs font-bold text-gray-500 mb-2">نام سایت</label><input type="text" id="s-site_name" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
-        <div><label class="block text-xs font-bold text-gray-500 mb-2">زیرنویس</label><input type="text" id="s-site_subtitle" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
-      </div>
+    <!-- زیربخش‌های تنظیمات -->
+    <div id="settings-subnav" class="settings-subnav">
+      <button data-pane="general" onclick="switchSettingsPane('general')"><i class="fas fa-sliders-h"></i>عمومی</button>
+      <button data-pane="shortcuts" onclick="switchSettingsPane('shortcuts')"><i class="fas fa-th"></i>آیکن‌های خانه</button>
+      <button data-pane="linkshortcuts" onclick="switchSettingsPane('linkshortcuts')"><i class="fas fa-external-link-alt"></i>لینک‌های خانه</button>
+      <button data-pane="navitems" onclick="switchSettingsPane('navitems')"><i class="fas fa-bars"></i>نوار پایین</button>
     </div>
+    <div id="settings-pane-general" class="settings-pane">
 
-    <!-- Logo & Favicon -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-image text-teal-600 ml-2"></i>لوگو و آیکون سایت</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- Logo -->
-        <div>
-          <p class="text-xs font-bold text-gray-600 mb-3">لوگو اصلی سایت</p>
-          <div class="flex items-start gap-4">
-            <div class="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-              <img id="logo-preview" src="" class="w-full h-full object-contain hidden">
-              <i id="logo-placeholder" class="fas fa-image text-gray-300 text-2xl"></i>
-            </div>
-            <div class="flex-1">
-              <input type="file" id="logo-input" accept="image/*" class="hidden" onchange="previewLogo(this)">
-              <button onclick="document.getElementById('logo-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب لوگو</button>
-              <button onclick="uploadLogo()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود لوگو</button>
+      <!-- Site Info -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-info-circle text-teal-600 ml-2"></i>اطلاعات سایت</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">نام سایت</label><input type="text" id="s-site_name" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">زیرنویس</label><input type="text" id="s-site_subtitle" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
+        </div>
+      </div>
+
+      <!-- Logo & Favicon -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-image text-teal-600 ml-2"></i>لوگو و آیکون سایت</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Logo -->
+          <div>
+            <p class="text-xs font-bold text-gray-600 mb-3">لوگو اصلی سایت</p>
+            <div class="flex items-start gap-4">
+              <div class="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                <img id="logo-preview" src="" class="w-full h-full object-contain hidden">
+                <i id="logo-placeholder" class="fas fa-image text-gray-300 text-2xl"></i>
+              </div>
+              <div class="flex-1">
+                <input type="file" id="logo-input" accept="image/*" class="hidden" onchange="previewLogo(this)">
+                <button onclick="document.getElementById('logo-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب لوگو</button>
+                <button onclick="uploadLogo()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود لوگو</button>
+              </div>
             </div>
           </div>
-        </div>
-        <!-- Header Logo -->
-        <div>
-          <p class="text-xs font-bold text-gray-600 mb-3">لوگو هدر برنامه</p>
-          <div class="flex items-start gap-4">
-            <div class="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-              <img id="header-logo-preview" src="" class="w-full h-full object-contain hidden">
-              <i id="header-logo-placeholder" class="fas fa-heading text-gray-300 text-2xl"></i>
-            </div>
-            <div class="flex-1">
-              <input type="file" id="header-logo-input" accept="image/*" class="hidden" onchange="previewHeaderLogo(this)">
-              <button onclick="document.getElementById('header-logo-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب لوگو</button>
-              <button onclick="uploadHeaderLogo()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود لوگو</button>
+          <!-- Header Logo -->
+          <div>
+            <p class="text-xs font-bold text-gray-600 mb-3">لوگو هدر برنامه</p>
+            <div class="flex items-start gap-4">
+              <div class="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                <img id="header-logo-preview" src="" class="w-full h-full object-contain hidden">
+                <i id="header-logo-placeholder" class="fas fa-heading text-gray-300 text-2xl"></i>
+              </div>
+              <div class="flex-1">
+                <input type="file" id="header-logo-input" accept="image/*" class="hidden" onchange="previewHeaderLogo(this)">
+                <button onclick="document.getElementById('header-logo-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب لوگو</button>
+                <button onclick="uploadHeaderLogo()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود لوگو</button>
+              </div>
             </div>
           </div>
-        </div>
-        <!-- Favicon -->
-        <div>
-          <p class="text-xs font-bold text-gray-600 mb-3">فاوآیکون (آیکون تب مرورگر)</p>
-          <div class="flex items-start gap-4">
-            <div class="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-              <img id="favicon-preview" src="" class="w-full h-full object-contain hidden">
-              <i id="favicon-placeholder" class="fas fa-globe text-gray-300 text-2xl"></i>
-            </div>
-            <div class="flex-1">
-              <input type="file" id="favicon-input" accept="image/*,.ico" class="hidden" onchange="previewFavicon(this)">
-              <button onclick="document.getElementById('favicon-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب آیکون</button>
-              <button onclick="uploadFavicon()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود آیکون</button>
+          <!-- Favicon -->
+          <div>
+            <p class="text-xs font-bold text-gray-600 mb-3">فاوآیکون (آیکون تب مرورگر)</p>
+            <div class="flex items-start gap-4">
+              <div class="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                <img id="favicon-preview" src="" class="w-full h-full object-contain hidden">
+                <i id="favicon-placeholder" class="fas fa-globe text-gray-300 text-2xl"></i>
+              </div>
+              <div class="flex-1">
+                <input type="file" id="favicon-input" accept="image/*,.ico" class="hidden" onchange="previewFavicon(this)">
+                <button onclick="document.getElementById('favicon-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب آیکون</button>
+                <button onclick="uploadFavicon()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود آیکون</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Colors -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-palette text-teal-600 ml-2"></i>رنگ‌بندی</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-3">رنگ اصلی</label>
-          <div class="flex items-center gap-3">
-            <input type="color" id="s-primary_color" value="#0d9488" class="rounded-lg cursor-pointer">
-            <div class="flex flex-wrap gap-2">
-              <div class="color-swatch" style="background:#0d9488" onclick="setColorSwatch('primary','#0d9488')"></div>
-              <div class="color-swatch" style="background:#2563eb" onclick="setColorSwatch('primary','#2563eb')"></div>
-              <div class="color-swatch" style="background:#7c3aed" onclick="setColorSwatch('primary','#7c3aed')"></div>
-              <div class="color-swatch" style="background:#dc2626" onclick="setColorSwatch('primary','#dc2626')"></div>
-              <div class="color-swatch" style="background:#d97706" onclick="setColorSwatch('primary','#d97706')"></div>
-              <div class="color-swatch" style="background:#1e293b" onclick="setColorSwatch('primary','#1e293b')"></div>
+      <!-- Colors -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-palette text-teal-600 ml-2"></i>رنگ‌بندی</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-3">رنگ اصلی</label>
+            <div class="flex items-center gap-3">
+              <input type="color" id="s-primary_color" value="#0d9488" class="rounded-lg cursor-pointer">
+              <div class="flex flex-wrap gap-2">
+                <div class="color-swatch" style="background:#0d9488" onclick="setColorSwatch('primary','#0d9488')"></div>
+                <div class="color-swatch" style="background:#2563eb" onclick="setColorSwatch('primary','#2563eb')"></div>
+                <div class="color-swatch" style="background:#7c3aed" onclick="setColorSwatch('primary','#7c3aed')"></div>
+                <div class="color-swatch" style="background:#dc2626" onclick="setColorSwatch('primary','#dc2626')"></div>
+                <div class="color-swatch" style="background:#d97706" onclick="setColorSwatch('primary','#d97706')"></div>
+                <div class="color-swatch" style="background:#1e293b" onclick="setColorSwatch('primary','#1e293b')"></div>
+              </div>
             </div>
           </div>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-3">رنگ ثانویه</label>
-          <div class="flex items-center gap-3">
-            <input type="color" id="s-secondary_color" value="#0f766e" class="rounded-lg cursor-pointer">
-            <div class="flex flex-wrap gap-2">
-              <div class="color-swatch" style="background:#0f766e" onclick="setColorSwatch('secondary','#0f766e')"></div>
-              <div class="color-swatch" style="background:#1d4ed8" onclick="setColorSwatch('secondary','#1d4ed8')"></div>
-              <div class="color-swatch" style="background:#6d28d9" onclick="setColorSwatch('secondary','#6d28d9')"></div>
-              <div class="color-swatch" style="background:#b91c1c" onclick="setColorSwatch('secondary','#b91c1c')"></div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-3">رنگ ثانویه</label>
+            <div class="flex items-center gap-3">
+              <input type="color" id="s-secondary_color" value="#0f766e" class="rounded-lg cursor-pointer">
+              <div class="flex flex-wrap gap-2">
+                <div class="color-swatch" style="background:#0f766e" onclick="setColorSwatch('secondary','#0f766e')"></div>
+                <div class="color-swatch" style="background:#1d4ed8" onclick="setColorSwatch('secondary','#1d4ed8')"></div>
+                <div class="color-swatch" style="background:#6d28d9" onclick="setColorSwatch('secondary','#6d28d9')"></div>
+                <div class="color-swatch" style="background:#b91c1c" onclick="setColorSwatch('secondary','#b91c1c')"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- PWA Settings -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-mobile-alt text-teal-600 ml-2"></i>تنظیمات PWA (اپلیکیشن)</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div><label class="block text-xs font-bold text-gray-500 mb-2">نام کامل اپلیکیشن</label><input type="text" id="s-pwa_name" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نرم افزار آیت الله دستغیب"></div>
-        <div><label class="block text-xs font-bold text-gray-500 mb-2">نام کوتاه (نمایش روی آیکون)</label><input type="text" id="s-pwa_short_name" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نرم افزار آیت الله دستغیب"></div>
-        <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات اپلیکیشن</label><input type="text" id="s-pwa_description" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نرم افزار آیت الله دستغیب"></div>
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-2">رنگ تم اپلیکیشن</label>
-          <div class="flex items-center gap-3">
-            <input type="color" id="s-pwa_theme_color" value="#0d9488" class="rounded-lg cursor-pointer">
-            <span class="text-xs text-gray-400">نمایش در نوار وضعیت موبایل</span>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-2">رنگ پس‌زمینه splash</label>
-          <div class="flex items-center gap-3">
-            <input type="color" id="s-pwa_bg_color" value="#ffffff" class="rounded-lg cursor-pointer">
-            <span class="text-xs text-gray-400">صفحه بارگذاری اولیه</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Splash Screen Settings -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-mobile-alt text-purple-600 ml-2"></i>صفحه اسپلش (بارگذاری اولیه)</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-2">عنوان صفحه اسپلش</label>
-          <input type="text" id="s-splash_title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="نرم افزار آیت الله دستغیب">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-2">متن زیر عنوان</label>
-          <input type="text" id="s-splash_subtitle" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="در حال آماده‌سازی...">
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-3">رنگ پس‌زمینه</label>
-          <div class="flex items-center gap-3">
-            <input type="color" id="s-splash_bg_color" value="#ffffff" class="rounded-lg cursor-pointer w-12 h-10">
-            <div class="flex flex-wrap gap-2">
-              <div class="w-8 h-8 rounded-lg cursor-pointer border border-gray-200" style="background:#ffffff" onclick="document.getElementById('s-splash_bg_color').value='#ffffff'"></div>
-              <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0d9488" onclick="document.getElementById('s-splash_bg_color').value='#0d9488'"></div>
-              <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#1e293b" onclick="document.getElementById('s-splash_bg_color').value='#1e293b'"></div>
-              <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#7c3aed" onclick="document.getElementById('s-splash_bg_color').value='#7c3aed'"></div>
-              <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0f172a" onclick="document.getElementById('s-splash_bg_color').value='#0f172a'"></div>
+      <!-- PWA Settings -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-mobile-alt text-teal-600 ml-2"></i>تنظیمات PWA (اپلیکیشن)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">نام کامل اپلیکیشن</label><input type="text" id="s-pwa_name" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نرم افزار آیت الله دستغیب"></div>
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">نام کوتاه (نمایش روی آیکون)</label><input type="text" id="s-pwa_short_name" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نرم افزار آیت الله دستغیب"></div>
+          <div class="md:col-span-2"><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات اپلیکیشن</label><input type="text" id="s-pwa_description" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نرم افزار آیت الله دستغیب"></div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-2">رنگ تم اپلیکیشن</label>
+            <div class="flex items-center gap-3">
+              <input type="color" id="s-pwa_theme_color" value="#0d9488" class="rounded-lg cursor-pointer">
+              <span class="text-xs text-gray-400">نمایش در نوار وضعیت موبایل</span>
             </div>
           </div>
-        </div>
-        <div>
-          <label class="block text-xs font-bold text-gray-500 mb-3">رنگ اسپینر بارگذاری</label>
-          <div class="flex items-center gap-3">
-            <input type="color" id="s-splash_spinner_color" value="#0d9488" class="rounded-lg cursor-pointer w-12 h-10">
-            <div class="flex flex-wrap gap-2">
-              <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0d9488" onclick="document.getElementById('s-splash_spinner_color').value='#0d9488'"></div>
-              <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#ffffff" onclick="document.getElementById('s-splash_spinner_color').value='#ffffff'"></div>
-              <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#7c3aed" onclick="document.getElementById('s-splash_spinner_color').value='#7c3aed'"></div>
-              <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#f59e0b" onclick="document.getElementById('s-splash_spinner_color').value='#f59e0b'"></div>
-            </div>
-          </div>
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-xs font-bold text-gray-500 mb-2">آیکون / تصویر اسپلش <span class="text-gray-400 font-normal">(اختیاری — جایگزین اسپینر می‌شود)</span></label>
-          <div class="flex items-center gap-4">
-            <div class="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-              <img id="splash-icon-preview" src="" class="w-full h-full object-contain hidden" alt="">
-              <i id="splash-icon-ph" class="fas fa-image text-gray-300 text-2xl"></i>
-            </div>
-            <div class="flex-1 flex flex-col gap-2">
-              <input type="file" id="splash-icon-input" accept="image/*" class="hidden" onchange="previewSplashIcon(this)">
-              <button onclick="document.getElementById('splash-icon-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition"><i class="fas fa-upload ml-2"></i>انتخاب تصویر</button>
-              <button onclick="uploadSplashIcon()" class="bg-purple-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-purple-700 transition"><i class="fas fa-save ml-2"></i>آپلود آیکون</button>
-              <button onclick="clearSplashIcon()" class="bg-red-50 border border-red-100 text-red-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition"><i class="fas fa-times ml-1"></i>حذف آیکون (نمایش اسپینر)</button>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-2">رنگ پس‌زمینه splash</label>
+            <div class="flex items-center gap-3">
+              <input type="color" id="s-pwa_bg_color" value="#ffffff" class="rounded-lg cursor-pointer">
+              <span class="text-xs text-gray-400">صفحه بارگذاری اولیه</span>
             </div>
           </div>
         </div>
       </div>
-      <!-- پیش‌نمایش -->
-      <div class="mt-5 border-t pt-4">
-        <p class="text-xs font-bold text-gray-500 mb-3">پیش‌نمایش اسپلش</p>
-        <div id="splash-preview-box" style="background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:16px;padding:32px;gap:12px;border:2px dashed #e5e7eb;min-height:180px;">
-          <div id="sp-icon" style="display:none;width:80px;height:80px;border-radius:20px;overflow:hidden;"><img src="" style="width:100%;height:100%;object-fit:contain;"></div>
-          <div id="sp-spinner" style="width:44px;height:44px;border:4px solid #ccfbf1;border-top-color:#0d9488;border-radius:50%;animation:inlineSpin 1s linear infinite;"></div>
-          <div id="sp-title" style="font-size:18px;font-weight:900;color:#1f2937;font-family:Vazir,Tahoma,sans-serif;">نرم افزار آیت الله دستغیب</div>
-          <div id="sp-sub" style="font-size:12px;color:#6b7280;font-family:Vazir,Tahoma,sans-serif;text-align:center;">در حال آماده‌سازی...</div>
-        </div>
-        <button onclick="updateSplashPreview()" class="mt-3 bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-200 transition"><i class="fas fa-eye ml-1"></i>به‌روزرسانی پیش‌نمایش</button>
-      </div>
-    </div>
 
-    <!-- Home Section Gap -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-arrows-alt-v text-teal-600 ml-2"></i>فاصله عمودی بخش‌های صفحه اصلی</h2>
-      <p class="text-xs text-gray-400 mb-5">فاصله پایینی هر بخش را با بخش بعدی تنظیم کنید (پیکسل)</p>
-      <div class="flex flex-col gap-4">
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از اسلایدر</span>
-          <input type="range" min="0" max="80" value="16" id="s-gap_slider" oninput="document.getElementById('sv-gap_slider').textContent=this.value" class="flex-1 accent-teal-600">
-          <span id="sv-gap_slider" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
-          <span class="text-xs text-gray-400">px</span>
+      <!-- Splash Screen Settings -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-mobile-alt text-purple-600 ml-2"></i>صفحه اسپلش (بارگذاری اولیه)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-2">عنوان صفحه اسپلش</label>
+            <input type="text" id="s-splash_title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="نرم افزار آیت الله دستغیب">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-2">متن زیر عنوان</label>
+            <input type="text" id="s-splash_subtitle" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-purple-500" placeholder="در حال آماده‌سازی...">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-3">رنگ پس‌زمینه</label>
+            <div class="flex items-center gap-3">
+              <input type="color" id="s-splash_bg_color" value="#ffffff" class="rounded-lg cursor-pointer w-12 h-10">
+              <div class="flex flex-wrap gap-2">
+                <div class="w-8 h-8 rounded-lg cursor-pointer border border-gray-200" style="background:#ffffff" onclick="document.getElementById('s-splash_bg_color').value='#ffffff'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0d9488" onclick="document.getElementById('s-splash_bg_color').value='#0d9488'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#1e293b" onclick="document.getElementById('s-splash_bg_color').value='#1e293b'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#7c3aed" onclick="document.getElementById('s-splash_bg_color').value='#7c3aed'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0f172a" onclick="document.getElementById('s-splash_bg_color').value='#0f172a'"></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-3">رنگ اسپینر بارگذاری</label>
+            <div class="flex items-center gap-3">
+              <input type="color" id="s-splash_spinner_color" value="#0d9488" class="rounded-lg cursor-pointer w-12 h-10">
+              <div class="flex flex-wrap gap-2">
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0d9488" onclick="document.getElementById('s-splash_spinner_color').value='#0d9488'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#ffffff" onclick="document.getElementById('s-splash_spinner_color').value='#ffffff'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#7c3aed" onclick="document.getElementById('s-splash_spinner_color').value='#7c3aed'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#f59e0b" onclick="document.getElementById('s-splash_spinner_color').value='#f59e0b'"></div>
+              </div>
+            </div>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold text-gray-500 mb-2">آیکون / تصویر اسپلش <span class="text-gray-400 font-normal">(اختیاری — جایگزین اسپینر می‌شود)</span></label>
+            <div class="flex items-center gap-4">
+              <div class="w-20 h-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                <img id="splash-icon-preview" src="" class="w-full h-full object-contain hidden" alt="">
+                <i id="splash-icon-ph" class="fas fa-image text-gray-300 text-2xl"></i>
+              </div>
+              <div class="flex-1 flex flex-col gap-2">
+                <input type="file" id="splash-icon-input" accept="image/*" class="hidden" onchange="previewSplashIcon(this)">
+                <button onclick="document.getElementById('splash-icon-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition"><i class="fas fa-upload ml-2"></i>انتخاب تصویر</button>
+                <button onclick="uploadSplashIcon()" class="bg-purple-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-purple-700 transition"><i class="fas fa-save ml-2"></i>آپلود آیکون</button>
+                <button onclick="clearSplashIcon()" class="bg-red-50 border border-red-100 text-red-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition"><i class="fas fa-times ml-1"></i>حذف آیکون (نمایش اسپینر)</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آیکن‌ها</span>
-          <input type="range" min="0" max="80" value="16" id="s-gap_shortcuts" oninput="document.getElementById('sv-gap_shortcuts').textContent=this.value" class="flex-1 accent-teal-600">
-          <span id="sv-gap_shortcuts" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
-          <span class="text-xs text-gray-400">px</span>
+        <!-- پیش‌نمایش -->
+        <div class="mt-5 border-t pt-4">
+          <p class="text-xs font-bold text-gray-500 mb-3">پیش‌نمایش اسپلش</p>
+          <div id="splash-preview-box" style="background:#ffffff;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:16px;padding:32px;gap:12px;border:2px dashed #e5e7eb;min-height:180px;">
+            <div id="sp-icon" style="display:none;width:80px;height:80px;border-radius:20px;overflow:hidden;"><img src="" style="width:100%;height:100%;object-fit:contain;"></div>
+            <div id="sp-spinner" style="width:44px;height:44px;border:4px solid #ccfbf1;border-top-color:#0d9488;border-radius:50%;animation:inlineSpin 1s linear infinite;"></div>
+            <div id="sp-title" style="font-size:18px;font-weight:900;color:#1f2937;font-family:Vazir,Tahoma,sans-serif;">نرم افزار آیت الله دستغیب</div>
+            <div id="sp-sub" style="font-size:12px;color:#6b7280;font-family:Vazir,Tahoma,sans-serif;text-align:center;">در حال آماده‌سازی...</div>
+          </div>
+          <button onclick="updateSplashPreview()" class="mt-3 bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-200 transition"><i class="fas fa-eye ml-1"></i>به‌روزرسانی پیش‌نمایش</button>
         </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از کتاب‌ها</span>
-          <input type="range" min="0" max="80" value="16" id="s-gap_books" oninput="document.getElementById('sv-gap_books').textContent=this.value" class="flex-1 accent-teal-600">
-          <span id="sv-gap_books" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
-          <span class="text-xs text-gray-400">px</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از تصاویر</span>
-          <input type="range" min="0" max="80" value="16" id="s-gap_images" oninput="document.getElementById('sv-gap_images').textContent=this.value" class="flex-1 accent-teal-600">
-          <span id="sv-gap_images" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
-          <span class="text-xs text-gray-400">px</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین مطالب</span>
-          <input type="range" min="0" max="80" value="16" id="s-gap_lectures" oninput="document.getElementById('sv-gap_lectures').textContent=this.value" class="flex-1 accent-teal-600">
-          <span id="sv-gap_lectures" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
-          <span class="text-xs text-gray-400">px</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین صوت‌ها</span>
-          <input type="range" min="0" max="80" value="16" id="s-gap_audio" oninput="document.getElementById('sv-gap_audio').textContent=this.value" class="flex-1 accent-teal-600">
-          <span id="sv-gap_audio" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
-          <span class="text-xs text-gray-400">px</span>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین ویدیوها</span>
-          <input type="range" min="0" max="80" value="16" id="s-gap_videos" oninput="document.getElementById('sv-gap_videos').textContent=this.value" class="flex-1 accent-teal-600">
-          <span id="sv-gap_videos" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
-          <span class="text-xs text-gray-400">px</span>
-        </div>
-        <div class="border-t pt-4 mt-1">
-          <p class="text-xs text-gray-400 mb-3">فاصله بالا و پایین بنرها</p>
+      </div>
+
+      <!-- Home Section Gap -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-arrows-alt-v text-teal-600 ml-2"></i>فاصله عمودی بخش‌های صفحه اصلی</h2>
+        <p class="text-xs text-gray-400 mb-5">فاصله پایینی هر بخش را با بخش بعدی تنظیم کنید (پیکسل)</p>
+        <div class="flex flex-col gap-4">
           <div class="flex items-center gap-3">
-            <span class="text-xs font-bold text-gray-600 w-44 shrink-0">فاصله بالا/پایین بنر</span>
-            <input type="range" min="0" max="40" value="0" id="s-gap_banner" oninput="document.getElementById('sv-gap_banner').textContent=this.value" class="flex-1 accent-teal-600">
-            <span id="sv-gap_banner" class="text-sm font-black text-teal-600 w-7 text-center">0</span>
+            <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از اسلایدر</span>
+            <input type="range" min="0" max="80" value="16" id="s-gap_slider" oninput="document.getElementById('sv-gap_slider').textContent=this.value" class="flex-1 accent-teal-600">
+            <span id="sv-gap_slider" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
             <span class="text-xs text-gray-400">px</span>
           </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آیکن‌ها</span>
+            <input type="range" min="0" max="80" value="16" id="s-gap_shortcuts" oninput="document.getElementById('sv-gap_shortcuts').textContent=this.value" class="flex-1 accent-teal-600">
+            <span id="sv-gap_shortcuts" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
+            <span class="text-xs text-gray-400">px</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از کتاب‌ها</span>
+            <input type="range" min="0" max="80" value="16" id="s-gap_books" oninput="document.getElementById('sv-gap_books').textContent=this.value" class="flex-1 accent-teal-600">
+            <span id="sv-gap_books" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
+            <span class="text-xs text-gray-400">px</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از تصاویر</span>
+            <input type="range" min="0" max="80" value="16" id="s-gap_images" oninput="document.getElementById('sv-gap_images').textContent=this.value" class="flex-1 accent-teal-600">
+            <span id="sv-gap_images" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
+            <span class="text-xs text-gray-400">px</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین مطالب</span>
+            <input type="range" min="0" max="80" value="16" id="s-gap_lectures" oninput="document.getElementById('sv-gap_lectures').textContent=this.value" class="flex-1 accent-teal-600">
+            <span id="sv-gap_lectures" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
+            <span class="text-xs text-gray-400">px</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین صوت‌ها</span>
+            <input type="range" min="0" max="80" value="16" id="s-gap_audio" oninput="document.getElementById('sv-gap_audio').textContent=this.value" class="flex-1 accent-teal-600">
+            <span id="sv-gap_audio" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
+            <span class="text-xs text-gray-400">px</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین ویدیوها</span>
+            <input type="range" min="0" max="80" value="16" id="s-gap_videos" oninput="document.getElementById('sv-gap_videos').textContent=this.value" class="flex-1 accent-teal-600">
+            <span id="sv-gap_videos" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
+            <span class="text-xs text-gray-400">px</span>
+          </div>
+          <div class="border-t pt-4 mt-1">
+            <p class="text-xs text-gray-400 mb-3">فاصله بالا و پایین بنرها</p>
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-bold text-gray-600 w-44 shrink-0">فاصله بالا/پایین بنر</span>
+              <input type="range" min="0" max="40" value="0" id="s-gap_banner" oninput="document.getElementById('sv-gap_banner').textContent=this.value" class="flex-1 accent-teal-600">
+              <span id="sv-gap_banner" class="text-sm font-black text-teal-600 w-7 text-center">0</span>
+              <span class="text-xs text-gray-400">px</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dark Mode Settings -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-adjust text-teal-600 ml-2"></i>تنظیمات تم تاریک/روشن</h2>
+        <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+          <div>
+            <p class="font-bold text-sm text-gray-800">دکمه تغییر تم (دارک/لایت)</p>
+            <p class="text-xs text-gray-500 mt-1">نمایش دکمه ماه/خورشید در هدر صفحه اصلی برای کاربران</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="s-dark_mode_enabled" class="sr-only peer" checked>
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="saveSettings()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-sm transition flex-1 text-sm"><i class="fas fa-save ml-2"></i>ذخیره تمام تنظیمات</button>
+        <button onclick="loadSettings()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-xl text-sm"><i class="fas fa-sync-alt ml-2"></i>بازنشانی</button>
+      </div>
+
+      <!-- Digital Asset Links (اپ اندروید) — جدا از «ذخیره تمام تنظیمات»؛ دکمهٔ ذخیرهٔ خودش را دارد -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-2 border-b pb-4"><i class="fab fa-android text-teal-600 ml-2"></i>اتصال اپ اندروید (Digital Asset Links)</h2>
+        <p class="text-xs text-gray-500 leading-relaxed mt-3 mb-4">
+          بعد از ساختن APK با PWABuilder، محتوای فایل <span dir="ltr" class="font-mono">assetlinks.json</span> داخل زیپ را اینجا بچسبانید و ذخیره کنید.
+          بدون آن، اپ اندروید با نوار آدرس کروم باز می‌شود. اگر اپ را با کلید امضای دیگری هم منتشر کرده‌اید، هر دو اثر انگشت را در آرایهٔ
+          <span dir="ltr" class="font-mono">sha256_cert_fingerprints</span> نگه دارید. این مقدار در دیتابیس ذخیره می‌شود و با آپدیت سرور (git) از بین نمی‌رود.
+        </p>
+        <p class="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-4 leading-relaxed">
+          <b>کافه‌بازار:</b> برای انتشار در کافه‌بازار، برای هر پکیج یک ردیف جدا با
+          <span dir="ltr" class="font-mono">namespace: cafebazaar_twa</span> (همان پکیج و همان اثر انگشت) لازم است؛ وگرنه آپلود با خطای «فضای نام اجباری cafebazaar_twa تعریف نشده» رد می‌شود.
+          دکمهٔ «افزودن ردیف کافه‌بازار» آن را می‌سازد. مقدار <span dir="ltr" class="font-mono">relation</span> آن را طبق پیام‌های خود بازار تنظیم کنید.
+        </p>
+        <div id="al-status" class="text-xs rounded-xl px-3 py-2 mb-3 bg-gray-50 border border-gray-100 text-gray-600"></div>
+        <textarea id="al-text" dir="ltr" rows="11" spellcheck="false" class="w-full font-mono text-xs bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-teal-200 focus:bg-white transition" placeholder='[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "android_app", "package_name": "info.dastgheibqoba.app.twa", "sha256_cert_fingerprints": ["AA:BB:..."] } }]'></textarea>
+        <div id="al-summary" class="mt-3 flex flex-col gap-1.5"></div>
+        <div class="flex flex-wrap items-center gap-2 mt-4">
+          <button onclick="saveAssetLinks()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition"><i class="fas fa-save ml-2"></i>ذخیرهٔ اتصال اپ</button>
+          <button onclick="addBazaarStatement()" title="کافه‌بازار برای هر پکیج یک ردیف با namespace «cafebazaar_twa» می‌خواهد" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-plus ml-2"></i>افزودن ردیف کافه‌بازار</button>
+          <button onclick="resetAssetLinks()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-undo ml-2"></i>حذف مقدار ذخیره‌شده</button>
+          <a href="/.well-known/assetlinks.json" target="_blank" rel="noopener" class="text-teal-600 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-teal-50 transition"><i class="fas fa-external-link-alt ml-1"></i>دیدن نسخهٔ زنده</a>
         </div>
       </div>
     </div>
-
-    <!-- Dark Mode Settings -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-adjust text-teal-600 ml-2"></i>تنظیمات تم تاریک/روشن</h2>
-      <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-        <div>
-          <p class="font-bold text-sm text-gray-800">دکمه تغییر تم (دارک/لایت)</p>
-          <p class="text-xs text-gray-500 mt-1">نمایش دکمه ماه/خورشید در هدر صفحه اصلی برای کاربران</p>
+    <div id="settings-pane-shortcuts" class="settings-pane hidden">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-2"><i class="fas fa-th text-teal-600 ml-2"></i>آیکن‌های صفحه اصلی</h2>
+        <p class="text-xs text-gray-500 mb-6">۸ آیکن میانبر را می‌توانید از اینجا سفارشی کنید — آیکن، نام، رنگ و عملکرد هر کدام قابل تغییر است. برای جابجایی ترتیب، کارت‌ها را با <i class="fas fa-grip-vertical text-gray-400"></i> بکشید.</p>
+        <div id="shortcuts-editor" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
         </div>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" id="s-dark_mode_enabled" class="sr-only peer" checked>
-          <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600"></div>
-        </label>
+        <div class="mt-6 border-t pt-5">
+          <button onclick="saveShortcuts()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره آیکن‌ها</button>
+        </div>
       </div>
     </div>
-
-    <div class="flex gap-3">
-      <button onclick="saveSettings()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-sm transition flex-1 text-sm"><i class="fas fa-save ml-2"></i>ذخیره تمام تنظیمات</button>
-      <button onclick="loadSettings()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-xl text-sm"><i class="fas fa-sync-alt ml-2"></i>بازنشانی</button>
+    <div id="settings-pane-linkshortcuts" class="settings-pane hidden">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-2"><i class="fas fa-external-link-alt text-blue-600 ml-2"></i>لینک‌های پایین صفحه اصلی</h2>
+        <p class="text-xs text-gray-500 mb-6">۸ آیکن لینک در پایین صفحه اصلی (زیر آخرین ویدیوها) — هر آیکن می‌تواند به یک لینک خارجی وصل شود. آیکن‌های بدون عنوان نمایش داده نمی‌شوند.</p>
+        <div id="link-shortcuts-editor" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
+        </div>
+        <div class="mt-6 border-t pt-5">
+          <button onclick="saveLinkShortcuts()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره لینک‌ها</button>
+        </div>
+      </div>
     </div>
-
-    <!-- Digital Asset Links (اپ اندروید) — جدا از «ذخیره تمام تنظیمات»؛ دکمهٔ ذخیرهٔ خودش را دارد -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-2 border-b pb-4"><i class="fab fa-android text-teal-600 ml-2"></i>اتصال اپ اندروید (Digital Asset Links)</h2>
-      <p class="text-xs text-gray-500 leading-relaxed mt-3 mb-4">
-        بعد از ساختن APK با PWABuilder، محتوای فایل <span dir="ltr" class="font-mono">assetlinks.json</span> داخل زیپ را اینجا بچسبانید و ذخیره کنید.
-        بدون آن، اپ اندروید با نوار آدرس کروم باز می‌شود. اگر اپ را با کلید امضای دیگری هم منتشر کرده‌اید، هر دو اثر انگشت را در آرایهٔ
-        <span dir="ltr" class="font-mono">sha256_cert_fingerprints</span> نگه دارید. این مقدار در دیتابیس ذخیره می‌شود و با آپدیت سرور (git) از بین نمی‌رود.
-      </p>
-      <p class="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-4 leading-relaxed">
-        <b>کافه‌بازار:</b> برای انتشار در کافه‌بازار، برای هر پکیج یک ردیف جدا با
-        <span dir="ltr" class="font-mono">namespace: cafebazaar_twa</span> (همان پکیج و همان اثر انگشت) لازم است؛ وگرنه آپلود با خطای «فضای نام اجباری cafebazaar_twa تعریف نشده» رد می‌شود.
-        دکمهٔ «افزودن ردیف کافه‌بازار» آن را می‌سازد. مقدار <span dir="ltr" class="font-mono">relation</span> آن را طبق پیام‌های خود بازار تنظیم کنید.
-      </p>
-      <div id="al-status" class="text-xs rounded-xl px-3 py-2 mb-3 bg-gray-50 border border-gray-100 text-gray-600"></div>
-      <textarea id="al-text" dir="ltr" rows="11" spellcheck="false" class="w-full font-mono text-xs bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-teal-200 focus:bg-white transition" placeholder='[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "android_app", "package_name": "info.dastgheibqoba.app.twa", "sha256_cert_fingerprints": ["AA:BB:..."] } }]'></textarea>
-      <div id="al-summary" class="mt-3 flex flex-col gap-1.5"></div>
-      <div class="flex flex-wrap items-center gap-2 mt-4">
-        <button onclick="saveAssetLinks()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition"><i class="fas fa-save ml-2"></i>ذخیرهٔ اتصال اپ</button>
-        <button onclick="addBazaarStatement()" title="کافه‌بازار برای هر پکیج یک ردیف با namespace «cafebazaar_twa» می‌خواهد" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-plus ml-2"></i>افزودن ردیف کافه‌بازار</button>
-        <button onclick="resetAssetLinks()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-undo ml-2"></i>حذف مقدار ذخیره‌شده</button>
-        <a href="/.well-known/assetlinks.json" target="_blank" rel="noopener" class="text-teal-600 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-teal-50 transition"><i class="fas fa-external-link-alt ml-1"></i>دیدن نسخهٔ زنده</a>
+    <div id="settings-pane-navitems" class="settings-pane hidden">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-1"><i class="fas fa-bars text-teal-600 ml-2"></i>نوار پایین</h2>
+        <p class="text-xs text-gray-500 mb-6">۵ آیتم نوار پایین را ویرایش کنید — آیکن FontAwesome، نام و مقصد هر دکمه قابل تغییر است.</p>
+        <div id="nav-items-editor" class="flex flex-col gap-4">
+          <div class="text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
+        </div>
+        <div class="mt-6 border-t pt-5">
+          <button onclick="saveNavItemsAdmin()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره نوار پایین</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1355,47 +1410,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   <!-- CHATBOT TAB — پنل کامل چت‌بات (سرویس مستقل، از طریق پروکسی /chatbot) -->
   <div id="tab-chatbot" class="hidden flex-1 overflow-hidden relative">
     <iframe id="chatbot-admin-frame" data-src="/chatbot/admin" class="absolute inset-0 w-full h-full border-0" style="display:block"></iframe>
-  </div>
-
-  <!-- NAV ITEMS TAB -->
-  <div id="tab-navitems" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-1"><i class="fas fa-bars text-teal-600 ml-2"></i>نوار پایین</h2>
-      <p class="text-xs text-gray-500 mb-6">۵ آیتم نوار پایین را ویرایش کنید — آیکن FontAwesome، نام و مقصد هر دکمه قابل تغییر است.</p>
-      <div id="nav-items-editor" class="flex flex-col gap-4">
-        <div class="text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
-      </div>
-      <div class="mt-6 border-t pt-5">
-        <button onclick="saveNavItemsAdmin()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره نوار پایین</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- SHORTCUTS TAB -->
-  <div id="tab-linkshortcuts" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-2"><i class="fas fa-external-link-alt text-blue-600 ml-2"></i>لینک‌های پایین صفحه اصلی</h2>
-      <p class="text-xs text-gray-500 mb-6">۸ آیکن لینک در پایین صفحه اصلی (زیر آخرین ویدیوها) — هر آیکن می‌تواند به یک لینک خارجی وصل شود. آیکن‌های بدون عنوان نمایش داده نمی‌شوند.</p>
-      <div id="link-shortcuts-editor" class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
-      </div>
-      <div class="mt-6 border-t pt-5">
-        <button onclick="saveLinkShortcuts()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره لینک‌ها</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="tab-shortcuts" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-      <h2 class="text-lg font-black mb-2"><i class="fas fa-th text-teal-600 ml-2"></i>آیکن‌های صفحه اصلی</h2>
-      <p class="text-xs text-gray-500 mb-6">۸ آیکن میانبر را می‌توانید از اینجا سفارشی کنید — آیکن، نام، رنگ و عملکرد هر کدام قابل تغییر است. برای جابجایی ترتیب، کارت‌ها را با <i class="fas fa-grip-vertical text-gray-400"></i> بکشید.</p>
-      <div id="shortcuts-editor" class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
-      </div>
-      <div class="mt-6 border-t pt-5">
-        <button onclick="saveShortcuts()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره آیکن‌ها</button>
-      </div>
-    </div>
   </div>
 
 </main>
@@ -1530,9 +1544,12 @@ async function checkUnreadSupport() {
   } catch(e){}
 }
 
+const SETTINGS_PANES=['general','shortcuts','linkshortcuts','navitems'];
 function switchTab(tab) {
-  const tabNames={books:'مدیریت کتاب‌ها',slider:'اسلایدر',banners:'بنرها',videogallery:'گالری ویدیو',live:'پخش زنده',gallery:'گالری عکس',audiogallery:'گالری صوت',support:'پشتیبانی',chatbot:'دستیار هوشمند',broadcast:'پیام همگانی',analytics:'آمار بازدید',users:'کاربران',settings:'تنظیمات',pagecontent:'صفحات محتوا',shortcuts:'آیکن‌های خانه',linkshortcuts:'لینک‌های خانه',navitems:'نوار پایین'};
-  const tabs=['books','slider','banners','videogallery','live','gallery','audiogallery','support','chatbot','broadcast','analytics','users','settings','pagecontent','shortcuts','linkshortcuts','navitems'];
+  // این سه بخش حالا زیربخش «تنظیمات» هستند
+  if(SETTINGS_PANES.includes(tab) && tab!=='general'){ switchTab('settings'); switchSettingsPane(tab); return; }
+  const tabNames={books:'مدیریت کتاب‌ها',slider:'اسلایدر',banners:'بنرها',videogallery:'گالری ویدیو',live:'پخش زنده',gallery:'گالری عکس',audiogallery:'گالری صوت',support:'پشتیبانی',chatbot:'دستیار هوشمند',broadcast:'پیام همگانی',analytics:'آمار بازدید',users:'کاربران',settings:'تنظیمات',pagecontent:'صفحات محتوا'};
+  const tabs=['books','slider','banners','videogallery','live','gallery','audiogallery','support','chatbot','broadcast','analytics','users','settings','pagecontent'];
   tabs.forEach(t=>{
     document.getElementById('tab-'+t).classList.add('hidden');
     document.getElementById('tab-'+t).classList.remove('flex');
@@ -1562,11 +1579,20 @@ function switchTab(tab) {
   if(tab==='analytics') { loadAnalytics(); if(analyticsInterval) clearInterval(analyticsInterval); analyticsInterval=setInterval(()=>{if(document.visibilityState!=='hidden')loadAnalytics();}, 30000); }
   else if(analyticsInterval) { clearInterval(analyticsInterval); analyticsInterval=null; }
   if(tab==='users') loadUsers();
-  if(tab==='settings') { loadSettings(); loadAssetLinks(); }
+  if(tab==='settings') switchSettingsPane('general');
   if(tab==='pagecontent') initPageContentTab();
-  if(tab==='shortcuts') loadShortcuts();
-  if(tab==='linkshortcuts') loadLinkShortcuts();
-  if(tab==='navitems') loadNavItemsAdmin();
+}
+
+// زیربخش‌های تنظیمات: عمومی، آیکن‌های خانه، لینک‌های خانه، نوار پایین
+function switchSettingsPane(pane){
+  if(!SETTINGS_PANES.includes(pane)) pane='general';
+  SETTINGS_PANES.forEach(p=>document.getElementById('settings-pane-'+p).classList.toggle('hidden',p!==pane));
+  document.querySelectorAll('#settings-subnav button').forEach(b=>b.classList.toggle('active',b.dataset.pane===pane));
+  const tab=document.getElementById('tab-settings'); if(tab) tab.scrollTop=0;
+  if(pane==='general'){ loadSettings(); loadAssetLinks(); }
+  if(pane==='shortcuts') loadShortcuts();
+  if(pane==='linkshortcuts') loadLinkShortcuts();
+  if(pane==='navitems') loadNavItemsAdmin();
 }
 
 function switchSupportTab(mode) {
