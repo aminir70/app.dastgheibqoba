@@ -1335,7 +1335,7 @@ body.h-screen{height:100vh;height:100dvh;height:var(--app-h,100dvh);}
       <!-- نسخهٔ محلی سخنرانی‌ها (lib/wp-mirror.js) -->
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <h2 class="text-lg font-black mb-2 border-b pb-4"><i class="fas fa-microphone-alt text-amber-600 ml-2"></i>سخنرانی‌های سایت (نسخهٔ محلی)</h2>
-        <p class="text-xs text-gray-500 mb-4 leading-relaxed">سرور فهرست سخنرانی‌ها و مطالب سایت را کپی می‌کند تا در اپ سریع باز شوند و در جستجو پیدا شوند. هر ۳۰ دقیقه مطالب جدید یا ویرایش‌شده خودکار گرفته می‌شوند و روزی یک‌بار مطالب حذف‌شده پاک می‌شوند.</p>
+        <p class="text-xs text-gray-500 mb-4 leading-relaxed">سرور فهرست سخنرانی‌ها و مطالب سایت را کپی می‌کند تا در اپ سریع باز شوند و در جستجو پیدا شوند. روزی یک‌بار مطالب جدید یا ویرایش‌شده خودکار گرفته و مطالب حذف‌شده پاک می‌شوند. برای دیدن فوری یک مطلب تازه، دکمهٔ «همگام‌سازی کامل الان» را بزنید.</p>
         <div id="wpm-status" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-3 text-gray-600 leading-6">...</div>
         <div class="flex flex-wrap items-center gap-2 mt-4">
           <button id="wpm-sync-btn" onclick="wpMirrorSync()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition"><i class="fas fa-sync-alt ml-2"></i>همگام‌سازی کامل الان</button>
@@ -1619,7 +1619,7 @@ async function loadWpMirrorStatus(){
     else if(d.running) st='<b class="text-amber-600"><i class="fas fa-spinner fa-spin ml-1"></i>در حال همگام‌سازی…</b>';
     else if(d.ready) st='<b class="text-green-600"><i class="fas fa-check-circle ml-1"></i>آماده</b>';
     else st='<b class="text-amber-600">هنوز آماده نیست</b> — تا کامل شدن اولین دریافت، اپ مستقیم از سایت می‌خواند';
-    el.innerHTML=`وضعیت: ${st}<br>تعداد مطالب: <b>${fa(d.posts)}</b> — دسته‌ها: <b>${fa(d.categories)}</b><br>آخرین همگام‌سازی موفق: ${t(d.last_ok)} (مطالب تازه: ${fa(d.last_added)})<br>آخرین بررسی کامل (حذف‌شده‌ها): ${t(d.last_full_check)}`+
+    el.innerHTML=`وضعیت: ${st}<br>تعداد مطالب: <b>${fa(d.posts)}</b> — دسته‌ها: <b>${fa(d.categories)}</b><br>آخرین همگام‌سازی موفق: ${t(d.last_ok)} (مطالب تازه: ${fa(d.last_added)})<br>آخرین بررسی کامل (حذف‌شده‌ها): ${t(d.last_full_check)}<br>بررسی بعدی: ${t(d.next_at)}`+
       (d.last_error?`<br><span class="text-red-600">آخرین خطا: ${escHtml(d.last_error)}</span>`:'');
     clearTimeout(_wpmPoll);
     if(d.running) _wpmPoll=setTimeout(()=>{ if(!document.getElementById('settings-pane-general').classList.contains('hidden')) loadWpMirrorStatus(); },3000);
