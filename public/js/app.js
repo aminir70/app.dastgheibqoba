@@ -1828,9 +1828,37 @@ async function markAllNotifsRead() {
 // ====================================================
 // جستجوی کلی
 // ====================================================
-function openGlobalSearch() {
+// keep=true: برگشتن از یک نتیجه — همان عبارت و نتیجه‌ها (و جای اسکرول) بماند.
+// بدون آن (دکمه‌های جستجو) جستجوی تازه و خالی باز می‌شود.
+function openGlobalSearch(keep) {
     const m = document.getElementById('global-search-modal');
-    if (m) { m.classList.remove('hidden'); m.classList.add('flex'); document.getElementById('global-search-input').focus(); }
+    if (!m) return;
+    const inp = document.getElementById('global-search-input');
+    if (keep !== true) {
+        if (inp) inp.value = '';
+        const c = document.getElementById('global-search-results');
+        if (c) c.innerHTML = '';
+    }
+    m.classList.remove('hidden'); m.classList.add('flex');
+    if (keep !== true && inp) inp.focus();
+}
+
+// باز کردن یک نتیجهٔ جستجو طوری که اولین back دوباره به همان نتیجه‌ها برگردد:
+// اولین entry که خود نتیجه می‌سازد (کتاب/فهرست/متن/صفحهٔ رسانه) هنگام back
+// جستجو را هم باز می‌کند. اگر نتیجه باز نشد (خطا)، جستجو همان‌جا برمی‌گردد.
+function _openFromSearch(fn) {
+    const n = _backStack.length;
+    const done = function() {
+        const e = _backStack[n];
+        if (!e) { openGlobalSearch(true); return; }
+        if (e._gs) return;
+        const orig = e.restore;
+        e._gs = true;
+        e.restore = function() { orig(); openGlobalSearch(true); };
+    };
+    let r;
+    try { r = fn(); } catch(err) { done(); return; }
+    Promise.resolve(r).then(done, done);
 }
 function closeGlobalSearch() {
     const m = document.getElementById('global-search-modal');
@@ -1918,11 +1946,14 @@ function _initGlobalSearchDelegation() {
         closeGlobalSearch();
         if (act === 'book') {
             // عنوان کتاب مطابقت داشته — کلمه را در متن هم جستجو کن
-            openBook(parseInt(btn.getAttribute('data-book'), 10), undefined, window._gsQ);
+            const id = parseInt(btn.getAttribute('data-book'), 10);
+            _openFromSearch(function() { return openBook(id, undefined, window._gsQ); });
         } else if (act === 'page') {
-            _openSearchItem(parseInt(btn.getAttribute('data-idx'), 10));
+            const i = parseInt(btn.getAttribute('data-idx'), 10);
+            _openFromSearch(function() { return _openSearchItem(i); });
         } else if (act === 'media') {
-            _openSearchMedia(parseInt(btn.getAttribute('data-idx'), 10));
+            const i = parseInt(btn.getAttribute('data-idx'), 10);
+            _openFromSearch(function() { return _openSearchMedia(i); });
         }
     });
 }
@@ -1930,7 +1961,7 @@ function _initGlobalSearchDelegation() {
 function _openSearchItem(i) {
     const item = window._gsItems && window._gsItems[i];
     if (!item) return;
-    openBook(item.bookId, item.pageId, item.query);
+    return openBook(item.bookId, item.pageId, item.query);
 }
 
 async function _openSearchMedia(i) {
