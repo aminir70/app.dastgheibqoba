@@ -1885,26 +1885,49 @@ async function performGlobalSearch() {
     try {
         const r = await fetch('/api/search?q=' + encodeURIComponent(q));
         const data = await r.json();
-        let html = '';
         window._gsQ = q;
-        if (data.books && data.books.length) {
-            html += `<h3 class="text-xs font-black text-gray-500 mb-2 px-1"><i class="fas fa-book ml-1 text-brand-600"></i>کتاب‌های مرتبط</h3>`;
-            html += data.books.map(b => `<button data-act="book" data-book="${b.id}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-brand-50 transition shadow-sm flex items-center gap-3 mb-2">
-                ${b.cover?`<img src="${b.cover}" class="w-10 h-14 rounded-lg object-cover shrink-0 pointer-events-none">`:`<div class="w-10 h-14 bg-brand-50 rounded-lg flex items-center justify-center shrink-0 pointer-events-none"><i class="fas fa-book text-brand-300 text-sm"></i></div>`}
+        const books = data.books || [], pages = data.pages || [], lectures = data.lectures || [], media = data.media || [];
+        window._gsLectures = lectures;
+        window._gsMedia = media;
+        window._gsItems = pages.map(p => ({ bookId: p.bookId, query: q, pageId: p.pageId }));
+
+        // ── کتاب‌ها: عنوان کتاب + یافته‌ها در متن
+        let booksHtml = '';
+        if (books.length) {
+            booksHtml += `<h4 class="text-[11px] font-black text-gray-400 mb-2 px-1">کتاب‌های مرتبط</h4>`;
+            booksHtml += books.map(b => {
+                const cover = safeUrl(b.cover);
+                return `<button data-act="book" data-book="${b.id}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-brand-50 transition shadow-sm flex items-center gap-3 mb-2">
+                ${cover?`<img src="${cover}" class="w-10 h-14 rounded-lg object-cover shrink-0 pointer-events-none" loading="lazy">`:`<div class="w-10 h-14 bg-brand-50 rounded-lg flex items-center justify-center shrink-0 pointer-events-none"><i class="fas fa-book text-brand-300 text-sm"></i></div>`}
                 <div class="text-right min-w-0 pointer-events-none">
-                    <h4 class="font-bold text-sm text-gray-800 mb-0.5 line-clamp-1">${b.title}</h4>
-                    <p class="text-xs text-gray-400">${b.author||'ناشناس'}</p>
+                    <h4 class="font-bold text-sm text-gray-800 mb-0.5 line-clamp-1">${escHtml(b.title)}</h4>
+                    <p class="text-xs text-gray-400">${escHtml(b.author||'ناشناس')}</p>
                 </div>
-            </button>`).join('');
+            </button>`;
+            }).join('');
         }
-        if (data.lectures && data.lectures.length) {
-            window._gsLectures = data.lectures;
-            html += `<h3 class="text-xs font-black text-gray-500 mb-2 mt-4 px-1"><i class="fas fa-microphone-alt ml-1 text-amber-600"></i>سخنرانی‌ها و مطالب</h3>`;
-            const _LEC_SHOW = 5;
-            const lecItems = data.lectures.map((l, i) => {
-                const thumb = safeUrl(l.thumb);
-                const date = l.date ? toFa(new Date(l.date).toLocaleDateString('fa-IR')) : '';
-                return `<button data-act="lecture" data-idx="${i}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-amber-50 transition shadow-sm flex items-start gap-3 mb-2">
+        if (pages.length) {
+            booksHtml += `<h4 class="text-[11px] font-black text-gray-400 mb-2 ${books.length?'mt-3':''} px-1">یافت شده در متن کتاب‌ها</h4>`;
+            booksHtml += pages.map((p, i) => {
+                const cover = safeUrl(p.bookCover);
+                return `<button data-act="page" data-idx="${i}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-emerald-50 transition shadow-sm mb-2 block">
+                <div class="flex items-center gap-2 mb-1 pointer-events-none">
+                    ${cover?`<img src="${cover}" class="w-7 h-10 rounded object-cover shrink-0" loading="lazy">`:`<div class="w-7 h-10 bg-emerald-50 rounded flex items-center justify-center shrink-0"><i class="fas fa-book text-emerald-300 text-xs"></i></div>`}
+                    <div class="text-right min-w-0">
+                        <span class="font-bold text-xs text-emerald-700">${escHtml(p.bookTitle)}</span>
+                        ${p.pageName?`<span class="block text-[10px] text-gray-400">${escHtml(p.pageName)}</span>`:''}
+                    </div>
+                </div>
+                <p class="text-xs text-gray-600 text-right leading-5 line-clamp-2 pr-1 pointer-events-none">${escHtml(p.snippet)}...</p>
+            </button>`;
+            }).join('');
+        }
+
+        // ── سخنرانی‌ها و مطالب سایت (عنوان همان HTML وردپرس است، مثل بقیهٔ بخش سخنرانی‌ها)
+        const lecHtml = lectures.map((l, i) => {
+            const thumb = safeUrl(l.thumb);
+            const date = l.date ? toFa(new Date(l.date).toLocaleDateString('fa-IR')) : '';
+            return `<button data-act="lecture" data-idx="${i}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-amber-50 transition shadow-sm flex items-start gap-3 mb-2">
                 ${thumb?`<img src="${thumb}" class="w-12 h-12 rounded-lg object-cover shrink-0 pointer-events-none" loading="lazy">`:`<div class="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center shrink-0 pointer-events-none"><i class="fas fa-microphone-alt text-amber-300"></i></div>`}
                 <div class="text-right min-w-0 flex-1 pointer-events-none">
                     <h4 class="font-bold text-sm text-gray-800 mb-0.5 line-clamp-2">${l.title}</h4>
@@ -1912,48 +1935,57 @@ async function performGlobalSearch() {
                     ${date?`<span class="text-[10px] text-gray-400"><i class="far fa-calendar ml-1"></i>${date}</span>`:''}
                 </div>
             </button>`;
-            });
-            // چند مورد اول؛ بقیه با یک دکمه (تا نتیجه‌های کتاب و رسانه پایین نروند)
-            html += lecItems.slice(0, _LEC_SHOW).join('');
-            if (lecItems.length > _LEC_SHOW) {
-                html += `<div class="gs-more hidden">${lecItems.slice(_LEC_SHOW).join('')}</div>
-                <button type="button" onclick="this.previousElementSibling.classList.remove('hidden');this.remove()" class="w-full text-center text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl py-2.5 mb-2 transition">نمایش ${toFa(lecItems.length - _LEC_SHOW)} مورد دیگر</button>`;
-            }
-        }
-        if (data.media && data.media.length) {
-            window._gsMedia = data.media;
-            html += `<h3 class="text-xs font-black text-gray-500 mb-2 mt-4 px-1"><i class="fas fa-photo-film ml-1 text-purple-600"></i>صوت و ویدیو</h3>`;
-            html += data.media.map((m, i) => {
-                const icon = m.type === 'audio' ? 'fa-music' : 'fa-video';
-                const tag = m.type === 'audio' ? 'صوت' : 'ویدیو';
-                return `<button data-act="media" data-idx="${i}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-purple-50 transition shadow-sm flex items-center gap-3 mb-2">
-                ${m.cover?`<img src="${m.cover}" class="w-12 h-12 rounded-lg object-cover shrink-0 pointer-events-none">`:`<div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center shrink-0 pointer-events-none"><i class="fas ${icon} text-purple-300"></i></div>`}
+        }).join('');
+
+        // ── صوت و ویدیو
+        const mediaHtml = media.map((m, i) => {
+            const icon = m.type === 'audio' ? 'fa-music' : 'fa-video';
+            const tag = m.type === 'audio' ? 'صوت' : 'ویدیو';
+            const cover = safeUrl(m.cover);
+            return `<button data-act="media" data-idx="${i}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-purple-50 transition shadow-sm flex items-center gap-3 mb-2">
+                ${cover?`<img src="${cover}" class="w-12 h-12 rounded-lg object-cover shrink-0 pointer-events-none" loading="lazy">`:`<div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center shrink-0 pointer-events-none"><i class="fas ${icon} text-purple-300"></i></div>`}
                 <div class="text-right min-w-0 flex-1 pointer-events-none">
-                    <h4 class="font-bold text-sm text-gray-800 mb-0.5 line-clamp-1">${m.title}</h4>
-                    <p class="text-xs text-gray-400"><span class="bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded text-[10px] ml-1">${tag}</span>${m.categoryName||''}</p>
+                    <h4 class="font-bold text-sm text-gray-800 mb-0.5 line-clamp-1">${escHtml(m.title)}</h4>
+                    <p class="text-xs text-gray-400"><span class="bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded text-[10px] ml-1">${tag}</span>${escHtml(m.categoryName||'')}</p>
                 </div>
             </button>`;
-            }).join('');
+        }).join('');
+
+        // سه بخش جمع‌شده با تعداد نتیجه؛ با زدن روی هر کدام باز می‌شود
+        const nBooks = books.length + pages.length;
+        const sections = [
+            { key: 'books', title: 'کتاب‌ها', icon: 'fa-book', cls: 'bg-brand-50 text-brand-600', n: nBooks, more: data.partial || pages.length >= 50, body: booksHtml },
+            { key: 'lectures', title: 'سخنرانی‌ها و مطالب', icon: 'fa-microphone-alt', cls: 'bg-amber-50 text-amber-600', n: lectures.length, more: lectures.length >= 50, body: lecHtml },
+            { key: 'media', title: 'صوت و ویدیو', icon: 'fa-photo-film', cls: 'bg-purple-50 text-purple-600', n: media.length, more: false, body: mediaHtml },
+        ];
+        let html = '';
+        if (nBooks + lectures.length + media.length === 0) {
+            html = `<div class="text-center py-12 text-gray-400"><i class="fas fa-search text-4xl mb-3 opacity-30"></i><p class="text-sm font-bold">نتیجه‌ای برای «${escHtml(q)}» یافت نشد</p></div>`;
+        } else {
+            html = sections.map(sec => `<div class="gs-sec mb-3 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden${sec.n ? '' : ' opacity-50'}" data-sec="${sec.key}">
+                <button type="button" class="gs-sec-head w-full flex items-center gap-3 p-3.5 text-right"${sec.n ? ' onclick="_gsToggleSection(this)" aria-expanded="false"' : ' disabled'}>
+                    <span class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${sec.cls}"><i class="fas ${sec.icon}"></i></span>
+                    <span class="flex-1 font-black text-sm text-gray-800">${sec.title}</span>
+                    <span class="text-xs font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">${toFa(sec.n)}${sec.more ? '+' : ''}</span>
+                    ${sec.n ? '<i class="gs-sec-chev fas fa-chevron-down text-gray-400 text-xs transition-transform duration-200"></i>' : '<span class="w-3"></span>'}
+                </button>
+                ${sec.n ? `<div class="gs-sec-body hidden bg-gray-50 border-t border-gray-100 p-3 pb-1">${sec.body}</div>` : ''}
+            </div>`).join('');
         }
-        if (data.pages && data.pages.length) {
-            window._gsItems = data.pages.map(p => ({ bookId: p.bookId, query: q, pageId: p.pageId }));
-            html += `<h3 class="text-xs font-black text-gray-500 mb-2 mt-4 px-1"><i class="fas fa-file-alt ml-1 text-emerald-600"></i>یافت شده در متن کتاب‌ها</h3>`;
-            html += data.pages.map((p, i) => `<button data-act="page" data-idx="${i}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-emerald-50 transition shadow-sm mb-2 block">
-                <div class="flex items-center gap-2 mb-1 pointer-events-none">
-                    ${p.bookCover?`<img src="${p.bookCover}" class="w-7 h-10 rounded object-cover shrink-0">`:`<div class="w-7 h-10 bg-emerald-50 rounded flex items-center justify-center shrink-0"><i class="fas fa-book text-emerald-300 text-xs"></i></div>`}
-                    <div class="text-right min-w-0">
-                        <span class="font-bold text-xs text-emerald-700">${p.bookTitle}</span>
-                        ${p.pageName?`<span class="block text-[10px] text-gray-400">${p.pageName}</span>`:''}
-                    </div>
-                </div>
-                <p class="text-xs text-gray-600 text-right leading-5 line-clamp-2 pr-1 pointer-events-none">${p.snippet}...</p>
-            </button>`).join('');
-        }
-        if (!html) html = `<div class="text-center py-12 text-gray-400"><i class="fas fa-search text-4xl mb-3 opacity-30"></i><p class="text-sm font-bold">نتیجه‌ای برای «${q}» یافت نشد</p></div>`;
         c.innerHTML = html;
     } catch(e) {
         c.innerHTML = `<div class="text-center py-12 text-red-400"><i class="fas fa-exclamation-circle text-3xl mb-3"></i><p class="text-sm font-bold">خطا در جستجو</p></div>`;
     }
+}
+
+// باز/بسته کردن یک بخش نتایج جستجو
+function _gsToggleSection(head) {
+    const body = head.nextElementSibling;
+    if (!body) return;
+    const open = body.classList.toggle('hidden') === false;
+    head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const chev = head.querySelector('.gs-sec-chev');
+    if (chev) chev.classList.toggle('rotate-180', open);
 }
 
 // Event delegation: یک listener ثابت روی container نتایج

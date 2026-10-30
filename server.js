@@ -929,7 +929,7 @@ app.get('/api/search', searchLimiter, async (req, res) => {
     const result = { books: [], pages: [], media: [], lectures: [] };
 
     // ۰) سخنرانی‌ها و مطالب سایت (نسخهٔ محلی — سریع، بدون درخواست به سایت)
-    try { result.lectures = await wpMirror.search(q, 20); } catch (e) { result.lectures = []; }
+    try { result.lectures = await wpMirror.search(q, 50); } catch (e) { result.lectures = []; }
 
     // ۱) عنوان/نویسنده کتاب‌ها
     await new Promise(resolve => {
