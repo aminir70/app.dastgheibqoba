@@ -1473,6 +1473,11 @@ async function _csEnsureData(tab) {
         if (tab === 'audio') { const r = await fetch('/api/audio/all-dates'); _csCache.audio = await r.json() || []; }
         else if (tab === 'video') { const r = await fetch('/api/videos/all-dates'); _csCache.video = await r.json() || []; }
         else if (tab === 'lecture') {
+            // نسخهٔ محلی سرور: یک درخواست برای همهٔ تاریخ‌ها (به‌جای ۱۰۰تا ۱۰۰تا از سایت)
+            try {
+                const local = await lecLocal('all-dates');
+                if (Array.isArray(local) && local.length) { _csCache.lecture = local.map(_lecWp); return; }
+            } catch (e) {}
             let all = [], pg = 1;
             const MAX_PAGES = 20;
             while (pg <= MAX_PAGES) {
@@ -1666,10 +1671,11 @@ async function _csOpenLecture(postId) {
     _csLeaveTo('lectures');
     if (post) {
         if (_csCache.lecture) cachedPosts = _csCache.lecture;
+        if (typeof _lecStandalone !== 'undefined') _lecStandalone = true;
         wpState.view = 'posts';
         wpState.currentCat = { id: null, name: `${_jalMonthNames[sm-1]} ${toFa(sy)}` };
         if (typeof allWPCats !== 'undefined' && allWPCats.length === 0) {
-            try { allWPCats = await wpFetch('categories?per_page=100').then(r=>r.json()); } catch(e) {}
+            try { allWPCats = await getWPCategories(); } catch(e) {}
         }
         noBackPush(() => showWPSingleView(postId));
     }

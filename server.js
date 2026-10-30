@@ -375,6 +375,18 @@ const mainDb = new sqlite3.Database(mainDbPath, (err) => {
     initDb();
     // تاخیر کوچک تا اطمینان از اتمام initDb و قابل دسترس بودن جدول settings
     mainDb.serialize(() => { ensureJwtSecret(); ensureVapidKeys(); });
+    wpMirror.start();
+});
+
+// نسخهٔ محلی مطالب وردپرس (سخنرانی‌ها) — lib/wp-mirror.js
+const { createWpMirror } = require('./lib/wp-mirror');
+const wpMirror = createWpMirror({
+    db: mainDb,
+    normFa: s => _normFa(s),
+    getSetting: key => new Promise(res => mainDb.get('SELECT value FROM settings WHERE key=?', [key], (e, r) => res(e || !r ? null : r.value))),
+    setSetting: (key, value) => new Promise(res => mainDb.run(
+        'INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)',
+        [key, value], () => res())),
 });
 
 // کلیدهای VAPID — اگر در env نباشند در settings ذخیره می‌شوند.
@@ -911,10 +923,13 @@ app.get('/api/search', searchLimiter, async (req, res) => {
     if (raw.length > 80) raw = raw.slice(0, 80);
     raw = raw.replace(/[\x00-\x1f\x7f<>]/g, '').trim();
     const q = _normFa(raw);                 // برای استخراج snippet
-    if (!q || q.length < 2) return res.json({ books: [], pages: [], media: [] });
+    if (!q || q.length < 2) return res.json({ books: [], pages: [], media: [], lectures: [] });
     const like = `%${_sqlNormQ(raw)}%`;     // برای LIKE متقارن با ستون
 
-    const result = { books: [], pages: [], media: [] };
+    const result = { books: [], pages: [], media: [], lectures: [] };
+
+    // ۰) سخنرانی‌ها و مطالب سایت (نسخهٔ محلی — سریع، بدون درخواست به سایت)
+    try { result.lectures = await wpMirror.search(q, 20); } catch (e) { result.lectures = []; }
 
     // ۱) عنوان/نویسنده کتاب‌ها
     await new Promise(resolve => {
@@ -1170,6 +1185,35 @@ app.get('/api/proxy', proxyLimiter, (req, res) => {
     let parsed; try { parsed = new URL(url); } catch(e) { return res.status(400).send('Invalid URL'); }
     if (!_proxyHostAllowed(parsed.hostname)) return res.status(403).send('Host not allowed');
     try { _proxyFetch(url, res, 0); } catch(e) { res.status(500).send('Server error'); }
+});
+
+// === سخنرانی‌ها از نسخهٔ محلی (lib/wp-mirror.js) ===
+// تا اولین همگام‌سازی کامل نشده 503 می‌دهد و اپ مستقیم از /api/wp می‌خواند.
+function _lecRoute(fn) {
+    return async (req, res) => {
+        if (!wpMirror.isReady()) return res.status(503).json({ ready: false });
+        try {
+            const data = await fn(req);
+            if (data === undefined) return res.status(400).json({ error: 'bad request' });
+            res.set('Cache-Control', 'public, max-age=120');
+            res.json(data);
+        } catch (e) { res.status(500).json({ error: failMsg(e) }); }
+    };
+}
+app.get('/api/lectures/categories', _lecRoute(() => wpMirror.categories()));
+app.get('/api/lectures/posts', _lecRoute(req => {
+    const cat = String(req.query.cat || '');
+    return /^\d{1,10}$/.test(cat) ? wpMirror.postsInCategory(parseInt(cat, 10)) : undefined;
+}));
+app.get('/api/lectures/latest', _lecRoute(req => wpMirror.latest(Math.min(Math.max(parseInt(req.query.n, 10) || 10, 1), 50))));
+app.get('/api/lectures/all-dates', _lecRoute(() => wpMirror.allDates()));
+app.get('/api/admin/wp-mirror/status', adminAuth, async (req, res) => {
+    try { res.json(await wpMirror.status()); } catch (e) { res.status(500).json({ error: failMsg(e) }); }
+});
+app.post('/api/admin/wp-mirror/sync', adminAuth, (req, res) => {
+    // در پس‌زمینه — اولین بار ممکن است چند دقیقه طول بکشد
+    wpMirror.sync({ full: true });
+    res.json({ ok: true });
 });
 
 // === پروکسی عمومی برای WordPress REST API ===

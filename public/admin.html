@@ -1331,6 +1331,17 @@ body.h-screen{height:100vh;height:100dvh;height:var(--app-h,100dvh);}
           <a href="/.well-known/assetlinks.json" target="_blank" rel="noopener" class="text-teal-600 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-teal-50 transition"><i class="fas fa-external-link-alt ml-1"></i>دیدن نسخهٔ زنده</a>
         </div>
       </div>
+
+      <!-- نسخهٔ محلی سخنرانی‌ها (lib/wp-mirror.js) -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-2 border-b pb-4"><i class="fas fa-microphone-alt text-amber-600 ml-2"></i>سخنرانی‌های سایت (نسخهٔ محلی)</h2>
+        <p class="text-xs text-gray-500 mb-4 leading-relaxed">سرور فهرست سخنرانی‌ها و مطالب سایت را کپی می‌کند تا در اپ سریع باز شوند و در جستجو پیدا شوند. هر ۳۰ دقیقه مطالب جدید یا ویرایش‌شده خودکار گرفته می‌شوند و روزی یک‌بار مطالب حذف‌شده پاک می‌شوند.</p>
+        <div id="wpm-status" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-3 text-gray-600 leading-6">...</div>
+        <div class="flex flex-wrap items-center gap-2 mt-4">
+          <button id="wpm-sync-btn" onclick="wpMirrorSync()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition"><i class="fas fa-sync-alt ml-2"></i>همگام‌سازی کامل الان</button>
+          <button onclick="loadWpMirrorStatus()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition">بروزرسانی وضعیت</button>
+        </div>
+      </div>
     </div>
     <div id="settings-pane-shortcuts" class="settings-pane hidden">
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -1594,13 +1605,41 @@ function switchTab(tab) {
   if(tab==='pagecontent') initPageContentTab();
 }
 
+// وضعیت نسخهٔ محلی سخنرانی‌ها
+let _wpmPoll=null;
+async function loadWpMirrorStatus(){
+  const el=document.getElementById('wpm-status'); if(!el) return;
+  try{
+    const r=await adminFetch('/api/admin/wp-mirror/status'); const d=await r.json();
+    if(!r.ok) throw new Error(d.error||r.status);
+    const t=v=>v?new Date(+v).toLocaleString('fa-IR'):'—';
+    const fa=n=>Number(n||0).toLocaleString('fa-IR');
+    let st;
+    if(!d.enabled) st='<b class="text-gray-500">خاموش</b> (WP_MIRROR=0 در .env)';
+    else if(d.running) st='<b class="text-amber-600"><i class="fas fa-spinner fa-spin ml-1"></i>در حال همگام‌سازی…</b>';
+    else if(d.ready) st='<b class="text-green-600"><i class="fas fa-check-circle ml-1"></i>آماده</b>';
+    else st='<b class="text-amber-600">هنوز آماده نیست</b> — تا کامل شدن اولین دریافت، اپ مستقیم از سایت می‌خواند';
+    el.innerHTML=`وضعیت: ${st}<br>تعداد مطالب: <b>${fa(d.posts)}</b> — دسته‌ها: <b>${fa(d.categories)}</b><br>آخرین همگام‌سازی موفق: ${t(d.last_ok)} (مطالب تازه: ${fa(d.last_added)})<br>آخرین بررسی کامل (حذف‌شده‌ها): ${t(d.last_full_check)}`+
+      (d.last_error?`<br><span class="text-red-600">آخرین خطا: ${escHtml(d.last_error)}</span>`:'');
+    clearTimeout(_wpmPoll);
+    if(d.running) _wpmPoll=setTimeout(()=>{ if(!document.getElementById('settings-pane-general').classList.contains('hidden')) loadWpMirrorStatus(); },3000);
+  }catch(e){ el.textContent='خطا در دریافت وضعیت: '+e.message; }
+}
+async function wpMirrorSync(){
+  try{
+    const r=await adminFetch('/api/admin/wp-mirror/sync',{method:'POST'});
+    if(r.ok){ showToast('همگام‌سازی شروع شد'); setTimeout(loadWpMirrorStatus,800); }
+    else showToast('خطا',false);
+  }catch(e){ showToast('خطا: '+e.message,false); }
+}
+
 // زیربخش‌های تنظیمات: عمومی، آیکن‌های خانه، لینک‌های خانه، نوار پایین
 function switchSettingsPane(pane){
   if(!SETTINGS_PANES.includes(pane)) pane='general';
   SETTINGS_PANES.forEach(p=>document.getElementById('settings-pane-'+p).classList.toggle('hidden',p!==pane));
   document.querySelectorAll('#settings-subnav button').forEach(b=>b.classList.toggle('active',b.dataset.pane===pane));
   const tab=document.getElementById('tab-settings'); if(tab) tab.scrollTop=0;
-  if(pane==='general'){ loadSettings(); loadAssetLinks(); }
+  if(pane==='general'){ loadSettings(); loadAssetLinks(); loadWpMirrorStatus(); }
   if(pane==='shortcuts') loadShortcuts();
   if(pane==='linkshortcuts') loadLinkShortcuts();
   if(pane==='navitems') loadNavItemsAdmin();

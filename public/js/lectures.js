@@ -13,6 +13,57 @@ async function wpFetch(path) {
     } catch(e) { /* خطای شبکه — مستقیم امتحان */ }
     return fetch(_WP_DIRECT + path);
 }
+// ====================================================
+// نسخهٔ محلی سرور (/api/lectures/*) + حافظهٔ گوشی
+// سرور فهرست مطالب را از سایت کپی کرده (lib/wp-mirror.js)؛ پس فهرست‌ها بدون
+// انتظار برای سایت می‌آیند. آخرین فهرست هر دسته روی گوشی هم می‌ماند: اول همان
+// نشان داده می‌شود و اگر چیزی عوض شده بود، بی‌صدا به‌روز می‌شود.
+// اگر نسخهٔ محلی آماده نباشد (503)، مثل قبل مستقیم از /api/wp خوانده می‌شود.
+// ====================================================
+// شکل فشردهٔ سرور {id,date,title,thumb} → شکل پاسخ وردپرس که بقیهٔ کد می‌شناسد
+function _lecWp(p) {
+    const o = { id: p.id, date: p.date, title: { rendered: p.title || '' } };
+    if (p.thumb) o._embedded = { 'wp:featuredmedia': [{ source_url: p.thumb }] };
+    return o;
+}
+async function lecLocal(path) {
+    const r = await fetch('/api/lectures/' + path);
+    if (!r.ok) throw new Error('local ' + r.status);
+    return r.json();
+}
+const _LEC_LS = 'lec_v1:', _LEC_LS_MAX = 12;
+function _lecCacheGet(key) {
+    try { const v = localStorage.getItem(_LEC_LS + key); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+}
+function _lecCacheSet(key, data) {
+    const put = () => {
+        localStorage.setItem(_LEC_LS + key, JSON.stringify(data));
+        // فقط چند فهرست آخر بماند (قدیمی‌ترین بیرون)
+        let idx = []; try { idx = JSON.parse(localStorage.getItem(_LEC_LS + '_idx') || '[]'); } catch (e) {}
+        idx = idx.filter(k => k !== key); idx.push(key);
+        while (idx.length > _LEC_LS_MAX) localStorage.removeItem(_LEC_LS + idx.shift());
+        localStorage.setItem(_LEC_LS + '_idx', JSON.stringify(idx));
+    };
+    try { put(); } catch (e) {
+        // حافظه پر است: همهٔ فهرست‌های ذخیره‌شده را پاک کن و یک‌بار دیگر
+        try { Object.keys(localStorage).filter(k => k.startsWith(_LEC_LS)).forEach(k => localStorage.removeItem(k)); put(); } catch (e2) {}
+    }
+}
+const _sameJson = (a, b) => { try { return JSON.stringify(a) === JSON.stringify(b); } catch (e) { return false; } };
+
+// دسته‌های سایت: نسخهٔ محلی ← حافظهٔ گوشی ← مستقیم از سایت
+async function getWPCategories() {
+    try {
+        const cats = await lecLocal('categories');
+        if (Array.isArray(cats) && cats.length) { _lecCacheSet('cats', cats); return cats; }
+    } catch (e) {}
+    const cached = _lecCacheGet('cats');
+    if (cached && cached.length) return cached;
+    const res = await wpFetch('categories?per_page=100');
+    if (!res.ok) throw new Error('API ERROR');
+    return res.json();
+}
+
 let allWPCats = [];
 let wpState = { view: 'main', mainCat: { id: null, name: '' }, currentCat: { id: null, name: '' } };
 const TARGET_MAIN_CATS = ['تفسیر قرآن', 'محرم الحرام', 'مناسبت ها', 'رمضان المبارک'];
@@ -38,7 +89,11 @@ function _renderLecturesList(pairs) {
 // ====================================================
 // توابع سخنرانی‌ها (WP)
 // ====================================================
+// مطلبی که از بیرون (جستجو، «آخرین سخنرانی‌ها») باز شده: دفعهٔ بعد که خود تب
+// سخنرانی‌ها باز شود، باید دسته‌ها را نشان دهد نه همان مطلب را
+let _lecStandalone = false;
 async function initWP(forceReset = false) {
+    if (_lecStandalone) { _lecStandalone = false; forceReset = true; }
     if (allWPCats.length === 0) await fetchWPCategories();
     else if (forceReset || wpState.view === 'main') showWPMainCategories();
 }
@@ -51,15 +106,20 @@ function setWPLoading(show) {
 }
 
 async function fetchWPCategories() {
-    setWPLoading(true);
     const catView = document.getElementById('lectures-categories-view');
+    // از حافظهٔ گوشی فوراً؛ بعد نسخهٔ تازه
+    const cached = _lecCacheGet('cats');
+    if (cached && cached.length && !allWPCats.length) { allWPCats = cached; showWPMainCategories(); }
+    else setWPLoading(true);
     try {
-        const res = await wpFetch('categories?per_page=100');
-        if (!res.ok) throw new Error('API ERROR');
-        allWPCats = await res.json();
-        if(!Array.isArray(allWPCats) || allWPCats.length === 0) return;
-        showWPMainCategories();
+        const cats = await getWPCategories();
+        if (!Array.isArray(cats) || cats.length === 0) return;
+        const changed = !_sameJson(cats, allWPCats);
+        allWPCats = cats;
+        if (changed && wpState.view === 'main' && _activeScreenName() === 'lectures') showWPMainCategories();
+        else if (!cached) showWPMainCategories();
     } catch (e) {
+        if (allWPCats.length) return;   // نسخهٔ حافظه نمایش داده شده — همان بماند
         catView.innerHTML = `<div class="col-span-2 flex flex-col items-center justify-center py-12 text-gray-400"><i class="fas fa-wifi text-4xl mb-3 opacity-50"></i><p class="text-sm font-bold">خطا در دریافت اطلاعات</p><button onclick="fetchWPCategories()" class="mt-4 bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold shadow-sm">تلاش مجدد</button></div>`;
     } finally { setWPLoading(false); }
 }
@@ -142,25 +202,41 @@ async function showWPPostsView(catId, catName) {
     }
     postsView.innerHTML = '';
 
-    setWPLoading(true);
-    try {
-        let allPosts = [], page = 1;
-        while (true) {
-            const res = await wpFetch(`posts?categories=${catId}&_embed=1&per_page=100&page=${page}`);
-            if (!res.ok) { if (page === 1) throw new Error('API ERROR'); break; }
-            const batch = await res.json();
-            if (!Array.isArray(batch) || batch.length === 0) break;
-            allPosts = allPosts.concat(batch);
-            if (batch.length < 100) break;
-            page++;
-        }
-        cachedPosts = allPosts;
-        _lecPostsCache = { catId: catId, posts: allPosts };
-
+    const stillHere = () => wpState.view === 'posts' && wpState.currentCat.id === catId;
+    const show = (posts) => {
+        cachedPosts = posts;
+        _lecPostsCache = { catId: catId, posts: posts };
         if (cachedPosts.length === 0) {
             postsView.innerHTML = `<div class="text-center py-20 text-gray-400 text-sm font-bold">هیچ نوشته‌ای در این بخش یافت نشد.</div>`;
         } else {
             _renderLecturesList();
+        }
+    };
+    // ۱) آخرین فهرست ذخیره‌شده روی گوشی — فوری
+    const cacheKey = 'cat:' + catId;
+    const cached = _lecCacheGet(cacheKey);
+    if (cached) show(cached.map(_lecWp));
+    else setWPLoading(true);
+    try {
+        // ۲) نسخهٔ محلی سرور (یک درخواست سبک)
+        let fresh = null;
+        try { fresh = await lecLocal('posts?cat=' + catId); } catch (e) {}
+        if (Array.isArray(fresh)) {
+            _lecCacheSet(cacheKey, fresh);
+            if (stillHere() && !_sameJson(fresh, cached)) show(fresh.map(_lecWp));
+        } else if (!cached) {
+            // ۳) نسخهٔ محلی آماده نیست — مثل قبل مستقیم از سایت، صفحه به صفحه
+            let allPosts = [], page = 1;
+            while (true) {
+                const res = await wpFetch(`posts?categories=${catId}&_embed=1&per_page=100&page=${page}`);
+                if (!res.ok) { if (page === 1) throw new Error('API ERROR'); break; }
+                const batch = await res.json();
+                if (!Array.isArray(batch) || batch.length === 0) break;
+                allPosts = allPosts.concat(batch);
+                if (batch.length < 100) break;
+                page++;
+            }
+            if (stillHere()) show(allPosts);
         }
     } catch (e) {
         postsView.innerHTML = `<div class="flex flex-col items-center justify-center py-12 text-gray-400"><p class="text-sm font-bold">خطا در دریافت نوشته‌ها</p><button onclick="showWPPostsView(${catId}, '${catName}')" class="mt-4 bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold shadow-sm">تلاش مجدد</button></div>`;
@@ -454,10 +530,7 @@ function wpNavBack() { handleBackButton(); }
 async function fetchLatestLectures() {
     const container = document.getElementById('home-lectures-container');
     if (!container) return;
-    try {
-        const res = await wpFetch('posts?per_page=10&_embed=1&orderby=date&order=desc');
-        if (!res.ok) throw new Error();
-        const posts = await res.json();
+    const render = (posts) => {
         if (!Array.isArray(posts) || posts.length === 0) { container.innerHTML = '<div class="text-center py-4 text-gray-400 text-xs">محتوایی یافت نشد</div>'; return; }
         container.innerHTML = posts.map(post => {
             const imgUrl = post._embedded && post._embedded['wp:featuredmedia'] ? post._embedded['wp:featuredmedia'][0].source_url : '';
@@ -471,8 +544,23 @@ async function fetchLatestLectures() {
             </div>`;
         }).join('');
         window._latestPosts = posts;
+    };
+    const cached = _lecCacheGet('latest');
+    if (cached && cached.length) render(cached.map(_lecWp));
+    try {
+        let fresh = null;
+        try { fresh = await lecLocal('latest?n=10'); } catch (e) {}
+        if (Array.isArray(fresh)) {
+            _lecCacheSet('latest', fresh);
+            if (!_sameJson(fresh, cached)) render(fresh.map(_lecWp));
+            return;
+        }
+        if (cached && cached.length) return;
+        const res = await wpFetch('posts?per_page=10&_embed=1&orderby=date&order=desc');
+        if (!res.ok) throw new Error();
+        render(await res.json());
     } catch(e) {
-        container.innerHTML = '<div class="text-center py-4 text-gray-400 text-xs">خطا در دریافت</div>';
+        if (!(cached && cached.length)) container.innerHTML = '<div class="text-center py-4 text-gray-400 text-xs">خطا در دریافت</div>';
     }
 }
 
@@ -481,9 +569,10 @@ function openLatestPost(postId) {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
     if (allWPCats.length === 0) {
-        wpFetch('categories?per_page=100').then(r=>r.json()).then(cats=>{allWPCats=cats;});
+        getWPCategories().then(cats => { if (Array.isArray(cats)) allWPCats = cats; }).catch(() => {});
     }
     cachedPosts = posts;
+    _lecStandalone = true;
     // سوئیچ به صفحه سخنرانی‌ها (بدون initWP) — یک entry: back مستقیم به صفحهٔ قبل
     navToScreen('lectures', { init: false });
     // نمایش پست بدون ثبت مجدد در تاریخچه
@@ -493,10 +582,21 @@ function openLatestPost(postId) {
 // ناوبری مستقیم برای لینک‌های داخلی بنر
 async function openLectureCatById(catId) {
     if (allWPCats.length === 0) {
-        try { allWPCats = await wpFetch('categories?per_page=100').then(r => r.json()); } catch(e) {}
+        try { allWPCats = await getWPCategories(); } catch(e) {}
     }
     const cat = allWPCats.find(c => c.id === catId);
     if (cat) handleCategoryClick(cat.id, cat.name);
+}
+
+// از نتیجهٔ جستجو: مطلب (شکل فشرده) را مستقیم نشان بده — یک entry: back به صفحهٔ قبل
+function openLectureFromSearch(p) {
+    if (!p) return;
+    const post = _lecWp(p);
+    cachedPosts = [post, ...cachedPosts.filter(x => x.id !== post.id)];
+    if (allWPCats.length === 0) getWPCategories().then(c => { if (Array.isArray(c)) allWPCats = c; }).catch(() => {});
+    _lecStandalone = true;
+    navToScreen('lectures', { init: false });
+    withoutHistory(function() { wpState.currentCat = { id: null, name: '' }; showWPSingleView(post.id); });
 }
 
 async function openLecturePostById(postId) {

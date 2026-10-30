@@ -37,10 +37,7 @@ function setNewsLoading(show) {
 
 async function initNews() {
     if (allWPCats.length === 0) {
-        try {
-            const res = await wpFetch('categories?per_page=100');
-            allWPCats = await res.json();
-        } catch(e) {}
+        try { allWPCats = await getWPCategories(); } catch(e) {}
     }
     showNewsAllPosts();
 }
@@ -159,10 +156,7 @@ function setStatementsLoading(show) {
 
 async function initStatements() {
     if (allWPCats.length === 0) {
-        try {
-            const res = await wpFetch('categories?per_page=100');
-            allWPCats = await res.json();
-        } catch(e) {}
+        try { allWPCats = await getWPCategories(); } catch(e) {}
     }
     showStatementsAllPosts();
 }
@@ -361,7 +355,7 @@ async function renderWPSingle(post, screen) {
 // ناوبری مستقیم برای لینک‌های داخلی بنر
 async function openNewsCatById(catId) {
     if (allWPCats.length === 0) {
-        try { allWPCats = await wpFetch('categories?per_page=100').then(r => r.json()); } catch(e) {}
+        try { allWPCats = await getWPCategories(); } catch(e) {}
     }
     const cat = allWPCats.find(c => c.id === catId);
     if (cat) showNewsPosts(cat.id, cat.name);

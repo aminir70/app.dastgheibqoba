@@ -16,6 +16,7 @@
 ```
 /
 ├── server.js              # سرور اصلی Express (~1900 خط)
+├── lib/wp-mirror.js       # نسخهٔ محلی مطالب وردپرس (سخنرانی‌ها) + جستجو
 ├── package.json
 ├── build.js               # Build pipeline: Tailwind CLI + esbuild minify
 ├── tailwind.config.js     # تنظیمات Tailwind
@@ -107,6 +108,7 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 | `GET /api/videos/all-dates` | همه تاریخ‌های انتشار ویدیو (برای تقویم) |
 | `GET /api/gallery/categories` | دسته‌بندی گالری |
 | `GET /api/wp?path=...` | پروکسی WordPress REST API |
+| `GET /api/lectures/categories` · `posts?cat=ID` · `latest?n=10` · `all-dates` | سخنرانی‌ها از نسخهٔ محلی (شکل فشرده `{id,date,title,thumb}`)؛ تا آماده نشده 503 |
 | `GET /api/wp-post-media/:id` | صوت/ویدیوی تب‌های «صوت» و «فیلم» صفحهٔ مطلب (از HTML خود صفحه؛ کش ۶ ساعت) |
 | `GET /api/proxy?url=...` | پروکسی امن خارجی (SSRF-protected) |
 | `GET /api/notifications/public` | اعلان‌های عمومی |
@@ -243,6 +245,20 @@ showWPSingleView(postId)   // نمایش پست منفرد
 متن پیدا نشده اضافه می‌کند. هم سخنرانی (`showWPSingleView`) و هم اخبار/بیانیه (`renderWPSingle`).
 
 **Pagination:** تابع `showWPPostsView` همه صفحات را fetch می‌کند (۱۰۰ پست در هر درخواست) تا محتوای بیش از ۱۰ ساله کامل نمایش داده شود.
+
+### نسخهٔ محلی (`lib/wp-mirror.js`)
+- سرور مطالب و دسته‌ها را در جدول‌های `wp_posts` / `wp_categories` نگه می‌دارد: اولین بار
+  همه (۵۰تا ۵۰تا)، بعد هر ۳۰ دقیقه فقط تغییرات (`orderby=modified`)، روزی یک‌بار مقایسهٔ
+  شناسه‌ها (حذف‌شده‌ها پاک، جاافتاده‌ها گرفته). وضعیت در `settings`: `_wp_mirror_init_done`،
+  `_wp_mirror_full_at`. `WP_MIRROR=0` خاموشش می‌کند.
+- برای جستجو فقط متن سادهٔ نرمال‌شده (`body_norm`) ذخیره می‌شود؛ متن کامل هر مطلب هنگام
+  باز شدن همچنان از `/api/wp` می‌آید. `/api/search` فیلد `lectures` دارد.
+- کلاینت: `lecLocal(path)` و `_lecWp(p)` (شکل فشرده → شکل پاسخ وردپرس)؛ `getWPCategories()`
+  برای دسته‌ها. اگر نسخهٔ محلی 503 بدهد، همان مسیر قدیمی `wpFetch` اجرا می‌شود.
+- حافظهٔ گوشی: `localStorage` با پیشوند `lec_v1:` (حداکثر ۱۲ فهرست) — اول همان نمایش داده
+  می‌شود و اگر پاسخ تازه فرق داشت، فهرست بی‌صدا به‌روز می‌شود.
+- پنل ادمین ← تنظیمات ← عمومی: وضعیت + «همگام‌سازی کامل الان»
+  (`GET /api/admin/wp-mirror/status`، `POST /api/admin/wp-mirror/sync`).
 
 ---
 
