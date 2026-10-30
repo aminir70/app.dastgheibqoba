@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
 <title>پنل مدیریت - نرم افزار ایت الله دستغیب </title>
 <link href="/vendor/fonts/vazir/font-face-local.css" rel="stylesheet">
 <link rel="stylesheet" href="/vendor/fa/all.local.min.css">
@@ -34,6 +34,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   #sidebar-overlay:not(.hidden){display:block;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:39;}
   #main-content:not(.hidden){padding-top:3.5rem;}
 }
+/* ارتفاع = بخش دیدنی صفحه. 100vh روی گوشی نوار آدرس مرورگر را هم حساب می‌کند و
+   پایین صفحه (مثل کادر پاسخ پشتیبانی) زیر آن پنهان می‌شد. --app-h را اسکریپت پایین می‌گذارد. */
+body.h-screen{height:100vh;height:100dvh;height:var(--app-h,100dvh);}
 /* محتوای بلند (نشانی، کلمهٔ طولانی) نباید ستون را از صفحه بیرون بزند */
 #main-content{min-width:0;}
 #main-content > [id^="tab-"]{min-width:0;}
@@ -83,6 +86,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 <script src="/vendor/jalaali.js"></script>
 </head>
 <body class="text-gray-800 h-screen flex overflow-hidden bg-slate-50">
+<script>
+(function(){
+  function setH(){ document.documentElement.style.setProperty('--app-h', window.innerHeight+'px'); }
+  setH();
+  window.addEventListener('resize', setH);
+  window.addEventListener('orientationchange', function(){ setTimeout(setH, 250); });
+})();
+</script>
 
 <!-- Mobile Header -->
 <header id="admin-mobile-header">
