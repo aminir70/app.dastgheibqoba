@@ -459,6 +459,17 @@ async function showWPSingleView(postId) {
     document.getElementById('single-post-title').innerHTML = post.title.rendered;
     document.getElementById('single-post-date').textContent = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
 
+    // مطلب قبلی فوراً پاک شود (قبلاً تا رسیدن متن و صوتِ تازه، متن و صوتِ جلسهٔ قبل
+    // زیر عنوان جدید می‌ماند) و صفحه از بالا شروع شود
+    const _spc = document.getElementById('single-post-content');
+    const imgContainer = document.getElementById('single-post-image');
+    _spc.innerHTML = `<div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-brand-100 border-t-brand-500 rounded-full animate-spin"></div></div>`;
+    imgContainer.classList.add('hidden');
+    const _scroller = singleView.closest('.overflow-y-auto');
+    if (_scroller) _scroller.scrollTop = 0;
+    // پاسخی که دیر برسد و مال مطلب دیگری باشد کنار گذاشته می‌شود
+    const stale = () => _tok !== _wpSingleTok || wpState.view !== 'single';
+
     // تب‌های صوت/فیلم صفحه — هم‌زمان با دریافت دوبارهٔ مطلب شروع می‌شود
     const pageMediaP = fetchPageMedia(postId);
     // Re-fetch individual post to get complete embedded data (esp. audio attachments)
@@ -466,41 +477,34 @@ async function showWPSingleView(postId) {
         const r = await wpFetch(`posts/${postId}?_embed=1`);
         if (r.ok) {
             const fresh = await r.json();
-            cachedPosts = cachedPosts.map(p => p.id === fresh.id ? fresh : p);
-            post = fresh;
+            if (fresh && fresh.id === postId) {
+                cachedPosts = cachedPosts.map(p => p.id === fresh.id ? fresh : p);
+                post = fresh;
+            }
         }
     } catch(e) {}
+    if (stale()) return;
 
     const media = extractMediaFromPost(post);
+    // صوت/ویدیوی بیشتر: پلی‌لیستی که وردپرس ناقص داده، و تب‌های «صوت»/«فیلم» صفحه
+    const needExtra = (media.audioTracks.length === 0) || (media.hasAudioPlaylist && media.audioTracks.length < 2);
+    const needPage = !media.audioTracks.length || (!media.iframes.length && !media.videos.length);
 
-    // پلی‌لیست صوتی: اگر فقط یک تراک استخراج شده (وردپرس اسکریپت تراک‌ها را حذف کرده)،
-    // بقیه تراک‌ها را از media endpoint بگیر
-    if ((media.audioTracks.length === 0) || (media.hasAudioPlaylist && media.audioTracks.length < 2)) {
-        const extra = await _fetchPostAudioTracks(postId);
-        if (extra.length > media.audioTracks.length) {
-            media.audioTracks = _mergeAudioTracks(extra, media.audioTracks);
-        }
-    }
+    const _postTitleText = () => { const d = document.createElement('div'); d.innerHTML = post.title.rendered; return d.textContent.trim(); };
+    const buildMediaHtml = (m) => {
+        // برای تک‌فایل بدون عنوان: از عنوان پست استفاده کن
+        if (m.audioTracks.length === 1 && !m.audioTracks[0].title) m.audioTracks[0].title = _postTitleText();
+        let h = '';
+        m.iframes.forEach(src => { h += `<div class="h_iframe-aparat_embed_frame mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-200"><span style="display: block;padding-top: 57%"></span><iframe scrolling="no" allowFullScreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${src}"></iframe></div>`; });
+        m.videos.forEach(src => { h += `<video controls src="${src}" class="w-full rounded-2xl mb-6 shadow-sm bg-black"></video>`; });
+        h += _buildAudioHtml(m.audioTracks);
+        return h;
+    };
+    const mediaSig = (m) => `${m.audioTracks.length}|${m.iframes.length}|${m.videos.length}`;
+    const pendingHtml = `<div class="spc-media-pending flex items-center justify-center gap-2 text-xs text-gray-400 py-3 mb-4"><div class="w-4 h-4 border-2 border-brand-100 border-t-brand-500 rounded-full animate-spin"></div>در حال دریافت صوت و ویدیو…</div>`;
 
-    if (!media.audioTracks.length || (!media.iframes.length && !media.videos.length)) {
-        mergePageMedia(media, await pageMediaP);
-        // کاربر در این فاصله برگشته یا مطلب دیگری باز کرده
-        if (_tok !== _wpSingleTok || wpState.view !== 'single') return;
-    }
-
-    // برای تک‌فایل بدون عنوان: از عنوان پست استفاده کن
-    if (media.audioTracks.length === 1 && !media.audioTracks[0].title) {
-        const _td = document.createElement('div');
-        _td.innerHTML = post.title.rendered;
-        media.audioTracks[0].title = _td.textContent.trim();
-    }
-
-    let finalHtml = '';
-
-    media.iframes.forEach(src => { finalHtml += `<div class="h_iframe-aparat_embed_frame mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-200"><span style="display: block;padding-top: 57%"></span><iframe scrolling="no" allowFullScreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${src}"></iframe></div>`; });
-    media.videos.forEach(src => { finalHtml += `<video controls src="${src}" class="w-full rounded-2xl mb-6 shadow-sm bg-black"></video>`; });
-
-    finalHtml += _buildAudioHtml(media.audioTracks);
+    // ۱) متن را همین حالا نشان بده؛ صوت/ویدیوی تب‌ها بعداً در همان جای بالای متن می‌آید
+    let finalHtml = `<div class="spc-media">${buildMediaHtml(media)}${(needExtra || needPage) ? pendingHtml : ''}</div>`;
     // گالری تصاویر
     const _featuredUrl = post._embedded && post._embedded['wp:featuredmedia'] ? (post._embedded['wp:featuredmedia'][0] || {}).source_url || '' : '';
     const _galleryImgs = (media.images || []).filter(src => src && src !== _featuredUrl);
@@ -512,7 +516,6 @@ async function showWPSingleView(postId) {
     }
     finalHtml += media.cleanHtml;
 
-    const _spc = document.getElementById('single-post-content');
     _spc.innerHTML = finalHtml;
     _paInitAll(_spc);
     _fixContentLinks(_spc);
@@ -520,10 +523,30 @@ async function showWPSingleView(postId) {
     convertDOMNumbers(_spc);
     if (_hlQuery) highlightQueryIn(_spc, _hlQuery, { scroll: true, delay: 400 });
 
-    let imgUrl = _featuredUrl;
-    const imgContainer = document.getElementById('single-post-image');
-    if (imgUrl) { imgContainer.classList.remove('hidden'); imgContainer.querySelector('img').src = imgUrl; }
+    if (_featuredUrl) { imgContainer.classList.remove('hidden'); imgContainer.querySelector('img').src = _featuredUrl; }
     else { imgContainer.classList.add('hidden'); }
+
+    // ۲) صوت/ویدیوی بیشتر (کندترین بخش — از خود سایت)
+    if (!needExtra && !needPage) return;
+    const before = mediaSig(media);
+    const [extra, pm] = await Promise.all([
+        needExtra ? _fetchPostAudioTracks(postId).catch(() => []) : Promise.resolve([]),
+        needPage ? pageMediaP.catch(() => null) : Promise.resolve(null),
+    ]);
+    if (stale()) return;
+    if (extra.length > media.audioTracks.length) media.audioTracks = _mergeAudioTracks(extra, media.audioTracks);
+    if (needPage) mergePageMedia(media, pm);
+    const box = _spc.querySelector('.spc-media');
+    if (!box) return;
+    if (mediaSig(media) !== before) {
+        box.innerHTML = buildMediaHtml(media);
+        _paInitAll(box);
+        _fixContentLinks(box);
+        convertDOMNumbers(box);
+    } else {
+        const pend = box.querySelector('.spc-media-pending');
+        if (pend) pend.remove();
+    }
 }
 
 // دکمهٔ بازگشت هدر — همان مسیر دکمهٔ بک گوشی

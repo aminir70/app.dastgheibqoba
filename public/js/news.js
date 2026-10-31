@@ -290,8 +290,14 @@ function renderWPPostsList(posts, screen) {
     }).join('');
 }
 
+const _wpRenderTok = {};
 async function renderWPSingle(post, screen) {
     const prefix0 = screen;
+    // مطلب قبلی فوراً پاک شود؛ پاسخی که دیر برسد و مال مطلب دیگری باشد کنار گذاشته می‌شود
+    const _tok = _wpRenderTok[screen] = (_wpRenderTok[screen] || 0) + 1;
+    const stale = () => _wpRenderTok[screen] !== _tok;
+    const contentEl0 = document.getElementById(`${prefix0}-single-content`);
+    if (contentEl0) contentEl0.innerHTML = `<div class="flex justify-center py-12"><div class="w-8 h-8 border-4 border-brand-100 border-t-brand-500 rounded-full animate-spin"></div></div>`;
     // هدر را فوری نمایش بده
     document.getElementById(`${prefix0}-single-title`).innerHTML = post.title.rendered;
     document.getElementById(`${prefix0}-single-date`).textContent = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
@@ -306,6 +312,7 @@ async function renderWPSingle(post, screen) {
     // پلی‌لیست صوتی: اگر فقط یک تراک استخراج شده، بقیه را از media endpoint بگیر
     if ((media.audioTracks.length === 0) || (media.hasAudioPlaylist && media.audioTracks.length < 2)) {
         const extra = await _fetchPostAudioTracks(post.id);
+        if (stale()) return;
         if (extra.length > media.audioTracks.length) {
             media.audioTracks = _mergeAudioTracks(extra, media.audioTracks);
         }
@@ -313,6 +320,7 @@ async function renderWPSingle(post, screen) {
 
     if (!media.audioTracks.length || (!media.iframes.length && !media.videos.length)) {
         mergePageMedia(media, await pageMediaP);
+        if (stale()) return;
     }
 
     let finalHtml = '';
