@@ -1922,7 +1922,7 @@ async function performGlobalSearch() {
                         ${p.pageName?`<span class="block text-[10px] text-gray-400">${escHtml(p.pageName)}</span>`:''}
                     </div>
                 </div>
-                <p class="text-xs text-gray-600 text-right leading-5 line-clamp-2 pr-1 pointer-events-none">${escHtml(p.snippet)}...</p>
+                <p class="gs-hl text-xs text-gray-600 text-right leading-5 line-clamp-2 pr-1 pointer-events-none">${escHtml(p.snippet)}...</p>
             </button>`;
             }).join('');
         }
@@ -1934,8 +1934,8 @@ async function performGlobalSearch() {
             return `<button data-act="lecture" data-idx="${i}" class="gs-result w-full text-right p-3 bg-white rounded-xl border border-gray-100 hover:bg-amber-50 transition shadow-sm flex items-start gap-3 mb-2">
                 ${thumb?`<img src="${thumb}" class="w-12 h-12 rounded-lg object-cover shrink-0 pointer-events-none" loading="lazy">`:`<div class="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center shrink-0 pointer-events-none"><i class="fas fa-microphone-alt text-amber-300"></i></div>`}
                 <div class="text-right min-w-0 flex-1 pointer-events-none">
-                    <h4 class="font-bold text-sm text-gray-800 mb-0.5 line-clamp-2">${l.title}</h4>
-                    ${l.snippet?`<p class="text-xs text-gray-500 leading-5 line-clamp-2">${escHtml(toFa(l.snippet))}…</p>`:''}
+                    <h4 class="gs-hl font-bold text-sm text-gray-800 mb-0.5 line-clamp-2">${l.title}</h4>
+                    ${l.snippet?`<p class="gs-hl text-xs text-gray-500 leading-5 line-clamp-2">${escHtml(toFa(l.snippet))}…</p>`:''}
                     ${date?`<span class="text-[10px] text-gray-400"><i class="far fa-calendar ml-1"></i>${date}</span>`:''}
                 </div>
             </button>`;
@@ -1977,6 +1977,8 @@ async function performGlobalSearch() {
             </div>`).join('');
         }
         c.innerHTML = html;
+        // کلمه‌های جستجو در عنوان و تکهٔ متن نتیجه‌ها هایلایت شود
+        c.querySelectorAll('.gs-hl').forEach(el => highlightQueryIn(el, q));
     } catch(e) {
         c.innerHTML = `<div class="text-center py-12 text-red-400"><i class="fas fa-exclamation-circle text-3xl mb-3"></i><p class="text-sm font-bold">خطا در جستجو</p></div>`;
     }

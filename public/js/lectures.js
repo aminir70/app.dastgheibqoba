@@ -417,10 +417,14 @@ function _buildAudioHtml(tracks) {
 }
 
 let _wpSingleTok = 0;
+let _lecHl = null;   // {id, q}: کلمهٔ جستجویی که باید در متن همین مطلب هایلایت شود
 async function showWPSingleView(postId) {
     let post = cachedPosts.find(p => p.id === postId);
     if (!post) return;
     const _tok = ++_wpSingleTok;
+    // فقط برای همین بار و همین مطلب
+    const _hlQuery = (_lecHl && _lecHl.id === postId) ? _lecHl.q : null;
+    _lecHl = null;
 
     const _prevCatId = wpState.currentCat.id;
     const _prevCatName = wpState.currentCat.name;
@@ -514,6 +518,7 @@ async function showWPSingleView(postId) {
     _fixContentLinks(_spc);
     _spc.style.fontSize = fontSize + 'px';
     convertDOMNumbers(_spc);
+    if (_hlQuery) highlightQueryIn(_spc, _hlQuery, { scroll: true, delay: 400 });
 
     let imgUrl = _featuredUrl;
     const imgContainer = document.getElementById('single-post-image');
@@ -592,6 +597,7 @@ async function openLectureCatById(catId) {
 function openLectureFromSearch(p) {
     if (!p) return;
     const post = _lecWp(p);
+    _lecHl = { id: post.id, q: window._gsQ || '' };
     cachedPosts = [post, ...cachedPosts.filter(x => x.id !== post.id)];
     if (allWPCats.length === 0) getWPCategories().then(c => { if (Array.isArray(c)) allWPCats = c; }).catch(() => {});
     _lecStandalone = true;

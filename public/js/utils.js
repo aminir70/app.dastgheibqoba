@@ -58,6 +58,81 @@ window.addEventListener('load', () => {
 // تبدیل اعداد انگلیسی به فارسی
 // ====================================================
 function toFa(n) { return String(n).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]); }
+// ====================================================
+// هایلایت کلمه‌های جستجو داخل یک عنصر (نتایج جستجو، متن سخنرانی)
+// هر کلمهٔ عبارت جدا هایلایت می‌شود و فرق ی/ي، ک/ك، ة/ه، اعراب و نیم‌فاصله مهم نیست
+// (همان نرمال‌سازی سرور). متن اصلی دست نمی‌خورد؛ فقط دور هر یافته <mark> می‌آید.
+// خروجی: اولین mark (برای اسکرول) یا null.
+// ====================================================
+function _hlNormalize(s) {
+    // مثل _normFa ولی با نگاشت هر کاراکتر نرمال‌شده به جای آن در متن اصلی
+    let out = '', map = [], lastSpace = true;
+    for (let i = 0; i < s.length; i++) {
+        let c = s[i];
+        if (/[ً-ْٰـ]/.test(c)) continue;        // اعراب و کشیده
+        if (c === 'ي' || c === 'ى') c = 'ی';
+        else if (c === 'ك') c = 'ک';
+        else if (c === 'ة') c = 'ه';
+        else if (c === 'أ' || c === 'إ' || c === 'آ' || c === 'ٱ') c = 'ا';
+        else if (c === '‌' || /\s/.test(c)) c = ' ';
+        else c = c.toLowerCase().charAt(0);
+        if (c === ' ') { if (lastSpace) continue; lastSpace = true; } else lastSpace = false;
+        out += c; map.push(i);
+    }
+    return { text: out, map };
+}
+function highlightQueryIn(root, query, opts) {
+    if (!root || !query) return null;
+    opts = opts || {};
+    const words = [...new Set(_hlNormalize(String(query)).text.split(' ').filter(w => w.length > 1))]
+        .sort((a, b) => b.length - a.length);
+    if (!words.length) return null;
+    const re = new RegExp(words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+    const nodes = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = walker.nextNode())) {
+        const par = n.parentElement;
+        if (!par || par.closest('mark, script, style, textarea')) continue;
+        if (n.nodeValue && n.nodeValue.trim()) nodes.push(n);
+    }
+    let first = null, total = 0;
+    const MAX = opts.max || 300;
+    for (const node of nodes) {
+        if (total >= MAX) break;
+        const orig = node.nodeValue;
+        const { text, map } = _hlNormalize(orig);
+        re.lastIndex = 0;
+        const ranges = [];
+        let m;
+        while ((m = re.exec(text)) && total + ranges.length < MAX) {
+            const os = map[m.index];
+            let oe = map[m.index + m[0].length - 1] + 1;
+            while (oe < orig.length && /[ً-ْٰـ]/.test(orig[oe])) oe++;   // اعرابِ آخر کلمه
+            ranges.push([os, oe]);
+            if (m[0].length === 0) re.lastIndex++;
+        }
+        if (!ranges.length) continue;
+        const frag = document.createDocumentFragment();
+        let pos = 0;
+        for (const [os, oe] of ranges) {
+            if (os > pos) frag.appendChild(document.createTextNode(orig.slice(pos, os)));
+            const mark = document.createElement('mark');
+            mark.className = 'search-hl';
+            mark.style.cssText = 'background:#fde047;color:#1f2937;border-radius:3px;padding:0 2px;';
+            mark.textContent = orig.slice(os, oe);
+            frag.appendChild(mark);
+            if (!first) first = mark;
+            pos = oe;
+        }
+        if (pos < orig.length) frag.appendChild(document.createTextNode(orig.slice(pos)));
+        node.parentNode.replaceChild(frag, node);
+        total += ranges.length;
+    }
+    if (first && opts.scroll) setTimeout(() => { try { first.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {} }, opts.delay || 300);
+    return first;
+}
+
 function convertDOMNumbers(el) {
     if (!el) return;
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
