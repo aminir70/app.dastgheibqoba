@@ -478,8 +478,12 @@ async function loadHomeStories() {
         strip.innerHTML = items.slice(0, 10).map(v => {
             const thumb = safeUrl(v.thumbnail || v._catCover || '');
             const t = thumb ? `<img src="${thumb}" loading="lazy" class="w-full h-full object-cover" onerror="this.style.display='none'">` : '';
-            return `<div onclick="openHomeStory(${v.id})" class="snap-start shrink-0 w-24 cursor-pointer active:scale-95 transition">
-                <div class="w-24 rounded-2xl overflow-hidden bg-white relative shadow-sm ring-2 ring-rose-500" style="aspect-ratio:9/16">
+            // شکل کارت = شکل خود ویدیو (همان فلگ «عمودی» ادمین): عمودی ۹:۱۶، افقی ۱۶:۹.
+            // قبلاً همه ۹:۱۶ بودند و کاور افقی از دو طرف بریده و زوم می‌شد.
+            const vert = (v.vertical == 1 || v.vertical === '1' || v.vertical === true);
+            const w = vert ? '6rem' : '12rem';
+            return `<div onclick="openHomeStory(${v.id})" class="${vert ? '' : 'story-land '}snap-start shrink-0 cursor-pointer active:scale-95 transition" style="width:${w}">
+                <div class="rounded-2xl overflow-hidden bg-white relative shadow-sm ring-2 ring-rose-500" style="width:${w};aspect-ratio:${vert ? '9/16' : '16/9'}">
                     ${t}
                     <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                     <div class="absolute bottom-1.5 inset-x-1.5"><p class="text-white text-[9px] font-bold line-clamp-2 leading-tight">${escHtml(v.title || '')}</p></div>

@@ -407,6 +407,7 @@ body.global-dark #home-desktop-header { background: rgba(15, 23, 42, .92) !impor
 /* استوری: نوار افقی با کارت‌های بزرگ‌تر */
 #home-story-strip { gap: 16px !important; padding: 4px 4px 12px !important; }
 #home-story-strip > div, #home-story-strip > div > div { width: 132px !important; }
+#home-story-strip > .story-land, #home-story-strip > .story-land > div { width: 236px !important; }
 #home-story-strip p { font-size: 12px !important; }
 
 /* سه ستون: مطالب | صوت | ویدیو */
