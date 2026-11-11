@@ -29,3 +29,6 @@ __pycache__/
 *.py[cod]
 chatbot/.env
 public/ticket-files/
+
+# رمز ادمین تصادفی تولیدشده
+.admin-password.generated

@@ -67,12 +67,15 @@ if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) {
     ADMIN_PASSWORD = crypto.randomBytes(24).toString('hex');
     console.error('========================================================');
     console.error('⚠️  ADMIN_PASSWORD env var is not set or is too short.');
-    console.error('   A random password was generated for this session:');
-    console.error('   ' + ADMIN_PASSWORD);
+    // رمز تصادفی فقط در فایل با دسترسی 0600 نوشته می‌شود، نه در لاگ
+    const _genPwFile = path.join(__dirname, '.admin-password.generated');
+    try { fs.writeFileSync(_genPwFile, ADMIN_PASSWORD + '\n', { mode: 0o600 }); fs.chmodSync(_genPwFile, 0o600); } catch(e) {}
+    console.error('   A random password was generated for this session and written to:');
+    console.error('   ' + _genPwFile);
     console.error('   Set ADMIN_PASSWORD in .env to make it persistent.');
     console.error('========================================================');
 } else {
-    console.log('🔑 ADMIN_PASSWORD loaded from env (' + ADMIN_PASSWORD.length + ' chars, starts with: ' + ADMIN_PASSWORD.substring(0,2) + '***)');
+    console.log('🔑 ADMIN_PASSWORD loaded from env');
 }
 
 // JWT secret — اگر env تنظیم نشده، یک کلید پایدار در دیتابیس ذخیره می‌شود
@@ -287,19 +290,36 @@ let proxyLimiter = (req, res, next) => next();
 let searchLimiter = (req, res, next) => next();
 if (rateLimit) {
     // فقط روی API اعمال میشه نه فایل‌های استاتیک
-    const apiLimiter = rateLimit({ windowMs: 15*60*1000, max: 1500, standardHeaders: true, legacyHeaders: false, validate: {xForwardedForHeader: false} });
-    const authLimiter = rateLimit({ windowMs: 15*60*1000, max: 20, standardHeaders: true, legacyHeaders: false, validate: {xForwardedForHeader: false}, message: { error: 'تعداد تلاش بیش از حد است' } });
+    const apiLimiter = rateLimit({ windowMs: 15*60*1000, max: 6000, standardHeaders: true, legacyHeaders: false, validate: {xForwardedForHeader: false} });
+    const loginLimiter = rateLimit({ windowMs: 15*60*1000, max: 30, standardHeaders: true, legacyHeaders: false, skipSuccessfulRequests: true, validate: {xForwardedForHeader: false}, message: { error: 'تعداد تلاش بیش از حد است' } });
+    const registerLimiter = rateLimit({ windowMs: 60*60*1000, max: 10, standardHeaders: true, legacyHeaders: false, validate: {xForwardedForHeader: false}, message: { error: 'تعداد تلاش بیش از حد است' } });
     adminLoginLimiter = rateLimit({ windowMs: 15*60*1000, max: 10, standardHeaders: true, legacyHeaders: false, skipSuccessfulRequests: true, validate: {xForwardedForHeader: false}, message: { error: 'تعداد تلاش‌های ورود بیش از حد است. بعداً تلاش کنید.' } });
     proxyLimiter = rateLimit({ windowMs: 60*1000, max: 30, standardHeaders: true, legacyHeaders: false, validate: {xForwardedForHeader: false} });
-    searchLimiter = rateLimit({ windowMs: 60*1000, max: 30, standardHeaders: true, legacyHeaders: false, validate: {xForwardedForHeader: false} });
-    app.use('/api/auth', authLimiter);
+    searchLimiter = rateLimit({ windowMs: 60*1000, max: 90, standardHeaders: true, legacyHeaders: false, validate: {xForwardedForHeader: false} });
+    app.use('/api/auth/login', loginLimiter);
+    app.use('/api/auth/register', registerLimiter);
     app.use('/api/', apiLimiter);
 }
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// سقف بدنه: ۱۰ مگابایت فقط برای ادمین، ۱ مگابایت برای بقیه
+const _bodyParsers = {
+    admin: [express.json({ limit: '10mb' }), express.urlencoded({ extended: true, limit: '10mb' })],
+    normal: [express.json({ limit: '1mb' }), express.urlencoded({ extended: true, limit: '1mb' })]
+};
+app.use((req, res, next) => {
+    const ps = req.path.startsWith('/api/admin') ? _bodyParsers.admin : _bodyParsers.normal;
+    ps[0](req, res, (err) => err ? next(err) : ps[1](req, res, next));
+});
 
-app.get('/api/version', (req, res) => res.json({ v: '2.4.0', built: '2026-04-09' }));
+const _APP_VERSION = (() => { try { return require('./package.json').version; } catch(e) { return 'unknown'; } })();
+const _STARTED_AT = new Date().toISOString();
+app.get('/api/version', (req, res) => res.json({ v: _APP_VERSION, started: _STARTED_AT }));
+app.get('/api/health', (req, res) => {
+    mainDb.get('SELECT 1 AS ok', [], (err) => {
+        if (err) return res.status(500).json({ ok: false });
+        res.json({ ok: true, uptime: Math.floor(process.uptime()) });
+    });
+});
 
 // Dynamic manifest.json (reads PWA settings from DB)
 app.get('/manifest.json', (req, res) => {
@@ -360,10 +380,19 @@ app.use((req, res, next) => {
 // پیوست تیکت‌ها نباید از مسیر استاتیک قابل دریافت باشند — فقط از طریق
 // /api/ticket-files/:name با امضای معتبر.
 app.use('/ticket-files', (req, res) => res.status(403).end());
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: '1d', etag: true, dotfiles: 'deny' }));
+app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: '1d', etag: true, dotfiles: 'deny',
+    setHeaders(res, filePath) {
+        // فایل‌های نسخه‌دار (?v=) دیگر تغییر نمی‌کنند → کش یک‌ساله
+        const r = res.req;
+        if (r && r.query && r.query.v !== undefined && /^\/(js|css)\//.test(r.path) && !/\.html?$/.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+    }
+}));
 
 // DB
-const mainDbPath = path.resolve(__dirname, 'library.sqlite');
+const mainDbPath = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.resolve(__dirname, 'library.sqlite');
 const mainDb = new sqlite3.Database(mainDbPath, (err) => {
     if (err) { console.error('DB Error:', err.message); return; }
     console.log('✅ دیتابیس آماده است.');
@@ -702,25 +731,50 @@ function genTrackingCode() {
 }
 
 // Auth middleware — JWT-based
-function adminAuth(req,res,next) {
+// فهرست ابطال توکن ادمین (در حافظه): هش توکن → زمان انقضا (ثانیه)
+const _adminDeny = new Map();
+const _tokHash = t => crypto.createHash('sha256').update(String(t)).digest('hex');
+function _pruneAdminDeny() {
+    const now = Math.floor(Date.now()/1000);
+    for (const [k, exp] of _adminDeny) if (exp < now) _adminDeny.delete(k);
+}
+setInterval(_pruneAdminDeny, 10*60*1000).unref();
+function _readAdminToken(req) {
     let tok = (req.cookies && req.cookies.admin_token) || '';
     if (!tok && req.headers.cookie) {
         const m = req.headers.cookie.match(/(?:^|;\s*)admin_token=([^;]+)/);
-        if (m) tok = decodeURIComponent(m[1]);
+        if (m) { try { tok = decodeURIComponent(m[1]); } catch(e) {} }
     }
+    return tok;
+}
+function adminAuth(req,res,next) {
+    const tok = _readAdminToken(req);
     if (!tok) return res.status(401).json({error:'دسترسی غیرمجاز'});
     const decoded = verifySimpleToken(tok);
-    if (decoded && decoded.kind === 'admin') return next();
+    if (decoded && decoded.kind === 'admin' && !_adminDeny.has(_tokHash(tok))) return next();
     return res.status(401).json({error:'دسترسی غیرمجاز'});
 }
+// کش مثبت وجود کاربر (۶۰ ثانیه) تا هر درخواست به دیتابیس نخورد
+const _userExistsCache = new Map();
+const _USER_CACHE_MS = 60*1000;
 function userAuth(req,res,next) {
     const auth = req.headers['authorization'] || '';
     const m = auth.match(/^Bearer\s+(.+)$/i);
     if (!m) return res.status(401).json({error:'لطفاً وارد حساب کاربری شوید'});
     const decoded = verifySimpleToken(m[1]);
     if (decoded && decoded.kind === 'user' && Number.isInteger(decoded.uid) && decoded.uid > 0) {
-        req.userId = decoded.uid;
-        return next();
+        const uid = decoded.uid;
+        const fail = () => res.status(401).json({error:'لطفاً وارد حساب کاربری شوید'});
+        const hit = _userExistsCache.get(uid);
+        if (hit && hit > Date.now()) { req.userId = uid; return next(); }
+        return mainDb.get('SELECT 1 AS x FROM users WHERE id=?', [uid], (err, row) => {
+            if (err) return res.status(500).json({error:'خطای سرور'});
+            if (!row) { _userExistsCache.delete(uid); return fail(); }
+            if (_userExistsCache.size > 5000) _userExistsCache.clear();
+            _userExistsCache.set(uid, Date.now() + _USER_CACHE_MS);
+            req.userId = uid;
+            next();
+        });
     }
     return res.status(401).json({error:'لطفاً وارد حساب کاربری شوید'});
 }
@@ -863,6 +917,8 @@ app.get('/api/books/:id',(req,res)=>{
         res.json(b);
     });
 });
+// کش جدول/ستون ترتیب هر دیتابیس کتاب (کلید: مسیر + mtime)
+const _bookSchemaCache = new Map();
 app.get('/api/books/:id/pages',(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     mainDb.get('SELECT db_filename FROM books WHERE id=?',[id],(err,book)=>{
@@ -871,13 +927,8 @@ app.get('/api/books/:id/pages',(req,res)=>{
         if(!fs.existsSync(dbp)) return res.status(404).json({error:'فایل دیتابیس یافت نشد'});
         const bDb=new sqlite3.Database(dbp,sqlite3.OPEN_READONLY,async err=>{
             if(err) return res.status(500).json({error:'خطا در باز کردن دیتابیس'});
-            const tbl=await findBestTable(bDb);
-            if(!tbl){bDb.close();return res.status(500).json({error:'جدول مناسب یافت نشد'});}
-            bDb.all(`PRAGMA table_info("${tbl}")`,[],(_,cols)=>{
-                if(!cols){bDb.close();return res.status(500).json({error:'خطا'});}
-                const cn=cols.map(c=>c.name),cnl=cn.map(c=>c.toLowerCase().trim());
-                let oc=null;
-                for(const pc of['r','page','id','_id','rowid']){const i=cnl.indexOf(pc);if(i!==-1){oc=cn[i];break;}}
+            let ckey='';try{ckey=dbp+'|'+fs.statSync(dbp).mtimeMs;}catch(e){}
+            const run=(tbl,oc)=>{
                 const q=oc?`SELECT * FROM "${tbl}" ORDER BY "${oc}" ASC`:`SELECT * FROM "${tbl}"`;
                 bDb.all(q,[],(err,rows)=>{
                     bDb.close();if(err) return res.status(500).json({error:failMsg(err)});
@@ -890,6 +941,18 @@ app.get('/api/books/:id/pages',(req,res)=>{
                     });
                     res.json(norm);
                 });
+            };
+            const cached=_bookSchemaCache.get(ckey);
+            if(cached) return run(cached.tbl,cached.oc);
+            const tbl=await findBestTable(bDb);
+            if(!tbl){bDb.close();return res.status(500).json({error:'جدول مناسب یافت نشد'});}
+            bDb.all(`PRAGMA table_info("${tbl}")`,[],(_,cols)=>{
+                if(!cols){bDb.close();return res.status(500).json({error:'خطا'});}
+                const cn=cols.map(c=>c.name),cnl=cn.map(c=>c.toLowerCase().trim());
+                let oc=null;
+                for(const pc of['r','page','id','_id','rowid']){const i=cnl.indexOf(pc);if(i!==-1){oc=cn[i];break;}}
+                if(ckey){ if(_bookSchemaCache.size>200)_bookSchemaCache.clear(); _bookSchemaCache.set(ckey,{tbl,oc}); }
+                run(tbl,oc);
             });
         });
     });
@@ -1246,6 +1309,10 @@ app.get('/api/wp', (req, res) => {
     if (!wpPath || typeof wpPath !== 'string') return res.status(400).json({error:'path required'});
     // فقط مسیرهای ایمن مجاز هستند
     if (!/^[a-zA-Z0-9\/_\-?=&%+.,\[\]]+$/.test(wpPath)) return res.status(400).json({error:'invalid path'});
+    let _dec = wpPath;
+    try { _dec = decodeURIComponent(wpPath); } catch(e) { return res.status(400).json({error:'invalid path'}); }
+    if (wpPath.includes('..') || _dec.includes('..') || wpPath.startsWith('/') || _dec.startsWith('/')) return res.status(400).json({error:'invalid path'});
+    if (!['posts','categories','media','pages','tags'].includes(wpPath.split(/[\/?]/)[0])) return res.status(400).json({error:'invalid path'});
     const cacheEntry = _wpCacheGet(wpPath);
     // cache تازه → مستقیم برگردان
     if (cacheEntry && !cacheEntry.stale) {
@@ -1496,11 +1563,15 @@ app.get('/api/news-sliders',(req,res)=>{
 
 // === API AUTH ===
 app.post('/api/auth/register',(req,res)=>{
+    if(typeof req.body.username!=='string'||typeof req.body.password!=='string') return res.status(400).json({error:'نام کاربری و رمز عبور الزامی است'});
     const u=sanText(req.body.username),p=req.body.password;
     if(!u||!p) return res.status(400).json({error:'نام کاربری و رمز عبور الزامی است'});
     if(u.length<3) return res.status(400).json({error:'نام کاربری حداقل ۳ کاراکتر باشد'});
+    if(u.length>50) return res.status(400).json({error:'نام کاربری حداکثر ۵۰ کاراکتر باشد'});
     if(p.length<6) return res.status(400).json({error:'رمز عبور حداقل ۶ کاراکتر باشد'});
-    const hash = bcrypt.hashSync(p, 12);
+    if(p.length>200) return res.status(400).json({error:'رمز عبور حداکثر ۲۰۰ کاراکتر باشد'});
+    bcrypt.hash(p, 12, (herr, hash) => {
+    if(herr) return res.status(500).json({error:failMsg(herr)});
     mainDb.run('INSERT INTO users (username,password) VALUES (?,?)',[u,hash],function(err){
         if(err){if(err.message.includes('UNIQUE')) return res.status(400).json({error:'این نام کاربری قبلاً ثبت شده'});return res.status(500).json({error:failMsg(err)});}
         const uid=this.lastID;
@@ -1513,20 +1584,30 @@ app.post('/api/auth/register',(req,res)=>{
         const token = signUserToken(uid, u);
         res.json({success:true,id:uid,username:u,token});
     });
+    });
 });
 app.post('/api/auth/login',(req,res)=>{
+    if(typeof req.body.username!=='string'||typeof req.body.password!=='string') return res.status(400).json({error:'نام کاربری و رمز عبور را وارد کنید'});
     const u=sanText(req.body.username),p=req.body.password;
     if(!u||!p) return res.status(400).json({error:'نام کاربری و رمز عبور را وارد کنید'});
+    // سقف ورود بازتر از ثبت‌نام است تا حساب‌های قدیمی با نام بلند بیرون نمانند
+    if(u.length>200||p.length>200) return res.status(400).json({error:'نام کاربری یا رمز عبور نامعتبر است'});
     mainDb.get('SELECT id,username,password FROM users WHERE username=?',[u],(err,row)=>{
         if(err) return res.status(500).json({error:failMsg(err)});
         if(!row) return res.status(401).json({error:'نام کاربری یا رمز عبور اشتباه است'});
         // Support both hashed and plaintext (migration)
-        let valid = false;
-        if(row.password.startsWith('$2')) { valid = bcrypt.compareSync(p, row.password); }
-        else { valid = (p === row.password); if(valid){ const h=bcrypt.hashSync(p,12); mainDb.run('UPDATE users SET password=? WHERE id=?',[h,row.id]); } }
-        if(!valid) return res.status(401).json({error:'نام کاربری یا رمز عبور اشتباه است'});
-        const token = signUserToken(row.id, row.username);
-        res.json({success:true,id:row.id,username:row.username,token});
+        const done = (valid) => {
+            if(!valid) return res.status(401).json({error:'نام کاربری یا رمز عبور اشتباه است'});
+            const token = signUserToken(row.id, row.username);
+            res.json({success:true,id:row.id,username:row.username,token});
+        };
+        if(row.password.startsWith('$2')) {
+            bcrypt.compare(p, row.password, (e, ok) => done(!e && ok));
+        } else {
+            const valid = (p === row.password);
+            if(!valid) return done(false);
+            bcrypt.hash(p, 12, (e, h) => { if(!e) mainDb.run('UPDATE users SET password=? WHERE id=?',[h,row.id]); done(true); });
+        }
     });
 });
 
@@ -2147,6 +2228,9 @@ app.post('/api/admin/login', adminLoginLimiter, (req,res)=>{
     }
 });
 app.post('/api/admin/logout', (req, res) => {
+    const _t = _readAdminToken(req);
+    const _d = _t && verifySimpleToken(_t);
+    if (_d && _d.kind === 'admin') _adminDeny.set(_tokHash(_t), _d.exp || (Math.floor(Date.now()/1000) + 24*3600));
     res.clearCookie('admin_token', { path: '/' });
     res.json({ success: true });
 });
@@ -2658,7 +2742,8 @@ app.get('/api/admin/users',adminAuth,(req,res)=>{
 });
 app.delete('/api/admin/users/:id',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    mainDb.run('DELETE FROM messages WHERE user_id=?',[id],()=>mainDb.run('DELETE FROM tickets WHERE user_id=?',[id],()=>mainDb.run('DELETE FROM users WHERE id=?',[id],()=>res.json({success:true}))));
+    _userExistsCache.delete(id);
+    mainDb.run('DELETE FROM messages WHERE user_id=?',[id],()=>mainDb.run('DELETE FROM tickets WHERE user_id=?',[id],()=>mainDb.run('DELETE FROM users WHERE id=?',[id],()=>{ _userExistsCache.delete(id); res.json({success:true}); })));
 });
 
 // Admin QA (merged with tickets in the backend)
@@ -3552,20 +3637,27 @@ const server = app.listen(PORT,()=>{
 process.on('unhandledRejection', (reason) => {
     console.error('UnhandledRejection:', reason && reason.stack || reason);
 });
+// یک خطای تک‌موردی فقط لاگ می‌شود (سرور برای بقیه بالا می‌ماند)؛ ولی اگر در یک
+// دقیقه سه بار تکرار شد یعنی وضعیت خراب است: خاموشی تمیز با کد 1 تا pm2 دوباره راه بیندازد
+const _uncaughtTimes = [];
 process.on('uncaughtException', (err) => {
     console.error('UncaughtException:', err && err.stack || err);
+    const now = Date.now();
+    _uncaughtTimes.push(now);
+    while (_uncaughtTimes.length && now - _uncaughtTimes[0] > 60000) _uncaughtTimes.shift();
+    if (_uncaughtTimes.length >= 3) { try { shutdown('uncaughtException', 1); } catch(e) { process.exit(1); } }
 });
 
 // خاموشی تمیز: اتصال‌های باز تمام شوند و دیتابیس بسته شود (WAL checkpoint)
 let _shuttingDown = false;
-function shutdown(signal) {
+function shutdown(signal, code = 0) {
     if (_shuttingDown) return;
     _shuttingDown = true;
     console.log(`\n${signal} دریافت شد — در حال خاموش شدن...`);
     const force = setTimeout(() => { console.error('خاموشی اجباری'); process.exit(1); }, 10000);
     force.unref();
     server.close(() => {
-        mainDb.close(() => { console.log('✅ دیتابیس بسته شد'); process.exit(0); });
+        mainDb.close(() => { console.log('✅ دیتابیس بسته شد'); process.exit(code); });
     });
 }
 ['SIGTERM','SIGINT'].forEach(sig => process.on(sig, () => shutdown(sig)));
