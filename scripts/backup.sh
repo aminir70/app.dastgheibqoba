@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # بکاپ خودکار — برای اجرا از cron ساخته شده. idempotent و فقط خواندنی از اپ.
 #
-#   دیتابیس : روزانه، فشرده، ۱۴ نسخه نگه داشته می‌شود
+#   دیتابیس : روزانه، فشرده، ۱۴ نسخه نگه داشته می‌شود (SQLite اپ + PostgreSQL چت‌بات)
 #   فایل‌ها  : اسنپ‌شات روزانه با هارد-لینک (فایل‌های تکراری جا نمی‌گیرند)، ۷ نسخه
 #   env     : روزانه، ۱۴ نسخه — شامل راز است، پس دسترسی ۰۶۰۰
 #
@@ -39,6 +39,29 @@ else
 fi
 ls -1t "$DEST/db"/app-*.sqlite.gz 2>/dev/null | tail -n +$((KEEP_DB+1)) | xargs -r rm -f
 
+# ── دیتابیس چت‌بات (PostgreSQL داخل docker compose) ──────────────────
+# pg_dump داخل کانتینر db اجرا می‌شود. اگر docker نبود، فایل compose نبود یا
+# کانتینر خاموش بود، فقط هشدار می‌دهیم و بقیهٔ بکاپ ادامه پیدا می‌کند.
+CB_COMPOSE="chatbot/docker-compose.yml"
+PG_USER=chatbot; PG_DB=chatbot
+if [ -f chatbot/.env ]; then
+  v=$(grep -E '^POSTGRES_USER=' chatbot/.env | tail -n1 | cut -d= -f2- | tr -d "\"'\r"); [ -n "$v" ] && PG_USER=$v
+  v=$(grep -E '^POSTGRES_DB=' chatbot/.env | tail -n1 | cut -d= -f2- | tr -d "\"'\r"); [ -n "$v" ] && PG_DB=$v
+fi
+if ! command -v docker >/dev/null || [ ! -f "$CB_COMPOSE" ]; then
+  log "!! docker یا $CB_COMPOSE یافت نشد — بکاپ دیتابیس چت‌بات رد شد"
+else
+  CB_OUT="$DEST/db/chatbot-$DAY.sql.gz"
+  # pipefail فقط داخل subshell فعال است تا خطای pg_dump هم شناخته شود
+  if ( set -o pipefail; docker compose -f "$CB_COMPOSE" exec -T db pg_dump -U "$PG_USER" "$PG_DB" | gzip > "$CB_OUT" ); then
+    log "دیتابیس چت‌بات ✓ ($(du -h "$CB_OUT" | cut -f1))"
+  else
+    rm -f "$CB_OUT"
+    log "!! بکاپ دیتابیس چت‌بات شکست خورد (docker نیاز به sudo دارد؟ کانتینر db روشن است؟)"
+  fi
+fi
+ls -1t "$DEST/db"/chatbot-*.sql.gz 2>/dev/null | tail -n +$((KEEP_DB+1)) | xargs -r rm -f
+
 # ── متغیرهای محیطی ───────────────────────────────────────────────────
 tar czf "$DEST/env/env-$DAY.tgz" .env chatbot/.env 2>/dev/null && chmod 600 "$DEST/env/env-$DAY.tgz"
 ls -1t "$DEST/env"/env-*.tgz 2>/dev/null | tail -n +$((KEEP_DB+1)) | xargs -r rm -f
@@ -48,7 +71,7 @@ FREE_MB=$(df -Pm "$DEST" | awk 'NR==2{print $4}')
 if [ "${FREE_MB:-0}" -lt "$MIN_FREE_MB" ]; then
   log "!! فضای آزاد ${FREE_MB}MB کمتر از ${MIN_FREE_MB}MB — بکاپ فایل‌ها رد شد"
 else
-  SRC_DIRS=(books public/gallery public/covers public/content public/audio public/ticket-files public/icons)
+  SRC_DIRS=(books public/gallery public/covers public/content public/audio public/ticket-files public/icons public/banners public/sliders public/logos public/img)
   EXISTING=(); for d in "${SRC_DIRS[@]}"; do [ -d "$d" ] && EXISTING+=("$d"); done
   if command -v rsync >/dev/null && [ ${#EXISTING[@]} -gt 0 ]; then
     LINK=""; [ -d "$DEST/files/latest" ] && LINK="--link-dest=$DEST/files/latest"

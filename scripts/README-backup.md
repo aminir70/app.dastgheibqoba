@@ -9,8 +9,9 @@
 | چه چیزی | چطور | چند نسخه |
 |---|---|---|
 | `library.sqlite` | `sqlite3 .backup` سپس gzip | ۱۴ روز |
+| دیتابیس PostgreSQL چت‌بات (سرویس `db` در `chatbot/`) | `pg_dump` داخل کانتینر سپس gzip؛ اگر docker یا کانتینر در دسترس نباشد هشدار داده می‌شود و بکاپ ادامه پیدا می‌کند | ۱۴ روز |
 | `.env` و `chatbot/.env` | tar با دسترسی ۰۶۰۰ | ۱۴ روز |
-| `books/`, `public/gallery|covers|content|audio|ticket-files|icons` | `rsync --link-dest` | ۷ روز |
+| `books/`, `public/gallery|covers|content|audio|ticket-files|icons|banners|sliders|logos|img` | `rsync --link-dest` | ۷ روز |
 
 با WAL فعال، `cp library.sqlite` بکاپ ناقص می‌دهد چون نوشته‌های داخل فایل
 `-wal` را از قلم می‌اندازد. `.backup` تنها روش درست است.
