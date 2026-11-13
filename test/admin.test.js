@@ -13,7 +13,7 @@ const ROUTES = ['/api/admin/users', '/api/admin/settings', '/api/admin/tickets',
 test('مسیرهای ادمین: بدون کوکی 401، با کوکی 200، خروج', async () => {
   for (const p of ROUTES) assert.equal((await srv.api('GET', p)).status, 401, p);
 
-  const bad = await srv.api('POST', '/api/admin/login', { json: { password: 'wrong-password' } });
+  const bad = await srv.api('POST', '/api/admin/login', { json: { username: 'admin', password: 'wrong-password' } });
   assert.equal(bad.status, 401);
 
   const cookie = await adminLogin(srv);
@@ -22,8 +22,10 @@ test('مسیرهای ادمین: بدون کوکی 401، با کوکی 200، خ�
   const out = await srv.api('POST', '/api/admin/logout', { cookie });
   assert.equal(out.status, 200);
   for (const p of ROUTES) assert.equal((await srv.api('GET', p, { cookie })).status, 401, p + ' بعد از خروج');
-  // توکن ادمین jti ندارد: ورود مجدد در همان ثانیه همان توکنِ ابطال‌شده را می‌دهد
-  await new Promise(r => setTimeout(r, 1100));
+  // ورود بلافاصله بعد از خروج (همان ثانیه) باید توکن تازه و معتبر بدهد
+  const again = await adminLogin(srv);
+  assert.notEqual(again, cookie);
+  assert.equal((await srv.api('GET', '/api/admin/users', { cookie: again })).status, 200);
 });
 
 test('کلید داخلی settings نه فاش می‌شود نه بازنویسی', async () => {

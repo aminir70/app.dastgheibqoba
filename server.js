@@ -462,11 +462,14 @@ function ensureJwtSecret() {
     });
 }
 
-function signUserToken(uid, username) {
-    return signSimpleToken({ uid, username, kind: 'user' }, 30*24*60*60);
+function signUserToken(uid, username, tv = 0) {
+    return signSimpleToken({ uid, username, kind: 'user', tv: tv | 0 }, 30*24*60*60);
 }
-function signAdminToken() {
-    return signSimpleToken({ kind: 'admin' }, 24*60*60);
+// توکن ادمین: نقش در claim به نام arole می‌آید نه role، چون سرویس چت‌بات
+// (chatbot/backend/app/auth.py) هر توکنی با role=='admin' را مدیر چت‌بات می‌داند.
+// مرجع نقش همیشه جدول admins است؛ این مقدار فقط برای اطلاع است.
+function signAdminToken(a) {
+    return signSimpleToken({ kind: 'admin', aid: a.id, username: a.username, arole: a.role, tv: a.token_version | 0, jti: crypto.randomBytes(12).toString('hex') }, 24*60*60);
 }
 
 // JWT-compatible signing using built-in crypto only (HS256)
@@ -545,6 +548,14 @@ function initDb() {
         mainDb.run(`ALTER TABLE books ADD COLUMN sort_order INTEGER DEFAULT 0`, () => {});
         mainDb.run(`ALTER TABLE books ADD COLUMN book_type TEXT DEFAULT 'db'`, () => {});
         mainDb.run(`ALTER TABLE books ADD COLUMN pdf_filename TEXT DEFAULT ''`, () => {});
+        // نسخهٔ توکن کاربر: با بازنشانی رمز توسط ادمین بالا می‌رود و توکن‌های قبلی باطل می‌شوند
+        mainDb.run(`ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0`, () => {});
+        // حساب‌های ادمین و سابقهٔ کارها
+        mainDb.run(`CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE COLLATE NOCASE NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', disabled INTEGER DEFAULT 0, token_version INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login_at DATETIME)`);
+        mainDb.run(`CREATE TABLE IF NOT EXISTS admin_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id INTEGER, username TEXT, method TEXT, path TEXT, status INTEGER, ip TEXT, ts DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+        mainDb.run(`CREATE INDEX IF NOT EXISTS idx_admin_audit_ts ON admin_audit(ts)`, () => {});
+        // بعد از ساخت جدول‌ها: حساب اولیه/بازیابی و پاکسازی سابقهٔ قدیمی
+        mainDb.run(`SELECT 1`, () => { ensureAdminAccounts().catch(e => console.error('admin bootstrap failed:', e.message)).finally(_adminBootReady); _pruneAdminAudit(); });
 
         const defaults = [
             ['site_name','نرم افزار آیت الله دستغیب'],
@@ -747,14 +758,75 @@ function _readAdminToken(req) {
     }
     return tok;
 }
-function adminAuth(req,res,next) {
-    const tok = _readAdminToken(req);
-    if (!tok) return res.status(401).json({error:'دسترسی غیرمجاز'});
-    const decoded = verifySimpleToken(tok);
-    if (decoded && decoded.kind === 'admin' && !_adminDeny.has(_tokHash(tok))) return next();
-    return res.status(401).json({error:'دسترسی غیرمجاز'});
+// --- حساب‌های ادمین ---
+// promise آماده‌شدن حساب‌ها: لاگین تا پایان bootstrap صبر می‌کند
+let _adminBootReady; const _adminBootP = new Promise(r => { _adminBootReady = r; });
+const _dbGetP = (sql, params = []) => new Promise((ok, bad) => mainDb.get(sql, params, (e, row) => e ? bad(e) : ok(row)));
+const _dbAllP = (sql, params = []) => new Promise((ok, bad) => mainDb.all(sql, params, (e, rows) => e ? bad(e) : ok(rows || [])));
+const _dbRunP = (sql, params = []) => new Promise((ok, bad) => mainDb.run(sql, params, function (e) { e ? bad(e) : ok({ lastID: this.lastID, changes: this.changes }); }));
+// هش ثابت برای یکسان‌سازی زمان پاسخ وقتی نام کاربری وجود ندارد
+const _DUMMY_HASH = '$2a$12$jBPA6EO/XLizPpPO8lR5UOlH1Gw1SAbto4qQSGo1jNkJiZcSBc8rC';
+async function ensureAdminAccounts() {
+    const cnt = await _dbGetP('SELECT COUNT(*) AS c FROM admins');
+    if (cnt.c === 0) {
+        const hash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+        await _dbRunP(`INSERT INTO admins (username,password,role) VALUES ('admin',?,'owner')`, [hash]);
+        console.log('🔑 حساب ادمین «admin» (owner) از ADMIN_PASSWORD ساخته شد.');
+        return;
+    }
+    // بازیابی: رمز حساب admin برابر ADMIN_PASSWORD می‌شود (خود رمز هرگز لاگ نمی‌شود)
+    if (process.env.ADMIN_PASSWORD_RESET === '1') {
+        const hash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+        const row = await _dbGetP(`SELECT id FROM admins WHERE username='admin'`);
+        if (row) {
+            // حساب بازیابی باید قابل ورود و owner باشد، وگرنه بازیابی بی‌فایده است
+            await _dbRunP(`UPDATE admins SET password=?, disabled=0, role='owner', token_version=token_version+1 WHERE id=?`, [hash, row.id]);
+            _adminCacheDel(row.id);
+        } else await _dbRunP(`INSERT INTO admins (username,password,role) VALUES ('admin',?,'owner')`, [hash]);
+        console.log('🔑 ADMIN_PASSWORD_RESET=1: رمز حساب «admin» بازنشانی شد (این متغیر را از .env بردارید).');
+    }
 }
-// کش مثبت وجود کاربر (۶۰ ثانیه) تا هر درخواست به دیتابیس نخورد
+// کش مثبت حساب ادمین (۶۰ ثانیه)؛ با هر تغییر همان حساب پاک می‌شود
+const _adminCache = new Map();
+const _ADMIN_CACHE_MS = 60*1000;
+function _adminCacheDel(id) { _adminCache.delete(Number(id)); }
+// سابقهٔ کارها: فقط روش، مسیر و وضعیت — بدنهٔ درخواست هرگز ثبت نمی‌شود
+function _recordAudit(adminId, username, method, p, status, ip) {
+    mainDb.run('INSERT INTO admin_audit (admin_id,username,method,path,status,ip) VALUES (?,?,?,?,?,?)',
+        [adminId || null, String(username || '').slice(0, 50), method, String(p || '').slice(0, 300), status, String(ip || '').slice(0, 60)], () => {});
+}
+function _pruneAdminAudit() { mainDb.run(`DELETE FROM admin_audit WHERE ts < datetime('now','-180 days')`, () => {}); }
+setInterval(_pruneAdminAudit, 24*60*60*1000).unref();
+function adminAuth(req,res,next) {
+    const deny = () => res.status(401).json({error:'دسترسی غیرمجاز'});
+    const tok = _readAdminToken(req);
+    if (!tok) return deny();
+    const d = verifySimpleToken(tok);
+    if (!d || d.kind !== 'admin' || !Number.isInteger(d.aid) || _adminDeny.has(_tokHash(tok))) return deny();
+    const apply = (a) => {
+        if (!a || a.disabled || a.token_version !== (d.tv | 0)) return deny();
+        req.admin = { id: a.id, username: a.username, role: a.role };
+        if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+            const ip = _getClientIp(req), p = String(req.originalUrl || '').split('?')[0];
+            res.on('finish', () => _recordAudit(a.id, a.username, req.method, p, res.statusCode, ip));
+        }
+        next();
+    };
+    const hit = _adminCache.get(d.aid);
+    if (hit && hit.exp > Date.now()) return apply(hit.row);
+    mainDb.get('SELECT id,username,role,disabled,token_version FROM admins WHERE id=?', [d.aid], (err, row) => {
+        if (err) return res.status(500).json({error:'خطای سرور'});
+        if (!row) { _adminCache.delete(d.aid); return deny(); }
+        if (_adminCache.size > 500) _adminCache.clear();
+        _adminCache.set(d.aid, { exp: Date.now() + _ADMIN_CACHE_MS, row });
+        apply(row);
+    });
+}
+function ownerOnly(req, res, next) {
+    if (req.admin && req.admin.role === 'owner') return next();
+    return res.status(403).json({error:'فقط مدیر ارشد به این بخش دسترسی دارد'});
+}
+// کش مثبت وجود کاربر + نسخهٔ توکن (۶۰ ثانیه) تا هر درخواست به دیتابیس نخورد
 const _userExistsCache = new Map();
 const _USER_CACHE_MS = 60*1000;
 function userAuth(req,res,next) {
@@ -763,15 +835,19 @@ function userAuth(req,res,next) {
     if (!m) return res.status(401).json({error:'لطفاً وارد حساب کاربری شوید'});
     const decoded = verifySimpleToken(m[1]);
     if (decoded && decoded.kind === 'user' && Number.isInteger(decoded.uid) && decoded.uid > 0) {
-        const uid = decoded.uid;
+        const uid = decoded.uid, tv = decoded.tv | 0;   // توکن قدیمیِ بدون tv = نسخهٔ ۰
         const fail = () => res.status(401).json({error:'لطفاً وارد حساب کاربری شوید'});
         const hit = _userExistsCache.get(uid);
-        if (hit && hit > Date.now()) { req.userId = uid; return next(); }
-        return mainDb.get('SELECT 1 AS x FROM users WHERE id=?', [uid], (err, row) => {
+        if (hit && hit.exp > Date.now()) {
+            if (hit.tv !== tv) return fail();
+            req.userId = uid; return next();
+        }
+        return mainDb.get('SELECT COALESCE(token_version,0) AS tv FROM users WHERE id=?', [uid], (err, row) => {
             if (err) return res.status(500).json({error:'خطای سرور'});
             if (!row) { _userExistsCache.delete(uid); return fail(); }
             if (_userExistsCache.size > 5000) _userExistsCache.clear();
-            _userExistsCache.set(uid, Date.now() + _USER_CACHE_MS);
+            _userExistsCache.set(uid, { exp: Date.now() + _USER_CACHE_MS, tv: row.tv });
+            if (row.tv !== tv) return fail();
             req.userId = uid;
             next();
         });
@@ -1562,6 +1638,41 @@ app.get('/api/news-sliders',(req,res)=>{
 });
 
 // === API AUTH ===
+// کپچای ساده (جمع دو عدد). توکن بدون حالت: nonce و انقضا + HMAC روی پاسخ؛
+// هر nonce فقط یک‌بار قابل استفاده است (تا زمان انقضا در حافظه می‌ماند).
+const _CAPTCHA_TTL_MS = 5*60*1000;
+const _captchaUsed = new Map();   // nonce → انقضا (ms)
+setInterval(() => { const n = Date.now(); for (const [k, e] of _captchaUsed) if (e < n) _captchaUsed.delete(k); }, 60*1000).unref();
+const _capSig = (nonce, exp, answer) => crypto.createHmac('sha256', 'captcha:' + JWT_SECRET).update(`${nonce}|${exp}|${answer}`).digest('base64url');
+// رقم فارسی/عربی → لاتین
+const _latinDigits = v => String(v).replace(/[۰-۹]/g, c => c.charCodeAt(0) - 0x06F0).replace(/[٠-٩]/g, c => c.charCodeAt(0) - 0x0660);
+function _verifyCaptcha(token, answer) {
+    if (typeof token !== 'string' || token.length > 300 || (typeof answer !== 'string' && typeof answer !== 'number')) return false;
+    const i = token.indexOf('.');
+    if (i < 1) return false;
+    let body;
+    try { body = JSON.parse(Buffer.from(token.slice(0, i), 'base64url').toString('utf8')); } catch(e) { return false; }
+    if (!body || typeof body.n !== 'string' || !body.n || body.n.length > 40 || !Number.isFinite(body.e)) return false;
+    // انقضا: نه گذشته و نه دورتر از عمر مجاز (توکن جعلی با انقضای دور در حافظه نماند)
+    if (body.e < Date.now() || body.e > Date.now() + _CAPTCHA_TTL_MS + 5000) return false;
+    if (_captchaUsed.has(body.n)) return false;
+    const ans = _latinDigits(answer).trim();
+    const a = Buffer.from(token.slice(i + 1));
+    const b = Buffer.from(_capSig(body.n, body.e, /^\d{1,3}$/.test(ans) ? String(parseInt(ans, 10)) : 'x'));
+    // هر تلاش، درست یا غلط، nonce را می‌سوزاند تا حدس‌زدن پشت‌سرهم ممکن نباشد
+    if (_captchaUsed.size > 20000) _captchaUsed.clear();
+    _captchaUsed.set(body.n, body.e);
+    if (a.length !== b.length) return false;
+    try { return crypto.timingSafeEqual(a, b); } catch(e) { return false; }
+}
+app.get('/api/auth/captcha',(req,res)=>{
+    const x = crypto.randomInt(1, 10), y = crypto.randomInt(1, 10);
+    const nonce = crypto.randomBytes(12).toString('hex'), exp = Date.now() + _CAPTCHA_TTL_MS;
+    const token = Buffer.from(JSON.stringify({ n: nonce, e: exp })).toString('base64url') + '.' + _capSig(nonce, exp, String(x + y));
+    const fa = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+    res.set('Cache-Control', 'no-store');
+    res.json({ question: `${fa(x)} + ${fa(y)} = ؟`, token });
+});
 app.post('/api/auth/register',(req,res)=>{
     if(typeof req.body.username!=='string'||typeof req.body.password!=='string') return res.status(400).json({error:'نام کاربری و رمز عبور الزامی است'});
     const u=sanText(req.body.username),p=req.body.password;
@@ -1570,6 +1681,8 @@ app.post('/api/auth/register',(req,res)=>{
     if(u.length>50) return res.status(400).json({error:'نام کاربری حداکثر ۵۰ کاراکتر باشد'});
     if(p.length<6) return res.status(400).json({error:'رمز عبور حداقل ۶ کاراکتر باشد'});
     if(p.length>200) return res.status(400).json({error:'رمز عبور حداکثر ۲۰۰ کاراکتر باشد'});
+    // کپچا قبل از هش‌کردن رمز (هش گران است)
+    if(!_verifyCaptcha(req.body.captcha_token, req.body.captcha_answer)) return res.status(400).json({error:'پاسخ سؤال امنیتی اشتباه است', captcha:true});
     bcrypt.hash(p, 12, (herr, hash) => {
     if(herr) return res.status(500).json({error:failMsg(herr)});
     mainDb.run('INSERT INTO users (username,password) VALUES (?,?)',[u,hash],function(err){
@@ -1592,13 +1705,13 @@ app.post('/api/auth/login',(req,res)=>{
     if(!u||!p) return res.status(400).json({error:'نام کاربری و رمز عبور را وارد کنید'});
     // سقف ورود بازتر از ثبت‌نام است تا حساب‌های قدیمی با نام بلند بیرون نمانند
     if(u.length>200||p.length>200) return res.status(400).json({error:'نام کاربری یا رمز عبور نامعتبر است'});
-    mainDb.get('SELECT id,username,password FROM users WHERE username=?',[u],(err,row)=>{
+    mainDb.get('SELECT id,username,password,COALESCE(token_version,0) AS token_version FROM users WHERE username=?',[u],(err,row)=>{
         if(err) return res.status(500).json({error:failMsg(err)});
         if(!row) return res.status(401).json({error:'نام کاربری یا رمز عبور اشتباه است'});
         // Support both hashed and plaintext (migration)
         const done = (valid) => {
             if(!valid) return res.status(401).json({error:'نام کاربری یا رمز عبور اشتباه است'});
-            const token = signUserToken(row.id, row.username);
+            const token = signUserToken(row.id, row.username, row.token_version);
             res.json({success:true,id:row.id,username:row.username,token});
         };
         if(row.password.startsWith('$2')) {
@@ -1715,6 +1828,16 @@ app.put('/api/tickets/:id',userAuth,(req,res)=>{
         });
     });
 });
+// پاک‌کردن فایل پیوست پیام‌های حذف‌شده از public/ticket-files (فایل ناموجود نادیده گرفته می‌شود)
+function _unlinkTicketFiles(rows) {
+    const base = path.join(__dirname, 'public', 'ticket-files');
+    for (const r of rows || []) {
+        const m = String((r && r.attachment) || '').match(/^\/ticket-files\/([^/]+)$/);
+        if (!m) continue;
+        const fp = safePath(base, m[1]);
+        if (fp) { try { fs.unlinkSync(fp); } catch(e) {} }
+    }
+}
 // حذف تیکت توسط کاربر (فقط اگه ادمین هنوز جواب نداده)
 app.delete('/api/tickets/:id',userAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
@@ -1722,8 +1845,11 @@ app.delete('/api/tickets/:id',userAuth,(req,res)=>{
         if(!t) return res.status(404).json({error:'تیکت یافت نشد'});
         mainDb.get('SELECT id FROM ticket_messages WHERE ticket_id=? AND sender_type="admin" LIMIT 1',[id],(err2,adminReply)=>{
             if(adminReply) return res.status(403).json({error:'پس از پاسخ ادمین حذف امکان‌پذیر نیست'});
-            mainDb.run('DELETE FROM ticket_messages WHERE ticket_id=?',[id],()=>{
-                mainDb.run('DELETE FROM tickets WHERE id=?',[id],()=>res.json({success:true}));
+            // مسیر پیوست‌ها قبل از حذف ردیف‌ها جمع می‌شود
+            mainDb.all('SELECT attachment FROM ticket_messages WHERE ticket_id=? AND attachment IS NOT NULL',[id],(e0,atts)=>{
+                mainDb.run('DELETE FROM ticket_messages WHERE ticket_id=?',[id],()=>{
+                    mainDb.run('DELETE FROM tickets WHERE id=?',[id],()=>{ _unlinkTicketFiles(atts); res.json({success:true}); });
+                });
             });
         });
     });
@@ -2202,39 +2328,152 @@ app.post('/api/notifications/read-all',userAuth,(req,res)=>{
 });
 
 // === ADMIN APIS ===
-app.post('/api/admin/login', adminLoginLimiter, (req,res)=>{
-    const pw = (req.body && typeof req.body.password === 'string') ? req.body.password : '';
-    // Constant-time comparison to prevent timing attacks
-    const a = Buffer.alloc(128); Buffer.from(pw, 'utf8').copy(a);
-    const b = Buffer.alloc(128); Buffer.from(ADMIN_PASSWORD, 'utf8').copy(b);
-    let ok = false;
-    try { ok = crypto.timingSafeEqual(a, b); } catch(e) {}
-    if (ok) {
-        const token = signAdminToken();
-        if (!token) return res.status(500).json({error:'JWT unavailable'});
-        const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-        res.cookie('admin_token', token, {
-            httpOnly: true,
-            secure,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 24*60*60*1000
-        });
-        res.json({success:true});
-    }
-    else {
+function _setAdminCookie(req, res, token) {
+    const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    res.cookie('admin_token', token, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 24*60*60*1000 });
+}
+app.post('/api/admin/login', adminLoginLimiter, async (req,res)=>{
+    try {
+        await _adminBootP;
+        const b = req.body || {};
+        const pw = typeof b.password === 'string' ? b.password : '';
+        // نام کاربری خالی = «admin» (سازگار با نسخهٔ تک‌رمزی)
+        const rawUn = (typeof b.username === 'string' && b.username.trim()) ? b.username.trim() : 'admin';
+        const un = sanText(rawUn).slice(0, 50);
+        const ip = _getClientIp(req);
+        const row = (un && pw && pw.length <= 200) ? await _dbGetP('SELECT id,username,password,role,disabled,token_version FROM admins WHERE username=?', [un]) : null;
+        // همیشه یک مقایسهٔ bcrypt تا زمان پاسخ برای نام ناشناس فرق نکند
+        const match = await bcrypt.compare(pw.slice(0, 200), row ? row.password : _DUMMY_HASH);
+        if (row && match && !row.disabled) {
+            await _dbRunP('UPDATE admins SET last_login_at=CURRENT_TIMESTAMP WHERE id=?', [row.id]);
+            _setAdminCookie(req, res, signAdminToken(row));
+            _recordAudit(row.id, row.username, 'POST', '/api/admin/login', 200, ip);
+            return res.json({success:true, username: row.username, role: row.role});
+        }
+        _recordAudit(row ? row.id : null, un, 'POST', '/api/admin/login', 401, ip);
         // تاخیر رندوم برای جلوگیری از timing oracle
-        setTimeout(()=>res.status(401).json({error:'رمز عبور اشتباه است'}), 300 + Math.floor(Math.random()*300));
-    }
+        setTimeout(()=>res.status(401).json({error:'نام کاربری یا رمز عبور اشتباه است'}), 300 + Math.floor(Math.random()*300));
+    } catch(e) { res.status(500).json({error:failMsg(e)}); }
 });
 app.post('/api/admin/logout', (req, res) => {
     const _t = _readAdminToken(req);
     const _d = _t && verifySimpleToken(_t);
-    if (_d && _d.kind === 'admin') _adminDeny.set(_tokHash(_t), _d.exp || (Math.floor(Date.now()/1000) + 24*3600));
+    if (_d && _d.kind === 'admin') {
+        _adminDeny.set(_tokHash(_t), _d.exp || (Math.floor(Date.now()/1000) + 24*3600));
+        _recordAudit(_d.aid, _d.username, 'POST', '/api/admin/logout', 200, _getClientIp(req));
+    }
     res.clearCookie('admin_token', { path: '/' });
     res.json({ success: true });
 });
-app.get('/api/admin/auth-check', adminAuth, (req, res) => res.json({ ok: true }));
+app.get('/api/admin/auth-check', adminAuth, (req, res) => res.json({ ok: true, username: req.admin.username, role: req.admin.role }));
+app.get('/api/admin/me', adminAuth, (req, res) => res.json({ id: req.admin.id, username: req.admin.username, role: req.admin.role }));
+
+// تغییرات حساب‌ها پشت‌سرهم اجرا می‌شوند تا قاعدهٔ «حداقل یک owner فعال» با درخواست‌های هم‌زمان نشکند
+let _adminMutexP = Promise.resolve();
+function _withAdminMutex(fn) {
+    const run = _adminMutexP.then(() => fn());
+    _adminMutexP = run.catch(() => {});
+    return run;
+}
+const _validAdminPw = p => typeof p === 'string' && p.length >= 8 && p.length <= 200;
+app.post('/api/admin/me/password', adminAuth, adminLoginLimiter, async (req, res) => {
+    try {
+        const cur = req.body && req.body.current, nw = req.body && req.body.new;
+        if (typeof cur !== 'string' || !cur || cur.length > 200) return res.status(400).json({error:'رمز فعلی را وارد کنید'});
+        if (!_validAdminPw(nw)) return res.status(400).json({error:'رمز جدید باید بین ۸ تا ۲۰۰ کاراکتر باشد'});
+        const row = await _dbGetP('SELECT id,username,password,role,token_version FROM admins WHERE id=?', [req.admin.id]);
+        // 400 (نه 401) تا پنل با رمز فعلیِ اشتباه نشست را منقضی‌شده حساب نکند
+        if (!row || !(await bcrypt.compare(cur, row.password))) return res.status(400).json({error:'رمز فعلی اشتباه است'});
+        const hash = await bcrypt.hash(nw, 12);
+        await _dbRunP('UPDATE admins SET password=?, token_version=token_version+1 WHERE id=?', [hash, row.id]);
+        _adminCacheDel(row.id);
+        const fresh = await _dbGetP('SELECT id,username,role,token_version FROM admins WHERE id=?', [row.id]);
+        // نشست‌های دیگر باطل می‌شوند؛ همین نشست با کوکی تازه ادامه می‌یابد
+        _setAdminCookie(req, res, signAdminToken(fresh));
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error:failMsg(e)}); }
+});
+
+// --- مدیریت حساب‌های ادمین (فقط owner) ---
+app.get('/api/admin/admins', adminAuth, ownerOnly, async (req, res) => {
+    try { res.json(await _dbAllP('SELECT id,username,role,disabled,created_at,last_login_at FROM admins ORDER BY id')); }
+    catch(e) { res.status(500).json({error:failMsg(e)}); }
+});
+app.post('/api/admin/admins', adminAuth, ownerOnly, async (req, res) => {
+    try {
+        const b = req.body || {};
+        if (typeof b.username !== 'string') return res.status(400).json({error:'نام کاربری الزامی است'});
+        const un = sanText(b.username).trim();
+        if (un.length < 3 || un.length > 50) return res.status(400).json({error:'نام کاربری باید بین ۳ تا ۵۰ کاراکتر باشد'});
+        if (!_validAdminPw(b.password)) return res.status(400).json({error:'رمز عبور باید بین ۸ تا ۲۰۰ کاراکتر باشد'});
+        if (b.role !== 'owner' && b.role !== 'admin') return res.status(400).json({error:'نقش باید owner یا admin باشد'});
+        const hash = await bcrypt.hash(b.password, 12);
+        try {
+            const r = await _dbRunP('INSERT INTO admins (username,password,role) VALUES (?,?,?)', [un, hash, b.role]);
+            res.json({success:true, id:r.lastID});
+        } catch(e) {
+            if (String(e.message).includes('UNIQUE')) return res.status(400).json({error:'این نام کاربری قبلاً ثبت شده'});
+            throw e;
+        }
+    } catch(e) { res.status(500).json({error:failMsg(e)}); }
+});
+async function _otherEnabledOwners(excludeId) {
+    const r = await _dbGetP(`SELECT COUNT(*) AS c FROM admins WHERE role='owner' AND disabled=0 AND id<>?`, [excludeId]);
+    return r.c;
+}
+const _LAST_OWNER_MSG = 'باید همیشه دست‌کم یک مدیر ارشد فعال باقی بماند';
+app.put('/api/admin/admins/:id', adminAuth, ownerOnly, (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({error:'شناسه نامعتبر'});
+    const b = req.body || {};
+    _withAdminMutex(async () => {
+        const t = await _dbGetP('SELECT id,role,disabled FROM admins WHERE id=?', [id]);
+        if (!t) return res.status(404).json({error:'مدیر یافت نشد'});
+        const sets = [], vals = [];
+        let newRole = t.role, newDisabled = t.disabled ? 1 : 0;
+        if (b.password !== undefined) {
+            if (!_validAdminPw(b.password)) return res.status(400).json({error:'رمز عبور باید بین ۸ تا ۲۰۰ کاراکتر باشد'});
+            sets.push('password=?'); vals.push(await bcrypt.hash(b.password, 12));
+        }
+        if (b.role !== undefined) {
+            if (b.role !== 'owner' && b.role !== 'admin') return res.status(400).json({error:'نقش باید owner یا admin باشد'});
+            newRole = b.role; sets.push('role=?'); vals.push(b.role);
+        }
+        if (b.disabled !== undefined) {
+            newDisabled = (b.disabled === true || b.disabled === 1 || b.disabled === '1') ? 1 : 0;
+            if (newDisabled && id === req.admin.id) return res.status(400).json({error:'نمی‌توانید حساب خودتان را غیرفعال کنید'});
+            sets.push('disabled=?'); vals.push(newDisabled);
+        }
+        if (!sets.length) return res.status(400).json({error:'چیزی برای تغییر نیست'});
+        if (t.role === 'owner' && !t.disabled && (newRole !== 'owner' || newDisabled) && (await _otherEnabledOwners(id)) === 0)
+            return res.status(400).json({error:_LAST_OWNER_MSG});
+        // هر تغییر رمز/نقش/وضعیت نشست‌های فعلی آن حساب را باطل می‌کند
+        sets.push('token_version=token_version+1');
+        await _dbRunP(`UPDATE admins SET ${sets.join(', ')} WHERE id=?`, [...vals, id]);
+        _adminCacheDel(id);
+        res.json({success:true});
+    }).catch(e => { if (!res.headersSent) res.status(500).json({error:failMsg(e)}); });
+});
+app.delete('/api/admin/admins/:id', adminAuth, ownerOnly, (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({error:'شناسه نامعتبر'});
+    if (id === req.admin.id) return res.status(400).json({error:'نمی‌توانید حساب خودتان را حذف کنید'});
+    _withAdminMutex(async () => {
+        const t = await _dbGetP('SELECT id,role,disabled FROM admins WHERE id=?', [id]);
+        if (!t) return res.status(404).json({error:'مدیر یافت نشد'});
+        if (t.role === 'owner' && !t.disabled && (await _otherEnabledOwners(id)) === 0)
+            return res.status(400).json({error:_LAST_OWNER_MSG});
+        await _dbRunP('DELETE FROM admins WHERE id=?', [id]);
+        _adminCacheDel(id);
+        res.json({success:true});
+    }).catch(e => { if (!res.headersSent) res.status(500).json({error:failMsg(e)}); });
+});
+app.get('/api/admin/audit', adminAuth, ownerOnly, async (req, res) => {
+    try {
+        const lim = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 200));
+        res.json(await _dbAllP('SELECT id,admin_id,username,method,path,status,ip,ts FROM admin_audit ORDER BY id DESC LIMIT ?', [lim]));
+    } catch(e) { res.status(500).json({error:failMsg(e)}); }
+});
 
 app.post('/api/admin/books',adminAuth,upload.fields([{name:'database',maxCount:1},{name:'pdf_file',maxCount:1},{name:'cover',maxCount:1}]),async(req,res)=>{
     try{
@@ -2740,10 +2979,37 @@ app.get('/api/admin/users',adminAuth,(req,res)=>{
         res.json(rows||[]);
     });
 });
-app.delete('/api/admin/users/:id',adminAuth,(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
+app.delete('/api/admin/users/:id',adminAuth,async(req,res)=>{
+    const id=+req.params.id;if(!Number.isInteger(id)||id<1) return res.status(400).json({error:'شناسه نامعتبر'});
     _userExistsCache.delete(id);
-    mainDb.run('DELETE FROM messages WHERE user_id=?',[id],()=>mainDb.run('DELETE FROM tickets WHERE user_id=?',[id],()=>mainDb.run('DELETE FROM users WHERE id=?',[id],()=>{ _userExistsCache.delete(id); res.json({success:true}); })));
+    try{
+        // مسیر پیوست‌ها قبل از حذف ردیف‌ها جمع می‌شود
+        const atts=await _dbAllP('SELECT tm.attachment FROM ticket_messages tm JOIN tickets t ON t.id=tm.ticket_id WHERE t.user_id=? AND tm.attachment IS NOT NULL',[id]);
+        await _dbRunP('DELETE FROM messages WHERE user_id=?',[id]);
+        // قبلاً پیام‌های تیکت پاک نمی‌شد و با foreign_keys=ON حذف خود تیکت‌ها هم بی‌صدا شکست می‌خورد
+        await _dbRunP('DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id=?)',[id]);
+        await _dbRunP('DELETE FROM tickets WHERE user_id=?',[id]);
+        await _dbRunP('DELETE FROM users WHERE id=?',[id]);
+        _userExistsCache.delete(id);
+        _unlinkTicketFiles(atts);
+        res.json({success:true});
+    }catch(e){ res.status(500).json({error:failMsg(e)}); }
+});
+// بازنشانی رمز کاربر توسط ادمین؛ با بالا رفتن token_version نشست‌های قبلی کاربر باطل می‌شوند
+const _PW_ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';   // بدون کاراکتر مبهم
+app.post('/api/admin/users/:id/password',adminAuth,async(req,res)=>{
+    const id=+req.params.id;if(!Number.isInteger(id)||id<1) return res.status(400).json({error:'شناسه نامعتبر'});
+    let pw=req.body&&req.body.password;
+    if(pw===undefined||pw===null||pw===''){
+        pw='';for(let i=0;i<8;i++) pw+=_PW_ALPHABET[crypto.randomInt(_PW_ALPHABET.length)];
+    }else if(typeof pw!=='string'||pw.length<6||pw.length>200) return res.status(400).json({error:'رمز عبور باید بین ۶ تا ۲۰۰ کاراکتر باشد'});
+    try{
+        if(!(await _dbGetP('SELECT id FROM users WHERE id=?',[id]))) return res.status(404).json({error:'کاربر یافت نشد'});
+        const hash=await bcrypt.hash(pw,12);
+        await _dbRunP('UPDATE users SET password=?, token_version=COALESCE(token_version,0)+1 WHERE id=?',[hash,id]);
+        _userExistsCache.delete(id);
+        res.json({success:true,password:pw});
+    }catch(e){ res.status(500).json({error:failMsg(e)}); }
 });
 
 // Admin QA (merged with tickets in the backend)

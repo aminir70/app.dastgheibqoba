@@ -891,8 +891,31 @@ function hideLoading() {
 // ====================================================
 // ورود / ثبت‌نام اصلی
 // ====================================================
+// سؤال امنیتی ثبت‌نام (دو فرم: main = صفحهٔ حساب، qa = فرم پشتیبانی)
+const _captchaTok = { main: '', qa: '' };
+async function loadCaptcha(kind) {
+    const q = document.getElementById(kind + '-reg-cap-q');
+    const a = document.getElementById(kind + '-reg-cap-a');
+    if (!q) return;
+    _captchaTok[kind] = '';
+    if (a) a.value = '';
+    q.textContent = '…';
+    try {
+        const r = await fetch('/api/auth/captcha', { cache: 'no-store' });
+        const d = await r.json();
+        if (!r.ok || !d.token) throw new Error('captcha');
+        _captchaTok[kind] = d.token;
+        q.textContent = d.question;
+    } catch(e) { q.textContent = 'خطا'; showToast('سؤال امنیتی دریافت نشد؛ دکمهٔ سؤال جدید را بزنید'); }
+}
+function _captchaFields(kind) {
+    const a = document.getElementById(kind + '-reg-cap-a');
+    return { captcha_token: _captchaTok[kind] || '', captcha_answer: a ? a.value.trim() : '' };
+}
+
 function authTab(tab) {
     const isLogin = tab === 'login';
+    if (!isLogin) loadCaptcha('main');
     document.getElementById('auth-login-form').classList.toggle('hidden', !isLogin);
     document.getElementById('auth-register-form').classList.toggle('hidden', isLogin);
     document.getElementById('auth-tab-login').className = `flex-1 py-2.5 rounded-xl text-sm font-bold transition ${isLogin ? 'bg-white shadow-sm text-brand-600' : 'text-gray-500'}`;
@@ -944,10 +967,11 @@ async function mainRegister() {
     if (u.length < 3) { showToast('نام کاربری حداقل ۳ کاراکتر باشد'); return; }
     if (p.length < 6) { showToast('رمز عبور حداقل ۶ کاراکتر باشد'); return; }
     if (p !== p2) { showToast('رمز عبور و تکرار آن یکسان نیستند'); return; }
+    if (!_captchaFields('main').captcha_answer) { showToast('به سؤال امنیتی پاسخ دهید'); return; }
     const btn = document.getElementById('main-reg-btn');
     btn.disabled = true; btn.textContent = 'در حال ثبت‌نام...';
     try {
-        const r = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
+        const r = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p, ..._captchaFields('main')}) });
         const d = await r.json();
         if (r.ok && d.success) {
             qaUser = { id: d.id, username: d.username, token: d.token };
@@ -956,8 +980,8 @@ async function mainRegister() {
             showToast('ثبت‌نام با موفقیت انجام شد');
             startNotifPolling();
             afterLoginPush();
-        } else { showToast(d.error || 'خطا در ثبت‌نام'); }
-    } catch(e) { showToast('خطا در اتصال به سرور'); }
+        } else { showToast(d.error || 'خطا در ثبت‌نام'); loadCaptcha('main'); }   // هر توکن یک‌بارمصرف است
+    } catch(e) { showToast('خطا در اتصال به سرور'); loadCaptcha('main'); }
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-user-plus ml-2"></i>ایجاد حساب کاربری';
 }
 
@@ -1028,6 +1052,7 @@ function qaAuthTab(tab) {
     regForm.classList.toggle('hidden', isLogin); regForm.classList.toggle('flex', !isLogin);
     document.getElementById('qa-tab-login').className = `flex-1 py-2 rounded-lg text-sm font-bold transition ${isLogin ? 'bg-white shadow-sm text-brand-600' : 'text-gray-500'}`;
     document.getElementById('qa-tab-register').className = `flex-1 py-2 rounded-lg text-sm font-bold transition ${!isLogin ? 'bg-white shadow-sm text-brand-600' : 'text-gray-500'}`;
+    if (!isLogin) loadCaptcha('qa');
 }
 async function qaLogin() {
     const u = document.getElementById('qa-login-username').value.trim();
@@ -1052,16 +1077,17 @@ async function qaRegister() {
     const p2 = document.getElementById('qa-reg-password2').value;
     if (!u || !p) { showToast('نام کاربری و رمز عبور را وارد کنید'); return; }
     if (p !== p2) { showToast('رمز عبور و تکرار آن یکسان نیستند'); return; }
+    if (!_captchaFields('qa').captcha_answer) { showToast('به سؤال امنیتی پاسخ دهید'); return; }
     try {
-        const r = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
+        const r = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p, ..._captchaFields('qa')}) });
         const d = await r.json();
         if (r.ok && d.success) {
             document.getElementById('qa-login-username').value = u;
             document.getElementById('qa-login-password').value = p;
             qaAuthTab('login');
             await qaLogin();
-        } else { showToast(d.error || 'خطا در ثبت‌نام'); }
-    } catch(e) { showToast('خطا در اتصال به سرور'); }
+        } else { showToast(d.error || 'خطا در ثبت‌نام'); loadCaptcha('qa'); }
+    } catch(e) { showToast('خطا در اتصال به سرور'); loadCaptcha('qa'); }
 }
 function qaLogout() {
     const headers = userAuthHeaders();

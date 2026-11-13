@@ -83,10 +83,21 @@ async function startServer() {
 
 // --- ورود/ثبت‌نام: فقط همین‌جا تغییر کنند (ادمین چندحسابی، کپچا و ...) ---
 
+// کپچا را می‌گیرد و جمع را از متن سؤال حل می‌کند
+const _latin = t => String(t).replace(/[۰-۹]/g, c => c.charCodeAt(0) - 0x06F0);
+async function solveCaptcha(srv) {
+  const c = await srv.api('GET', '/api/auth/captcha');
+  if (c.status !== 200) throw new Error('captcha failed: ' + c.status);
+  const m = _latin(c.body.question).match(/(\d+)\s*\+\s*(\d+)/);
+  if (!m) throw new Error('bad captcha question: ' + c.body.question);
+  return { captcha_token: c.body.token, captcha_answer: String(+m[1] + +m[2]) };
+}
+
 let _seq = 0;
 async function registerUser(srv, username, password = 'pass-123456') {
   username = username || `user${process.pid}x${++_seq}`;
-  const r = await srv.api('POST', '/api/auth/register', { json: { username, password } });
+  const cap = await solveCaptcha(srv);
+  const r = await srv.api('POST', '/api/auth/register', { json: { username, password, ...cap } });
   if (r.status !== 200) throw new Error('register failed: ' + r.status + ' ' + r.text);
   return { id: r.body.id, username, password, token: r.body.token };
 }
@@ -95,14 +106,20 @@ async function loginUser(srv, username, password) {
   return srv.api('POST', '/api/auth/login', { json: { username, password } });
 }
 
-// کوکی ادمین را به شکل 'admin_token=...' برمی‌گرداند
-async function adminLogin(srv, password = ADMIN_PASSWORD) {
-  const r = await srv.api('POST', '/api/admin/login', { json: { password } });
-  if (r.status !== 200) throw new Error('admin login failed: ' + r.status + ' ' + r.text);
+// کوکی ادمین ('admin_token=...') را از پاسخ درمی‌آورد
+function adminCookieOf(r) {
   const sc = r.headers.getSetCookie ? r.headers.getSetCookie() : [r.headers.get('set-cookie')];
   const c = sc.find(x => x && x.startsWith('admin_token='));
-  if (!c) throw new Error('no admin cookie');
-  return c.split(';')[0];
+  return c ? c.split(';')[0] : null;
 }
 
-module.exports = { startServer, registerUser, loginUser, adminLogin, ADMIN_PASSWORD, ROOT };
+// کوکی ادمین را به شکل 'admin_token=...' برمی‌گرداند
+async function adminLogin(srv, password = ADMIN_PASSWORD, username = 'admin') {
+  const r = await srv.api('POST', '/api/admin/login', { json: { username, password } });
+  if (r.status !== 200) throw new Error('admin login failed: ' + r.status + ' ' + r.text);
+  const c = adminCookieOf(r);
+  if (!c) throw new Error('no admin cookie');
+  return c;
+}
+
+module.exports = { startServer, registerUser, loginUser, adminLogin, adminCookieOf, solveCaptcha, ADMIN_PASSWORD, JWT_SECRET, ROOT };

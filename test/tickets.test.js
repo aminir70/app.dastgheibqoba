@@ -4,7 +4,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startServer, registerUser, ROOT } = require('./helpers');
+const { startServer, registerUser, adminLogin, ROOT } = require('./helpers');
 
 let srv, A, B;
 const created = [];   // فایل‌های آپلودشده که باید پاک شوند
@@ -14,7 +14,7 @@ before(async () => {
   B = await registerUser(srv);
 });
 after(async () => {
-  // هیچ API‌ای فایل پیوست را پاک نمی‌کند؛ مستقیم حذف می‌شود
+  // فایل‌هایی که تیکتشان در تست حذف نشده (یا تست نیمه‌کاره مانده) مستقیم پاک می‌شوند
   for (const f of created) { try { fs.rmSync(f, { force: true }); } catch (e) { /* ignore */ } }
   if (srv) await srv.stop();
 });
@@ -83,4 +83,40 @@ test('آپلود html رد می‌شود', async () => {
   for (const f of fs.readdirSync(path.join(ROOT, 'public', 'ticket-files'))) {
     if (!before.has(f)) { created.push(path.join(ROOT, 'public', 'ticket-files', f)); assert.fail('فایل نباید ذخیره می‌شد: ' + f); }
   }
+});
+
+// مسیر فایل پیوست یک تیکت روی دیسک
+async function attachedFile(token, id) {
+  const m = await srv.api('GET', `/api/tickets/${id}/messages`, { token });
+  const att = m.body.find(x => x.attachment);
+  const fp = path.join(ROOT, 'public', 'ticket-files', att.attachment.split('?')[0].split('/').pop());
+  created.push(fp);
+  return fp;
+}
+
+test('حذف تیکت توسط کاربر: فایل پیوست هم پاک می‌شود', async () => {
+  const c = await srv.api('POST', '/api/tickets', { token: A.token, form: ticketForm({ data: PNG, type: 'image/png', name: 'a.png' }) });
+  assert.equal(c.status, 200);
+  const fp = await attachedFile(A.token, c.body.ticket_id);
+  assert.ok(fs.existsSync(fp));
+  const d = await srv.api('DELETE', `/api/tickets/${c.body.ticket_id}`, { token: A.token });
+  assert.equal(d.status, 200);
+  assert.ok(!fs.existsSync(fp), 'فایل باید حذف شده باشد');
+  assert.equal((await srv.api('GET', `/api/tickets/${c.body.ticket_id}`, { token: A.token })).status, 404);
+});
+
+test('حذف کاربر توسط ادمین: تیکت‌ها، پیام‌ها و پیوست‌ها پاک می‌شوند', async () => {
+  const cookie = await adminLogin(srv);
+  const C = await registerUser(srv);
+  const c = await srv.api('POST', '/api/tickets', { token: C.token, form: ticketForm({ data: PNG, type: 'image/png', name: 'c.png' }) });
+  const id = c.body.ticket_id;
+  const fp = await attachedFile(C.token, id);
+  assert.ok(fs.existsSync(fp));
+  const d = await srv.api('DELETE', `/api/admin/users/${C.id}`, { cookie });
+  assert.equal(d.status, 200);
+  assert.ok(!fs.existsSync(fp), 'فایل باید حذف شده باشد');
+  const list = await srv.api('GET', '/api/admin/tickets', { cookie });
+  assert.ok(!list.body.some(t => t.id === id), 'تیکت باید پاک شده باشد');
+  const msgs = await srv.api('GET', `/api/admin/tickets/${id}/messages`, { cookie });
+  assert.deepEqual(msgs.body, [], 'پیام‌های تیکت باید پاک شده باشند');
 });

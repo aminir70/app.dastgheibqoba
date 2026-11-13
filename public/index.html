@@ -182,6 +182,14 @@
                                 <input id="main-reg-password2" type="password" autocomplete="new-password" class="auth-input w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-2xl p-4 pr-10 outline-none" placeholder="رمز عبور را دوباره وارد کنید">
                             </div>
                         </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-600 mb-2">سؤال امنیتی</label>
+                            <div class="flex items-center gap-2">
+                                <span id="main-reg-cap-q" class="shrink-0 bg-gray-50 border border-gray-200 text-gray-800 font-bold text-sm rounded-2xl p-4 text-center" style="min-width:7rem">…</span>
+                                <input id="main-reg-cap-a" type="text" inputmode="numeric" autocomplete="off" maxlength="3" class="auth-input w-full bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-2xl p-4 outline-none text-center" style="min-width:0" placeholder="پاسخ" onkeydown="if(event.key==='Enter')mainRegister()">
+                                <button type="button" onclick="loadCaptcha('main')" aria-label="سؤال جدید" title="سؤال جدید" class="shrink-0 w-12 h-12 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-2xl text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-rotate-right"></i></button>
+                            </div>
+                        </div>
                         <button onclick="mainRegister()" id="main-reg-btn" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl text-sm px-5 py-4 transition-colors shadow-lg shadow-brand-500/25 active:scale-[0.98]">
                             <i class="fas fa-user-plus ml-2"></i>ایجاد حساب کاربری
                         </button>
@@ -784,6 +792,11 @@
                         <input type="text" id="qa-reg-username" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="نام کاربری">
                         <input type="password" id="qa-reg-password" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="رمز عبور">
                         <input type="password" id="qa-reg-password2" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500" placeholder="تکرار رمز عبور">
+                        <div class="flex items-center gap-2">
+                            <span id="qa-reg-cap-q" class="shrink-0 bg-white border border-gray-200 text-gray-800 font-bold text-sm rounded-xl px-3 py-3 text-center" style="min-width:6.5rem">…</span>
+                            <input type="text" id="qa-reg-cap-a" inputmode="numeric" autocomplete="off" maxlength="3" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-500 text-center" style="min-width:0" placeholder="پاسخ سؤال" onkeydown="if(event.key==='Enter')qaRegister()">
+                            <button type="button" onclick="loadCaptcha('qa')" aria-label="سؤال جدید" title="سؤال جدید" class="shrink-0 w-11 h-11 flex items-center justify-center bg-white border border-gray-200 rounded-xl text-gray-500"><i class="fas fa-rotate-right"></i></button>
+                        </div>
                         <button onclick="qaRegister()" class="w-full bg-brand-600 text-white font-bold py-3 rounded-xl text-sm"><i class="fas fa-user-plus ml-2"></i>ثبت‌نام</button>
                     </div>
                 </div>
@@ -1386,14 +1399,14 @@
   <div id="global-search-results" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
 </div>
 
-<script src="/js/dist/utils.min.js?v=62"></script>
-<script src="/js/dist/offline.min.js?v=62"></script>
-<script src="/js/dist/books.min.js?v=62"></script>
-<script src="/js/dist/lectures.min.js?v=62"></script>
-<script src="/js/dist/media.min.js?v=62"></script>
-<script src="/js/dist/news.min.js?v=62"></script>
-<script src="/js/dist/aichat.min.js?v=62"></script>
-<script src="/js/dist/app.min.js?v=62"></script>
+<script src="/js/dist/utils.min.js?v=63"></script>
+<script src="/js/dist/offline.min.js?v=63"></script>
+<script src="/js/dist/books.min.js?v=63"></script>
+<script src="/js/dist/lectures.min.js?v=63"></script>
+<script src="/js/dist/media.min.js?v=63"></script>
+<script src="/js/dist/news.min.js?v=63"></script>
+<script src="/js/dist/aichat.min.js?v=63"></script>
+<script src="/js/dist/app.min.js?v=63"></script>
 
 <!-- PWA Install Modal -->
 <div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" onclick="closePwaModal()">

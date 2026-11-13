@@ -119,7 +119,8 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 ### کاربر (JWT Bearer token)
 | Route | توضیح |
 |-------|-------|
-| `POST /api/auth/register` | ثبت‌نام — برمی‌گرداند `{id, username, token}` |
+| `GET /api/auth/captcha` | سؤال امنیتی ثبت‌نام → `{question, token}` (عمومی) |
+| `POST /api/auth/register` | ثبت‌نام (با `captcha_token` و `captcha_answer`) — برمی‌گرداند `{id, username, token}` |
 | `POST /api/auth/login` | ورود — برمی‌گرداند `{id, username, token}` |
 | `GET /api/tickets` | تیکت‌های کاربر |
 | `POST /api/tickets` | ایجاد تیکت |
@@ -133,15 +134,26 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 
 احراز هویت کاربر: header `Authorization: Bearer <token>` (JWT)
 
+- **کپچای ثبت‌نام:** جمع دو عدد ۱–۹ با متن فارسی («۷ + ۵ = ؟»). توکن بدون حالت است:
+  `base64url({n,e})` + `.` + HMAC-SHA256 روی `nonce|exp|answer` با کلید `'captcha:'+JWT_SECRET`؛
+  ۵ دقیقه اعتبار، هر nonce یک‌بار (تلاش غلط هم آن را می‌سوزاند). خطا: 400
+  `{error, captcha:true}`؛ پیش از هش رمز بررسی می‌شود. کلاینت: `loadCaptcha('main'|'qa')`
+  (app.js) — فقط در حالت ثبت‌نام، و بعد از هر تلاش ناموفق سؤال تازه می‌گیرد.
+- **`users.token_version`:** توکن کاربر claim `tv` دارد؛ `userAuth` اگر با مقدار فعلی فرق کند
+  401 می‌دهد (کش ۶۰ثانیه‌ای `_userExistsCache` نسخه را هم نگه می‌دارد؛ با تغییر پاک شود).
+
 ### ادمین (httpOnly cookie)
 - مدیریت کامل کتاب، صوت، ویدیو، گالری، بنر، اسلایدر
 - مدیریت کاربران و تیکت‌ها
 - تنظیمات سایت و برندینگ
-  (تب «تنظیمات» زیربخش دارد: عمومی، آیکن‌های خانه، لینک‌های خانه، نوار پایین —
+  (تب «تنظیمات» زیربخش دارد: عمومی، آیکن‌های خانه، لینک‌های خانه، نوار پایین، مدیران —
   `switchSettingsPane(pane)`؛ `switchTab('shortcuts'|'linkshortcuts'|'navitems')` هم به همان‌جا می‌رود)
-- `POST /api/admin/login` — ورود ادمین (کوکی `admin_token` ست می‌شود)
+- `POST /api/admin/login` `{username, password}` — ورود ادمین (کوکی `admin_token` ست می‌شود؛ نام خالی = `admin`)
 - `POST /api/admin/logout` — خروج (کوکی پاک می‌شود)
-- `GET /api/admin/auth-check` — بررسی وضعیت session
+- `GET /api/admin/auth-check` — بررسی وضعیت session → `{ok, username, role}`
+- `POST /api/admin/users/:id/password` `{password?}` (۶–۲۰۰ کاراکتر؛ بدون آن رمز تصادفی
+  ۸حرفی) — بازنشانی رمز کاربر؛ `token_version` بالا می‌رود (کاربر همه‌جا خارج می‌شود) و
+  `{success, password}` برمی‌گردد. رابط: تب کاربران ← «بازنشانی رمز».
 - `GET|POST|DELETE /api/admin/assetlinks` — محتوای `/.well-known/assetlinks.json`
   (اتصال اپ اندروید TWA). در جدول `settings` (کلید `assetlinks`) ذخیره می‌شود و بر
   فایل `public/.well-known/assetlinks.json` (داخل git) اولویت دارد؛ حذف مقدار، به
@@ -158,8 +170,33 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 > پیوست‌های تیکت زیر `public/ticket-files/` ذخیره می‌شوند ولی مسیر استاتیک
 > بسته است؛ دریافت فقط از `GET /api/ticket-files/:name?t=<امضا>` که هنگام
 > خواندن پیام‌ها (با احراز هویت) تولید می‌شود و ۶ ساعت اعتبار دارد.
+> با حذف تیکت (کاربر) یا حذف کاربر (ادمین) فایل‌های پیوست هم پاک می‌شوند
+> (`_unlinkTicketFiles`).
 
 احراز هویت ادمین: httpOnly cookie `admin_token` (JWT) — نه header
+
+### حساب‌های ادمین (جدول `admins`)
+- هر مدیر حساب خودش را دارد: `username` (یکتا، NOCASE)، `password` (bcrypt)، `role`
+  (`owner` | `admin`)، `disabled`، `token_version`. اگر جدول خالی باشد هنگام راه‌اندازی حساب
+  `admin` (owner) با رمز `ADMIN_PASSWORD` ساخته می‌شود. بازیابی: `ADMIN_PASSWORD_RESET=1` رمز
+  حساب `admin` را برابر `ADMIN_PASSWORD` می‌کند (فعال و owner؛ اگر نباشد ساخته می‌شود).
+- توکن: `kind:'admin'` + `aid`، `username`، `arole`، `tv`، `jti`. نقش عمداً `arole` نام دارد نه
+  `role`: چت‌بات (`chatbot/backend/app/auth.py`) با همین `JWT_SECRET` هر توکنِ `role=='admin'` را
+  مدیر خودش می‌داند. `adminAuth` بعد از denylist خروج، حساب را می‌خواند (کش ۶۰ ثانیه
+  `_adminCache`؛ با هر تغییر همان حساب `_adminCacheDel(id)`) و اگر حساب نباشد، غیرفعال باشد یا
+  `token_version` با `tv` نخواند 401 می‌دهد. `req.admin = {id, username, role}`.
+- همهٔ مدیران: `GET /api/admin/me`، `POST /api/admin/me/password` `{current, new}` (رمز فعلی غلط
+  → 400 نه 401؛ نشست‌های دیگر باطل می‌شوند و همین نشست کوکی تازه می‌گیرد).
+- فقط owner (`ownerOnly`؛ بقیه 403): `GET|POST /api/admin/admins`،
+  `PUT /api/admin/admins/:id` `{password?, role?, disabled?}`، `DELETE /api/admin/admins/:id`،
+  `GET /api/admin/audit?limit=200` (حداکثر ۵۰۰). همیشه دست‌کم یک owner فعال می‌ماند؛ owner
+  نمی‌تواند خودش را حذف یا غیرفعال کند. هر تغییر رمز/نقش/وضعیت `token_version` را بالا می‌برد
+  (نشست‌های آن حساب بسته می‌شود).
+- سابقهٔ کارها (`admin_audit`): هر درخواست غیر GET به `/api/admin/*` با نشست معتبر (هنگام پایان
+  پاسخ؛ مسیر بدون query؛ بدنه هرگز) + هر تلاش ورود (موفق و ناموفق). ردیف‌های قدیمی‌تر از ۱۸۰ روز
+  هنگام راه‌اندازی و روزی یک‌بار پاک می‌شوند.
+- رابط: پنل ← تنظیمات ← «مدیران» (`initAdminsPane`): «تغییر رمز من» برای همه؛ فهرست مدیران،
+  «افزودن مدیر» و «سابقهٔ کارها» فقط برای owner (`#admins-owner-only`).
 
 ---
 
@@ -177,7 +214,9 @@ video_categories   — دسته‌بندی ویدیو
 video_items        — ویدیوها (embed_url، publish_date: 'YYYY/MM/DD')
 gallery_categories — دسته‌بندی گالری
 gallery_photos     — تصاویر گالری
-users              — کاربران (password: bcrypt)
+users              — کاربران (password: bcrypt، token_version)
+admins             — حساب‌های ادمین (role: owner | admin)
+admin_audit        — سابقهٔ کارهای ادمین (۱۸۰ روز)
 tickets            — تیکت‌های پشتیبانی
 ticket_messages    — پیام‌های تیکت
 notifications      — اعلان‌های broadcast
@@ -297,7 +336,8 @@ npm run build          # معادل node build.js
 ```env
 NODE_ENV=production
 PORT=3000
-ADMIN_PASSWORD=...
+ADMIN_PASSWORD=...          # رمز اولین حساب پنل (admin)
+# ADMIN_PASSWORD_RESET=1    # بازیابی رمز حساب admin (بعد بردارید)
 ALLOWED_ORIGINS=https://app.dastgheibqoba.info
 JWT_SECRET=...
 ```
@@ -311,10 +351,10 @@ JWT_SECRET=...
 - **toFa():** برای نمایش اعداد فارسی در UI از این تابع استفاده شود.
 - **PDF:** کتاب‌های PDF در تب جدید باز می‌شوند (`openPdfBook`)؛ PDF.js در اپ نیست.
 - **شروع اپ (`init` در app.js):** تنظیمات، نوار پایین و کتاب‌ها هم‌زمان گرفته می‌شوند و اسپلش فقط منتظر همین سه می‌ماند؛ `sharedJson(url)` (books.js) درخواست‌های هم‌زمانِ یک نشانی را یکی می‌کند.
-- **سقف درخواست‌ها (server.js):** API ۶۰۰۰/۱۵دقیقه، جستجو ۹۰/دقیقه، ورود ۳۰/۱۵دقیقه (فقط ناموفق‌ها)، ثبت‌نام ۱۰/ساعت — چون کاربران موبایل پشت IP مشترک‌اند. بدنهٔ درخواست بیرون از `/api/admin` حداکثر ۱ مگابایت.
+- **سقف درخواست‌ها (server.js):** API ۶۰۰۰/۱۵دقیقه، جستجو ۹۰/دقیقه، ورود ۳۰/۱۵دقیقه (فقط ناموفق‌ها)، ورود ادمین و «تغییر رمز من» ۱۰ ناموفق/۱۵دقیقه، ثبت‌نام ۱۰/ساعت — چون کاربران موبایل پشت IP مشترک‌اند. بدنهٔ درخواست بیرون از `/api/admin` حداکثر ۱ مگابایت.
 - **WordPress proxy:** هیچ‌گاه مستقیم به `dastgheibqoba.info` درخواست نزنید؛ همیشه از `/api/wp?path=...` استفاده شود.
-- **ادمین:** احراز هویت با httpOnly cookie `admin_token` (JWT) — نه header.
-- **کاربر:** احراز هویت با `Authorization: Bearer <token>` header (JWT) — نه `x-user-id`.
+- **ادمین:** احراز هویت با httpOnly cookie `admin_token` (JWT) — نه header. هر مدیر حساب جدا دارد (جدول `admins`).
+- **کاربر:** احراز هویت با `Authorization: Bearer <token>` header (JWT) — نه `x-user-id`. ثبت‌نام کپچا می‌خواهد.
 
 ---
 
