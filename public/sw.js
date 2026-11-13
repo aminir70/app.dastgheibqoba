@@ -1,7 +1,17 @@
 // Service Worker - مرکز نشر آثار
-const CACHE_NAME = 'nashr-asar-v56';
-const STATIC_CACHE = 'nashr-static-v56';
-const DYNAMIC_CACHE = 'nashr-dynamic-v56';
+const CACHE_NAME = 'nashr-asar-v57';
+const STATIC_CACHE = 'nashr-static-v57';
+const DYNAMIC_CACHE = 'nashr-dynamic-v57';
+// کش جدای تصاویر (بین نسخه‌ها پاک نمی‌شود) با سقف تعداد
+const IMG_CACHE = 'nashr-img-v1';
+const IMG_CACHE_MAX = 300;
+
+// قدیمی‌ترین ورودی‌ها را (ترتیب درج در keys) تا رسیدن به سقف حذف می‌کند
+async function trimCache(name, max) {
+  const cache = await caches.open(name);
+  const keys = await cache.keys();
+  for (let i = 0; i < keys.length - max; i++) await cache.delete(keys[i]);
+}
 
 // صفحه اصلی و فقط فونت‌های لازم بازدید اول را pre-cache می‌کنیم (بقیهٔ فونت‌ها با قاعدهٔ cache-first هنگام اولین استفاده کش می‌شوند)
 // فایل‌های JS/CSS با استراتژی network-first بارگذاری می‌شوند (همیشه به‌روز)
@@ -40,7 +50,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    const stale = keys.filter(key => key !== STATIC_CACHE && key !== DYNAMIC_CACHE);
+    const stale = keys.filter(key => key !== STATIC_CACHE && key !== DYNAMIC_CACHE && key !== IMG_CACHE);
     await Promise.all(stale.map(key => caches.delete(key)));
     const isUpgrade = stale.length > 0;
     await self.clients.claim();
@@ -121,8 +131,28 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // فونت‌ها و فایل‌های باینری — cache first (تغییر نمی‌کنند)
-  if (url.pathname.match(/\.(woff|woff2|ttf|png|jpg|jpeg|gif|svg|ico)$/)) {
+  // تصاویر — cache first در کش جدا با سقف تعداد
+  if (url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico)$/)) {
+    event.respondWith(
+      caches.match(event.request).then(cached => {
+        if (cached) return cached;
+        return fetch(event.request).then(response => {
+          if (response && response.ok) {
+            const clone = response.clone();
+            event.waitUntil(
+              caches.open(IMG_CACHE).then(cache => cache.put(event.request, clone))
+                .then(() => trimCache(IMG_CACHE, IMG_CACHE_MAX)).catch(() => {})
+            );
+          }
+          return response;
+        }).catch(() => offlineResponse('asset offline'));
+      })
+    );
+    return;
+  }
+
+  // فونت‌ها — cache first (تغییر نمی‌کنند)
+  if (url.pathname.match(/\.(woff|woff2|ttf)$/)) {
     event.respondWith(
       caches.match(event.request).then(cached => {
         if (cached) return cached;

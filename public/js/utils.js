@@ -29,6 +29,16 @@ window.escHtml = escHtml;
 window.safeUrl = safeUrl;
 window.jsArg = jsArg;
 
+// بلوک خطای دریافت با دکمهٔ «تلاش دوباره». retryExpr عبارت JS داخل onclick است
+// (آرگومان‌های رشته‌ای را با jsArg بسازید)؛ extraCls برای کلاس‌های چیدمان والد.
+function loadErrorHtml(retryExpr, message, extraCls) {
+    return '<div class="' + (extraCls ? extraCls + ' ' : '') + 'flex flex-col items-center justify-center py-12 text-gray-400">' +
+        '<i class="fas fa-wifi text-4xl mb-3 opacity-50"></i>' +
+        '<p class="text-sm font-bold">' + escHtml(message || 'دریافت اطلاعات ممکن نشد') + '</p>' +
+        '<button type="button" onclick="' + retryExpr + '" class="mt-4 bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold shadow-sm">تلاش دوباره</button></div>';
+}
+window.loadErrorHtml = loadErrorHtml;
+
 // ====================================================
 // بررسی بارگذاری استایل‌ها هنگام لود
 //

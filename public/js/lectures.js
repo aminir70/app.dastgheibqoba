@@ -120,7 +120,7 @@ async function fetchWPCategories() {
         else if (!cached) showWPMainCategories();
     } catch (e) {
         if (allWPCats.length) return;   // نسخهٔ حافظه نمایش داده شده — همان بماند
-        catView.innerHTML = `<div class="col-span-2 flex flex-col items-center justify-center py-12 text-gray-400"><i class="fas fa-wifi text-4xl mb-3 opacity-50"></i><p class="text-sm font-bold">خطا در دریافت اطلاعات</p><button onclick="fetchWPCategories()" class="mt-4 bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold shadow-sm">تلاش مجدد</button></div>`;
+        catView.innerHTML = loadErrorHtml('fetchWPCategories()', 'خطا در دریافت اطلاعات', 'col-span-2');
     } finally { setWPLoading(false); }
 }
 
@@ -239,7 +239,7 @@ async function showWPPostsView(catId, catName) {
             if (stillHere()) show(allPosts);
         }
     } catch (e) {
-        postsView.innerHTML = `<div class="flex flex-col items-center justify-center py-12 text-gray-400"><p class="text-sm font-bold">خطا در دریافت نوشته‌ها</p><button onclick="showWPPostsView(${catId}, '${catName}')" class="mt-4 bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold shadow-sm">تلاش مجدد</button></div>`;
+        postsView.innerHTML = loadErrorHtml('showWPPostsView(' + catId + ', ' + jsArg(catName) + ')', 'خطا در دریافت نوشته‌ها');
     }
     setWPLoading(false);
 }

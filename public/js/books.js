@@ -597,6 +597,8 @@ async function applySiteSettings() {
 }
 
 function openSettings() {
+    // پیش‌نمایش قلم شبنم فقط با باز شدن پنل اعمال می‌شود (تا فونت بی‌دلیل دانلود نشود)
+    document.querySelectorAll('#settings-modal [data-pvfont]').forEach(b => b.classList.add(b.dataset.pvfont));
     document.getElementById('settings-overlay').classList.remove('hidden');
     setTimeout(() => { document.getElementById('settings-overlay').style.opacity = '1'; }, 10);
     document.getElementById('settings-modal').style.transform = 'translateY(0)';

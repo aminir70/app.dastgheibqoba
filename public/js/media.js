@@ -7,6 +7,15 @@
 // ====================================================
 window._mfTmp = {}; // ذخیره موقت آیتم‌ها برای toggle
 
+// JSON با بررسی وضعیت (پاسخ غیر OK خطا می‌دهد تا بلوک «تلاش دوباره» نشان داده شود)
+async function _apiJson(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(url + ' ' + r.status);
+    return r.json();
+}
+// آرگومان parentId برای عبارت retry (null یا عدد)
+const _pidArg = (v) => v == null ? 'null' : Number(v);
+
 function _getFavs() {
     try { return JSON.parse(localStorage.getItem('_mediaFavs') || '{"audio":[],"video":[]}'); }
     catch(e) { return {audio:[], video:[]}; }
@@ -385,10 +394,7 @@ async function performMediaSearch(q) {
             fetch('/api/videos/search?q=' + encodeURIComponent(q)).then(safeJson).catch(e => { console.warn('video search failed', e); return null; })
         ]);
         if (audioRes === null && videoRes === null) {
-            results.innerHTML = `<div class="flex flex-col items-center py-14 text-amber-500 gap-3 w-full">
-                <i class="fas fa-exclamation-triangle text-4xl opacity-50"></i>
-                <p class="text-sm font-bold">سرور در دسترس نیست — لطفاً بعد از ری‌استارت سرور دوباره تلاش کنید</p>
-            </div>`;
+            results.innerHTML = loadErrorHtml('performMediaSearch(' + jsArg(q) + ')', 'جستجو ممکن نشد', 'w-full');
             return;
         }
         const aItems = Array.isArray(audioRes) ? audioRes : [];
@@ -450,7 +456,7 @@ async function performMediaSearch(q) {
         }
         results.innerHTML = html;
     } catch(e) {
-        results.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs font-bold w-full">خطا در جستجو</div>';
+        results.innerHTML = loadErrorHtml('performMediaSearch(' + jsArg(q) + ')', 'خطا در جستجو', 'w-full');
     }
 }
 
@@ -478,8 +484,7 @@ async function initLiveScreen() {
     c.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-gray-500 gap-3"><i class="fas fa-satellite-dish text-4xl opacity-30 animate-pulse"></i><p class="text-sm font-bold opacity-50">در حال بارگذاری...</p></div>`;
     _applyLivePageContent(null);
     try {
-        const r = await fetch('/api/settings');
-        const s = await r.json();
+        const s = await sharedJson('/api/settings');
         const embedRaw = (s.live_embed || '').trim();
         const active = s.live_active === '1';
         _applyLivePageContent(s);
@@ -546,8 +551,7 @@ async function loadVideoCategories(parentId, parentName) {
 
     try {
         const url = parentId != null ? `/api/videos/categories?parent_id=${parentId}` : '/api/videos/categories';
-        const res = await fetch(url);
-        const cats = await res.json();
+        const cats = await sharedJson(url);
         _videoCatsLoaded = true;
 
         view.className = _viewClasses('cats') + ' w-full';
@@ -589,7 +593,7 @@ async function loadVideoCategories(parentId, parentName) {
             view.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 gap-4"><i class="fas fa-film text-5xl opacity-20"></i><p class="text-sm font-bold opacity-50">دسته‌بندی‌ای وجود ندارد</p></div>`;
         }
     } catch(e) {
-        if(view) view.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-exclamation-circle text-3xl opacity-30 mb-3"></i><p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p><button onclick="_videoCatsLoaded=false;initVideoGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button></div>`;
+        if(view) view.innerHTML = loadErrorHtml('loadVideoCategories(' + _pidArg(parentId) + ', ' + jsArg(parentName) + ')', 'خطا در بارگذاری', 'col-span-full');
     } finally { setMediaLoading(false); }
 }
 
@@ -624,8 +628,7 @@ async function loadVideoList(categoryId, title, count) {
 
     try {
         const sortParam = _videoSort === 'date' ? '?sort=date' : '';
-        const res = await fetch(`/api/videos/categories/${categoryId}/items${sortParam}`);
-        const items = await res.json();
+        const items = await _apiJson(`/api/videos/categories/${categoryId}/items${sortParam}`);
         videoCachedItems = items;
 
         if(items && items.length > 0) {
@@ -637,7 +640,7 @@ async function loadVideoList(categoryId, title, count) {
             </div>`;
         }
     } catch(e) {
-        if(list) list.innerHTML = `<div class="text-center py-10 text-gray-400 text-xs">خطا در بارگذاری</div>`;
+        if(list) list.innerHTML = loadErrorHtml('loadVideoList(' + Number(categoryId) + ', ' + jsArg(title) + ', ' + (Number(count) || 0) + ')', 'خطا در بارگذاری');
     } finally { setMediaLoading(false); }
 }
 
@@ -961,8 +964,7 @@ async function loadGalleryCategories(parentId, parentName) {
 
     try {
         const url = parentId != null ? `/api/gallery/categories?parent_id=${parentId}` : '/api/gallery/categories';
-        const res = await fetch(url);
-        const cats = await res.json();
+        const cats = await _apiJson(url);
         _galleryCatsLoaded = true;
 
         if(cats && cats.length > 0) {
@@ -1011,11 +1013,7 @@ async function loadGalleryCategories(parentId, parentName) {
             } catch(_e) {}
         }
     } catch(e) {
-        if(view) view.innerHTML = `<div class="col-span-2 text-center py-12 text-gray-400">
-            <i class="fas fa-exclamation-circle text-3xl opacity-30 mb-3"></i>
-            <p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p>
-            <button onclick="_galleryCatsLoaded=false;initGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button>
-        </div>`;
+        if(view) view.innerHTML = loadErrorHtml('loadGalleryCategories(' + _pidArg(parentId) + ', ' + jsArg(parentName) + ')', 'خطا در بارگذاری', 'col-span-full');
     } finally { setMediaLoading(false); }
 }
 
@@ -1040,8 +1038,7 @@ async function loadGalleryPhotos(categoryId, title, count) {
     if(grid) grid.innerHTML = '';
 
     try {
-        const res = await fetch(`/api/gallery/categories/${categoryId}/photos`);
-        const photos = await res.json();
+        const photos = await _apiJson(`/api/gallery/categories/${categoryId}/photos`);
         galleryCurrentPhotos = photos;
 
         if(photos && photos.length > 0) {
@@ -1051,7 +1048,7 @@ async function loadGalleryPhotos(categoryId, title, count) {
             grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-gray-400 gap-3"><i class="fas fa-image text-4xl opacity-20"></i><p class="text-xs font-bold opacity-50">هیچ تصویری در این دسته وجود ندارد</p></div>`;
         }
     } catch(e) {
-        if(grid) { grid.className = _viewClasses('photos') + ' w-full'; grid.innerHTML = `<div class="col-span-full text-center py-10 text-gray-400 text-xs">خطا در بارگذاری</div>`; }
+        if(grid) { grid.className = _viewClasses('photos') + ' w-full'; grid.innerHTML = loadErrorHtml('loadGalleryPhotos(' + Number(categoryId) + ', ' + jsArg(title) + ', ' + (Number(count) || 0) + ')', 'خطا در بارگذاری', 'col-span-full'); }
     } finally { setMediaLoading(false); }
 }
 
@@ -1296,8 +1293,7 @@ async function loadAudioCategories(parentId, parentName) {
 
     try {
         const url = parentId != null ? `/api/audio/categories?parent_id=${parentId}` : '/api/audio/categories';
-        const res = await fetch(url);
-        const cats = await res.json();
+        const cats = await sharedJson(url);
         _audioCatsLoaded = true;
 
         view.className = _viewClasses('cats') + ' w-full';
@@ -1331,7 +1327,7 @@ async function loadAudioCategories(parentId, parentName) {
             view.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 gap-4"><i class="fas fa-headphones text-5xl opacity-20"></i><p class="text-sm font-bold opacity-50">دسته‌بندی صوتی وجود ندارد</p></div>`;
         }
     } catch(e) {
-        if(view) view.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400"><i class="fas fa-exclamation-circle text-3xl opacity-30 mb-3"></i><p class="text-sm font-bold opacity-50 mb-3">خطا در بارگذاری</p><button onclick="_audioCatsLoaded=false;initAudioGallery()" class="bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold">تلاش مجدد</button></div>`;
+        if(view) view.innerHTML = loadErrorHtml('loadAudioCategories(' + _pidArg(parentId) + ', ' + jsArg(parentName) + ')', 'خطا در بارگذاری', 'col-span-full');
     } finally { setMediaLoading(false); }
 }
 
@@ -1734,8 +1730,7 @@ async function loadAudioPlaylist(categoryId, title, count) {
 
     try {
         const sortParam = _audioSort === 'date' ? '?sort=date' : '';
-        const res = await fetch(`/api/audio/categories/${categoryId}/tracks${sortParam}`);
-        const tracks = await res.json();
+        const tracks = await _apiJson(`/api/audio/categories/${categoryId}/tracks${sortParam}`);
         audioCurrentTracks = tracks;
 
         if(tracks && tracks.length > 0) {
@@ -1749,7 +1744,7 @@ async function loadAudioPlaylist(categoryId, title, count) {
             </div>`;
         }
     } catch(e) {
-        if(list) list.innerHTML = `<div class="text-center py-10 text-gray-400 text-xs">خطا در بارگذاری</div>`;
+        if(list) list.innerHTML = loadErrorHtml('loadAudioPlaylist(' + Number(categoryId) + ', ' + jsArg(title) + ', ' + (Number(count) || 0) + ')', 'خطا در بارگذاری');
     } finally { setMediaLoading(false); }
 }
 
@@ -1967,7 +1962,7 @@ async function openAudioCatById(catId) {
     // پیدا کردن دسته در لیست رندر شده
     const view = document.getElementById('audio-categories-view');
     if (!view) return;
-    const cats = await fetch('/api/audio/categories').then(r => r.json()).catch(() => []);
+    const cats = await sharedJson('/api/audio/categories').catch(() => []);
     const cat = cats.find(c => c.id === catId);
     if (!cat) return;
     if (cat.sub_count > 0) { audioNavToSub(cat.id, cat.name); }
@@ -1979,7 +1974,7 @@ async function openAudioTrackById(trackId) {
     try {
         const res = await fetch(`/api/audio/track/${trackId}`).catch(() => null);
         // اگر endpoint مستقیم نداشتیم، از همه دسته‌ها جستجو کنیم
-        const cats = await fetch('/api/audio/categories').then(r => r.json()).catch(() => []);
+        const cats = await sharedJson('/api/audio/categories').catch(() => []);
         for (const cat of cats) {
             const tracks = await fetch(`/api/audio/categories/${cat.id}/tracks`).then(r => r.json()).catch(() => []);
             const idx = tracks.findIndex(t => t.id === trackId);
@@ -2000,7 +1995,7 @@ async function openVideoCatById(catId) {
     _videoCatsLoaded = false;
     _videoNavStack = [];
     await initVideoGallery();
-    const cats = await fetch('/api/videos/categories').then(r => r.json()).catch(() => []);
+    const cats = await sharedJson('/api/videos/categories').catch(() => []);
     const cat = cats.find(c => c.id === catId);
     if (!cat) return;
     if (cat.sub_count > 0) { videoNavToSub(cat.id, cat.name); }
@@ -2010,7 +2005,7 @@ async function openVideoCatById(catId) {
 // باز کردن یک ویدیو با ID
 async function openVideoItemById(itemId) {
     try {
-        const cats = await fetch('/api/videos/categories').then(r => r.json()).catch(() => []);
+        const cats = await sharedJson('/api/videos/categories').catch(() => []);
         for (const cat of cats) {
             const items = await fetch(`/api/videos/categories/${cat.id}/items`).then(r => r.json()).catch(() => []);
             const item = items.find(v => v.id === itemId);

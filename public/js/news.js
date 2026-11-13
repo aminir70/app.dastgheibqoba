@@ -62,10 +62,11 @@ async function showNewsAllPosts() {
             ? `posts?categories=${newsCat.id}&_embed=1&per_page=50`
             : `posts?_embed=1&per_page=50`;
         const res = await wpFetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         cachedNewsPosts = await res.json();
         postsView.innerHTML = renderWPPostsList(cachedNewsPosts, 'news');
     } catch(e) {
-        postsView.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm font-bold">خطا در دریافت اطلاعات</div>`;
+        postsView.innerHTML = loadErrorHtml('showNewsAllPosts()');
     }
     setNewsLoading(false);
 }
@@ -100,10 +101,11 @@ async function showNewsPosts(catId, catName) {
     setNewsLoading(true);
     try {
         const res = await wpFetch(`posts?categories=${catId}&_embed=1&per_page=30`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         cachedNewsPosts = await res.json();
         postsView.innerHTML = renderWPPostsList(cachedNewsPosts, 'news');
     } catch(e) {
-        postsView.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm font-bold">خطا در دریافت اطلاعات</div>`;
+        postsView.innerHTML = loadErrorHtml('showNewsPosts(' + Number(catId) + ', ' + jsArg(catName) + ')');
     }
     setNewsLoading(false);
 }
@@ -182,10 +184,11 @@ async function showStatementsAllPosts() {
             ? `posts?categories=${stmtCat.id}&_embed=1&per_page=50`
             : `posts?_embed=1&per_page=50`;
         const res = await wpFetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         cachedStatementsPosts = await res.json();
         postsView.innerHTML = renderWPPostsList(cachedStatementsPosts, 'statements');
     } catch(e) {
-        postsView.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm font-bold">خطا در دریافت اطلاعات</div>`;
+        postsView.innerHTML = loadErrorHtml('showStatementsAllPosts()');
     }
     setStatementsLoading(false);
 }
@@ -220,10 +223,11 @@ async function showStatementsPosts(catId, catName) {
     setStatementsLoading(true);
     try {
         const res = await wpFetch(`posts?categories=${catId}&_embed=1&per_page=30`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         cachedStatementsPosts = await res.json();
         postsView.innerHTML = renderWPPostsList(cachedStatementsPosts, 'statements');
     } catch(e) {
-        postsView.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm font-bold">خطا در دریافت اطلاعات</div>`;
+        postsView.innerHTML = loadErrorHtml('showStatementsPosts(' + Number(catId) + ', ' + jsArg(catName) + ')');
     }
     setStatementsLoading(false);
 }

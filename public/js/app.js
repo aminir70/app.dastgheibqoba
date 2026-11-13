@@ -1305,6 +1305,7 @@ async function renderQATickets() {
     try {
         const res = await fetch('/api/tickets', { headers: userAuthHeaders() });
         if (res.status === 401) { qaLogout(); return; }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const tickets = await res.json();
         qaTickets = Array.isArray(tickets) ? tickets : [];
         if (!qaTickets.length) {
@@ -1337,7 +1338,7 @@ async function renderQATickets() {
             </div>`;
         }).join('');
     } catch(e) {
-        c.innerHTML = `<div class="text-center py-10 text-gray-400 text-sm">خطا در بارگذاری سوالات</div>`;
+        c.innerHTML = loadErrorHtml('renderQATickets()', 'خطا در بارگذاری سوالات');
     }
 }
 
@@ -1574,6 +1575,7 @@ async function loadQAConversationMessages(ticketId) {
             fetch('/api/tickets/' + ticketId + '/messages', { headers: userAuthHeaders() })
         ]);
 
+        if (!msgsRes.ok) throw new Error('HTTP ' + msgsRes.status);
         let ticket = null, msgs = null;
         try { ticket = await ticketRes.json(); } catch(e) {}
         try { msgs = await msgsRes.json(); } catch(e) {}
@@ -1614,7 +1616,7 @@ async function loadQAConversationMessages(ticketId) {
         const replyDiv = document.getElementById('qa-conv-reply');
         if (replyDiv && ticket && ticket.status !== 'closed') replyDiv.classList.remove('hidden');
     } catch(e) {
-        c.innerHTML = `<div class="text-center py-10 text-gray-400 text-sm">خطا در دریافت پیام‌ها</div>`;
+        c.innerHTML = loadErrorHtml('loadQAConversationMessages(' + jsArg(ticketId) + ')', 'خطا در دریافت پیام‌ها');
     }
 }
 
