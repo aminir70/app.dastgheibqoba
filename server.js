@@ -23,6 +23,7 @@ const multer = require('multer');
 const fs = require('fs');
 const crypto = require('crypto');
 let sharp; try { sharp = require('sharp'); } catch(e) { sharp = null; }
+const { optimizeUploadsMiddleware, optimizeImageFile } = require('./lib/image-optimize');
 const bcrypt = require('bcryptjs');
 let mm; try { mm = require('music-metadata'); } catch(e) { mm = null; }
 // برای Node.js < 22 که require() برای ESM کار نمی‌کند از dynamic import استفاده می‌شود
@@ -720,17 +721,25 @@ function _makeFilter(types){
         cb(Object.assign(new Error('نوع فایل مجاز نیست'), { code: 'LIMIT_UNEXPECTED_FILE' }));
     };
 }
+// بعد از هر multer، تصاویر آپلودشده در محل کوچک می‌شوند (single/fields/array → [multer, optimize])
+function withOptimize(m) {
+    return {
+        single: n => [m.single(n), optimizeUploadsMiddleware],
+        fields: f => [m.fields(f), optimizeUploadsMiddleware],
+        array: (n, c) => [m.array(n, c), optimizeUploadsMiddleware],
+    };
+}
 // محدودیت‌ها بر اساس نوع endpoint — حداقل اندازه ممکن
-const uploadImage = multer({ storage, limits:{fileSize:10*1024*1024, files:10}, fileFilter: _makeFilter(['image']) });
+const uploadImage = withOptimize(multer({ storage, limits:{fileSize:10*1024*1024, files:10}, fileFilter: _makeFilter(['image']) }));
 const uploadIconMemory = multer({ storage: multer.memoryStorage(), limits:{fileSize:2*1024*1024, files:1}, fileFilter: _makeFilter(['image']) });
-const uploadAudio = multer({ storage, limits:{fileSize:60*1024*1024, files:5}, fileFilter: _makeFilter(['audio','image']) });
+const uploadAudio = withOptimize(multer({ storage, limits:{fileSize:60*1024*1024, files:5}, fileFilter: _makeFilter(['audio','image']) }));
 // آپلود ترکیبی برای کتاب: جلد(عکس)، فایل دیتابیس sqlite یا pdf — کتاب‌های pdf حجیم هستند
-const upload = multer({ storage, limits:{fileSize:200*1024*1024, files:10}, fileFilter: _makeFilter(['image','pdf','db']) });
+const upload = withOptimize(multer({ storage, limits:{fileSize:200*1024*1024, files:10}, fileFilter: _makeFilter(['image','pdf','db']) }));
 // آپلود پیوست تیکت: عکس، pdf، یا صوت (ویس) حداکثر ۵ مگابایت
-const uploadTicketFile = multer({ storage, limits:{fileSize:5*1024*1024, files:1}, fileFilter: _makeFilter(['image','pdf','audio']) });
+const uploadTicketFile = withOptimize(multer({ storage, limits:{fileSize:5*1024*1024, files:1}, fileFilter: _makeFilter(['image','pdf','audio']) }));
 // پیوست پاسخ ادمین: همان انواع مجاز کاربر ولی سقف بزرگ‌تر، چون پاسخ صوتی
 // ادمین معمولاً طولانی‌تر از ویس کوتاه کاربر است.
-const uploadAdminTicketFile = multer({ storage, limits:{fileSize:25*1024*1024, files:1}, fileFilter: _makeFilter(['image','pdf','audio']) });
+const uploadAdminTicketFile = withOptimize(multer({ storage, limits:{fileSize:25*1024*1024, files:1}, fileFilter: _makeFilter(['image','pdf','audio']) }));
 function genTrackingCode() {
     const d = new Date().toISOString().slice(0,10).replace(/-/g,'');
     // کد رهگیری نباید قابل حدس باشد → crypto به جای Math.random
@@ -3415,6 +3424,7 @@ app.post('/api/admin/audio/tracks',adminAuth,uploadAudio.fields([{name:'audio_fi
                 const coverName=audioFile.filename.replace(/\.[^.]+$/,'')+'-cover.'+ext;
                 const coverPath=path.resolve(__dirname,'public','gallery',coverName);
                 fs.writeFileSync(coverPath,Buffer.from(pic.data));
+                await optimizeImageFile(coverPath,900);
                 cover='/gallery/'+coverName;
             }
         }catch(e){console.warn('ID3 cover extract:',e.message);}

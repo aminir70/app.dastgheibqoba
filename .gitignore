@@ -32,3 +32,6 @@ public/ticket-files/
 
 # رمز ادمین تصادفی تولیدشده
 .admin-password.generated
+
+# نسخهٔ پشتیبان تصاویر اصلی (scripts/optimize-images.js --apply)
+backups/
