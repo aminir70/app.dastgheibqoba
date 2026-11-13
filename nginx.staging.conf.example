@@ -1,0 +1,98 @@
+# ==========================================
+# Nginx Config برای نسخهٔ آزمایشی (staging)
+# ==========================================
+# این فایل را در /etc/nginx/sites-available/nashr-asar-staging قرار دهید
+# سپس: sudo ln -s /etc/nginx/sites-available/nashr-asar-staging /etc/nginx/sites-enabled/
+# و: sudo nginx -t && sudo systemctl reload nginx
+#
+# پیش‌نیاز: رکورد DNS از نوع A برای staging.YOUR_DOMAIN.com به IP سرور.
+#
+# ۱) ساخت فایل رمز basic-auth (یک بار؛ نام کاربری دلخواه، رمز را می‌پرسد):
+#      sudo apt install -y apache2-utils
+#      sudo htpasswd -c /etc/nginx/.htpasswd-staging tester
+#      sudo chmod 640 /etc/nginx/.htpasswd-staging
+#      sudo chgrp www-data /etc/nginx/.htpasswd-staging
+#    (کاربر دوم: همان دستور بدون -c)
+#
+# ۲) گواهی HTTPS (بعد از فعال شدن این سایت و resolve شدن DNS):
+#      sudo certbot --nginx -d staging.YOUR_DOMAIN.com
+#    certbot خودش بلوک 443 و redirect را به همین فایل اضافه می‌کند.
+#
+# توجه: بلوک default_server (درِ بستهٔ IP مستقیم) در nginx.conf.example
+# هست؛ این‌جا تکرارش نکنید وگرنه nginx -t خطای تکراری می‌دهد.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name staging.YOUR_DOMAIN.com;
+
+    # نسخهٔ آزمایشی نباید در گوگل بیاید
+    add_header X-Robots-Tag "noindex, nofollow" always;
+
+    # رمز ورود — کل سایت (از جمله /api و فایل‌ها) پشت آن است
+    auth_basic "Staging";
+    auth_basic_user_file /etc/nginx/.htpasswd-staging;
+
+    # حداکثر حجم آپلود - برای دیتابیس کتاب‌ها تا ۴۱۰ مگابایت
+    client_max_body_size 410M;
+
+    # timeout برای آپلود فایل‌های بزرگ
+    client_body_timeout 300s;
+    proxy_read_timeout 300s;
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 300s;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+
+        # برای آپلود فایل‌های بزرگ
+        proxy_request_buffering off;
+    }
+
+    # API - باید قبل از regex استاتیک بیاید (توضیح کامل در nginx.conf.example):
+    # بدون ^~ ، /api/ticket-files/x.jpg به‌عنوان فایل استاتیک cache می‌شد.
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # برای آپلود فایل‌های بزرگ
+        proxy_request_buffering off;
+    }
+
+    # فایل‌های استاتیک — روی staging cache نمی‌کنیم تا تغییرات فوراً دیده شوند.
+    # (add_header در location، add_header سطح server را لغو می‌کند؛ پس X-Robots-Tag تکرار شده.)
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|woff|woff2|ttf|svg)$ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        add_header Cache-Control "no-cache";
+        add_header X-Robots-Tag "noindex, nofollow" always;
+    }
+
+    # Service Worker - باید cache نشه
+    location = /sw.js {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header X-Robots-Tag "noindex, nofollow" always;
+    }
+
+    # manifest.json - باید cache نشه
+    location = /manifest.json {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        add_header Cache-Control "no-cache";
+        add_header X-Robots-Tag "noindex, nofollow" always;
+    }
+}
