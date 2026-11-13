@@ -59,7 +59,7 @@ function renderLibrary() {
                 ${book.cover?`<img src="${safeUrl(book.cover)}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
                 <div class="absolute inset-0 bg-gradient-to-br ${colors[i%colors.length]} flex items-end justify-center pb-3 px-2" style="${book.cover?'display:none':''}"><span class="text-white text-center font-black text-[9px] leading-tight drop-shadow">${escHtml(book.title)}</span></div>
                 ${progress>0?`<div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent pt-4 pb-1.5 px-2"><div class="w-full bg-white/30 rounded-full h-1 overflow-hidden"><div class="bg-white h-full rounded-full" style="width:${progress}%"></div></div><span class="text-[8px] text-white/80 block text-center mt-0.5">${toFa(progress)}٪</span></div>`:''}
-                ${!isOffline ? `<button onclick="event.stopPropagation();toggleOfflineBook(${book.id})" id="dl-btn-${book.id}"
+                ${!isOffline ? `<button aria-label="دانلود برای مطالعهٔ آفلاین" onclick="event.stopPropagation();toggleOfflineBook(${book.id})" id="dl-btn-${book.id}"
                     class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center shadow-md z-20 ${offline ? 'bg-brand-500 text-white' : 'bg-white/90 text-gray-500'}"
                     title="${offline ? 'حذف آفلاین' : 'دانلود'}">
                     <i class="fas ${offline ? 'fa-check' : 'fa-download'} text-[9px]"></i>
@@ -565,6 +565,17 @@ function applySettingsObject(s) {
     window._siteSettings = s;
 }
 
+// درخواست JSON مشترک: درخواست‌های هم‌زمان/نزدیک به هم یک پاسخ را شریک می‌شوند (فقط چند ثانیه کش)
+const _sharedJsonCache = {};
+function sharedJson(url, ttl = 4000) {
+    const e = _sharedJsonCache[url];
+    if (e && Date.now() - e.t < ttl) return e.p;
+    const p = fetch(url).then(r => { if (!r.ok) throw new Error(url + ' ' + r.status); return r.json(); });
+    _sharedJsonCache[url] = { t: Date.now(), p };
+    p.catch(() => { if (_sharedJsonCache[url] && _sharedJsonCache[url].p === p) delete _sharedJsonCache[url]; });
+    return p;
+}
+
 async function applySiteSettings() {
     // اعمال تنظیمات کش‌شده برای نمایش فوری
     try {
@@ -573,9 +584,7 @@ async function applySiteSettings() {
     } catch(e2) {}
 
     try {
-        const r = await fetch('/api/settings');
-        if (!r.ok) return;
-        const s = await r.json();
+        const s = await sharedJson('/api/settings');
         // کش کردن تنظیمات برای استفاده آفلاین
         try { localStorage.setItem('cached_site_settings', JSON.stringify(s)); } catch(e2) {}
         // ذخیره تنظیمات اسپلش برای اعمال فوری در بارگذاری بعدی

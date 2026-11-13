@@ -169,42 +169,48 @@ async function init() {
     }, 2500);
 
     try {
-        try { await applySiteSettings(); } catch(e) { console.warn('Settings err:', e); }
-        try { await loadNavItems(); } catch(e) {}
+        // بارگذاری‌های مستقل هم‌زمان اجرا می‌شوند
+        const settingsP = (async () => { try { await applySiteSettings(); } catch(e) { console.warn('Settings err:', e); } })();
+        const navP = (async () => { try { await loadNavItems(); } catch(e) {} })();
         try { loadSettings(); } catch(e) {}
-        try {
-            const r = await fetch('/api/books');
-            // اگر پاسخ موفق نباشد (مثلاً 503 از Service Worker در حالت آفلاین) throw کن
-            if (!r.ok) throw new Error('Books fetch failed: ' + r.status);
-            allBooks = await r.json();
-            if(!Array.isArray(allBooks)) throw new Error('Invalid books response');
-            // کش لیست کتاب‌ها برای استفاده آفلاین
-            try { localStorage.setItem('cached_books_list', JSON.stringify(allBooks)); } catch(e2) {}
-        } catch(e) {
-            console.warn('Books err:', e);
-            // بارگذاری از کش localStorage
+        const booksP = (async () => {
             try {
-                const cached = localStorage.getItem('cached_books_list');
-                if (cached) { allBooks = JSON.parse(cached); if(!Array.isArray(allBooks)) allBooks = []; }
-            } catch(e2) { allBooks = []; }
-        }
-        // همیشه کتاب‌های دانلودشده از IndexedDB را ادغام کن
-        // (حتی اگر API کار کند یا نکند — کتاب‌های آفلاین باید همیشه نمایش داده شوند)
-        try {
-            const offlineBooks = await getAllOfflineBooks();
-            const existingIds = new Set(allBooks.map(b => +b.id));
-            offlineBooks.forEach(b => {
-                if (!existingIds.has(+b.id)) {
-                    allBooks.push({ id: b.id, title: b.title, author: b.author||'', cover: b.cover||'', page_count: b.page_count||0 });
-                }
-            });
-        } catch(e3) {}
-        // اطمینان از بارگذاری کامل شناسه‌های آفلاین قبل از رندر
-        try { await loadOfflineBookIds(); } catch(e) {}
+                const r = await fetch('/api/books');
+                // اگر پاسخ موفق نباشد (مثلاً 503 از Service Worker در حالت آفلاین) throw کن
+                if (!r.ok) throw new Error('Books fetch failed: ' + r.status);
+                allBooks = await r.json();
+                if(!Array.isArray(allBooks)) throw new Error('Invalid books response');
+                // کش لیست کتاب‌ها برای استفاده آفلاین
+                try { localStorage.setItem('cached_books_list', JSON.stringify(allBooks)); } catch(e2) {}
+            } catch(e) {
+                console.warn('Books err:', e);
+                // بارگذاری از کش localStorage
+                try {
+                    const cached = localStorage.getItem('cached_books_list');
+                    if (cached) { allBooks = JSON.parse(cached); if(!Array.isArray(allBooks)) allBooks = []; }
+                } catch(e2) { allBooks = []; }
+            }
+            // همیشه کتاب‌های دانلودشده از IndexedDB را ادغام کن
+            // (حتی اگر API کار کند یا نکند — کتاب‌های آفلاین باید همیشه نمایش داده شوند)
+            try {
+                const offlineBooks = await getAllOfflineBooks();
+                const existingIds = new Set(allBooks.map(b => +b.id));
+                offlineBooks.forEach(b => {
+                    if (!existingIds.has(+b.id)) {
+                        allBooks.push({ id: b.id, title: b.title, author: b.author||'', cover: b.cover||'', page_count: b.page_count||0 });
+                    }
+                });
+            } catch(e3) {}
+            // اطمینان از بارگذاری کامل شناسه‌های آفلاین قبل از رندر
+            try { await loadOfflineBookIds(); } catch(e) {}
+        })();
+        // اسپلش فقط منتظر تنظیمات، نوار پایین و فهرست کتاب‌ها می‌ماند
+        await Promise.all([settingsP, navP, booksP]);
         try { renderLibrary(); } catch(e) { console.warn('Render err:', e); }
-        try { await loadBanners(); } catch(e) { console.warn('Banners err:', e); }
-        try { await loadHomeShortcuts(); } catch(e) { console.warn('Shortcuts err:', e); }
-        try { await loadHomeLinkShortcuts(); } catch(e) { console.warn('LinkShortcuts err:', e); }
+        // بقیه بدون مسدود کردن اسپلش پر می‌شوند
+        loadBanners().catch(e => console.warn('Banners err:', e));
+        loadHomeShortcuts().catch(e => console.warn('Shortcuts err:', e));
+        loadHomeLinkShortcuts().catch(e => console.warn('LinkShortcuts err:', e));
         try { fetchLatestLectures(); } catch(e) { console.warn('Lectures err:', e); }
         try { loadHomeLatestMedia(); } catch(e) {}
         try { loadHomeStories(); } catch(e) {}
@@ -235,15 +241,15 @@ async function loadHomeShortcuts() {
     container.innerHTML = shortcuts.map(sc => {
         const onclick = _shortcutOnclick(sc);
         const inner = sc.image
-            ? `<img src="${sc.image}" class="w-full h-full object-cover">`
-            : `<i class="${sc.icon||'fas fa-star'}"></i>`;
+            ? `<img src="${safeUrl(sc.image)}" class="w-full h-full object-cover">`
+            : `<i class="${escHtml(sc.icon||'fas fa-star')}"></i>`;
         const style = sc.image
             ? ''
-            : `background:linear-gradient(135deg,${sc.color1||'#14b8a6'},${sc.color2||'#0f766e'});`;
+            : `background:linear-gradient(135deg,${escHtml(sc.color1||'#14b8a6')},${escHtml(sc.color2||'#0f766e')});`;
         const textClass = sc.image ? '' : 'text-white';
         return `<div class="shortcut-item flex flex-col items-center gap-1.5 cursor-pointer" onclick="${onclick}">
             <div class="w-14 h-14 rounded-2xl shadow-md flex items-center justify-center text-xl active:scale-90 overflow-hidden ${textClass}" style="${style}">${inner}</div>
-            <span class="shortcut-label text-[10px] font-bold text-gray-600 text-center transition-colors duration-200">${sc.label||''}</span>
+            <span class="shortcut-label text-[10px] font-bold text-gray-600 text-center transition-colors duration-200">${escHtml(sc.label||'')}</span>
         </div>`;
     }).join('');
 }
@@ -252,16 +258,15 @@ function _shortcutOnclick(sc) {
     const action = sc.action || '';
     if (action.startsWith('page:')) {
         const page = action.slice(5);
-        const label = (sc.label||'').replace(/'/g, "\\'");
-        return `openContentPage('${page}','${label}')`;
+        return `openContentPage(${jsArg(page)},${jsArg(sc.label||'')})`;
     }
     if (action.startsWith('media-tab:')) {
         const tab = action.slice(10);
-        return `navToScreen('media');setTimeout(function(){switchMediaTab('${tab}');},80)`;
+        return `navToScreen('media');setTimeout(function(){switchMediaTab(${jsArg(tab)});},80)`;
     }
     if (action.startsWith('screen:')) {
         const screen = action.slice(7);
-        return `navToScreen('${screen}')`;
+        return `navToScreen(${jsArg(screen)})`;
     }
     return '';
 }
@@ -283,17 +288,17 @@ async function loadHomeLinkShortcuts() {
     if (visible.length === 0) { container.innerHTML = ''; return; }
     container.innerHTML = visible.map(sc => {
         const url = sc.url || '';
-        const onclick = url ? `openLinkShortcut('${url.replace(/'/g,"\\'")}')` : '';
+        const onclick = url ? `openLinkShortcut(${jsArg(url)})` : '';
         const inner = sc.image
-            ? `<img src="${sc.image}" class="w-full h-full object-cover">`
-            : `<i class="${sc.icon||'fas fa-link'}"></i>`;
+            ? `<img src="${safeUrl(sc.image)}" class="w-full h-full object-cover">`
+            : `<i class="${escHtml(sc.icon||'fas fa-link')}"></i>`;
         const style = sc.image
             ? ''
-            : `background:linear-gradient(135deg,${sc.color1||'#3b82f6'},${sc.color2||'#1d4ed8'});`;
+            : `background:linear-gradient(135deg,${escHtml(sc.color1||'#3b82f6')},${escHtml(sc.color2||'#1d4ed8')});`;
         const textClass = sc.image ? '' : 'text-white';
         return `<div class="shortcut-item flex flex-col items-center gap-1 cursor-pointer shrink-0" onclick="${onclick}">
             <div class="w-11 h-11 rounded-xl flex items-center justify-center text-lg active:scale-90 overflow-hidden ${textClass}" style="${style}">${inner}</div>
-            <span class="shortcut-label text-[10px] font-bold text-gray-600 text-center transition-colors duration-200">${sc.label||''}</span>
+            <span class="shortcut-label text-[10px] font-bold text-gray-600 text-center transition-colors duration-200">${escHtml(sc.label||'')}</span>
         </div>`;
     }).join('');
 }
@@ -372,13 +377,15 @@ async function loadSliders() {
     track.innerHTML = sliderData.map(sl => {
         let onclick = '';
         if (sl.isNews && sl.postId) {
-            onclick = `onclick="openNewsPostInApp(${sl.postId},'${sl.link.replace(/'/g,"\\'")}');sliderTimer&&clearInterval(sliderTimer);"`;
+            onclick = `onclick="openNewsPostInApp(${+sl.postId||0},${jsArg(sl.link)});sliderTimer&&clearInterval(sliderTimer);"`;
         } else if (sl.link) {
-            onclick = `onclick="handleBannerLink('${sl.link.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');sliderTimer&&clearInterval(sliderTimer);"`;
+            onclick = `onclick="handleBannerLink(${jsArg(sl.link)});sliderTimer&&clearInterval(sliderTimer);"`;
         }
+        // عنوان اسلایدهای خبری HTML وردپرس است؛ بقیه escape می‌شوند
+        const slTitle = sl.isNews ? (sl.title || '') : escHtml(sl.title || '');
         const showTitle = sl.title && (sl.isNews ? sl.show_title !== false : true);
-        const titleOverlay = showTitle ? `<div style="position:absolute;bottom:0;left:0;right:0;padding:60px 16px 14px;background:linear-gradient(to bottom,transparent,rgba(0,0,0,0.5) 45%,rgba(0,0,0,0.88));color:#fff;font-size:15px;font-weight:800;line-height:1.5;direction:rtl;text-align:right;text-shadow:0 2px 8px rgba(0,0,0,0.9),0 1px 2px rgba(0,0,0,0.8);">${sl.title}</div>` : '';
-        return `<div style="flex-shrink:0;width:${slideW}px;height:100%;cursor:pointer;overflow:hidden;border-radius:${radius}px;position:relative;" ${onclick}><img src="${sl.image}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${sl.title||''}">${titleOverlay}</div>`;
+        const titleOverlay = showTitle ? `<div style="position:absolute;bottom:0;left:0;right:0;padding:60px 16px 14px;background:linear-gradient(to bottom,transparent,rgba(0,0,0,0.5) 45%,rgba(0,0,0,0.88));color:#fff;font-size:15px;font-weight:800;line-height:1.5;direction:rtl;text-align:right;text-shadow:0 2px 8px rgba(0,0,0,0.9),0 1px 2px rgba(0,0,0,0.8);">${slTitle}</div>` : '';
+        return `<div style="flex-shrink:0;width:${slideW}px;height:100%;cursor:pointer;overflow:hidden;border-radius:${radius}px;position:relative;" ${onclick}><img src="${safeUrl(sl.image)}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${slTitle}">${titleOverlay}</div>`;
     }).join('');
     dots.innerHTML = sliderData.map((_,i) =>
         `<button onclick="goToSlide(${i})" class="w-2 h-2 rounded-full transition-all ${i===0?'bg-white w-4':'bg-white/50'}"></button>`
@@ -443,7 +450,7 @@ async function _collectCategoryVideos(catId) {
 async function _findClipCategory() {
     const match = c => /کلیپ/.test(c.name || '');
     let roots = [];
-    try { roots = await fetch('/api/videos/categories').then(r => r.json()); } catch(e) {}
+    try { roots = await sharedJson('/api/videos/categories'); } catch(e) {}
     if (!Array.isArray(roots)) return null;
     const found = roots.find(match);
     if (found) return found;
@@ -577,17 +584,16 @@ async function loadHomeLatestMedia() {
         const vidEl = document.getElementById('home-latest-videos');
         if (vidEl && _homeLatestVideos.length > 0) {
             vidEl.innerHTML = _homeLatestVideos.map((v, i) => {
-                const catCover = (v._catCover || '').replace(/'/g, "\\'");
-                const thumb = v.thumbnail || v._catCover || '';
+                const thumb = safeUrl(v.thumbnail || v._catCover || '');
                 const thumbHtml = thumb
-                    ? `<img src="${thumb}" onerror="_videoImgErr(this,'${catCover}')" class="w-full h-full object-cover">`
+                    ? `<img src="${thumb}" onerror="_videoImgErr(this,${jsArg(v._catCover || '')})" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-xl"></i></div>`;
                 return `<div onclick="openHomeVideo(${i})" class="snap-start shrink-0 w-36 cursor-pointer active:scale-95 transition">
                     <div class="w-full rounded-xl overflow-hidden bg-white relative mb-1.5" style="aspect-ratio:16/9">
                         ${thumbHtml}
                         <div class="absolute inset-0 bg-black/25 flex items-center justify-center"><div class="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center border border-white/40"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div>
                     </div>
-                    <h4 class="font-bold text-[10px] text-gray-800 line-clamp-2 leading-snug px-0.5">${v.title}</h4>
+                    <h4 class="font-bold text-[10px] text-gray-800 line-clamp-2 leading-snug px-0.5">${escHtml(v.title)}</h4>
                 </div>`;
             }).join('');
             if (vidSec) vidSec.classList.remove('hidden');
@@ -599,12 +605,12 @@ async function loadHomeLatestMedia() {
         if (audEl && _homeLatestAudios.length > 0) {
             audEl.innerHTML = _homeLatestAudios.map((tr, i) => {
                 const coverHtml = tr.cover
-                    ? `<img src="${tr.cover}" class="w-full h-full object-cover" onerror="this.src='/img/default-audio.svg'">`
+                    ? `<img src="${safeUrl(tr.cover)}" class="w-full h-full object-cover" onerror="this.src='/img/default-audio.svg'">`
                     : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
                 return `<div onclick="openHomeAudio(${i})" class="snap-start shrink-0 w-28 cursor-pointer active:scale-95 transition">
                     <div class="w-full aspect-square rounded-xl overflow-hidden mb-1.5 shadow-sm">${coverHtml}</div>
-                    <h4 class="font-bold text-[10px] text-gray-800 line-clamp-2 leading-snug px-0.5">${tr.title}</h4>
-                    ${tr.artist ? `<p class="text-[9px] text-gray-400 px-0.5 mt-0.5">${tr.artist}</p>` : ''}
+                    <h4 class="font-bold text-[10px] text-gray-800 line-clamp-2 leading-snug px-0.5">${escHtml(tr.title)}</h4>
+                    ${tr.artist ? `<p class="text-[9px] text-gray-400 px-0.5 mt-0.5">${escHtml(tr.artist)}</p>` : ''}
                 </div>`;
             }).join('');
             if (audSec) audSec.classList.remove('hidden');
@@ -632,14 +638,14 @@ async function loadNavItems() {
             } else if (action.startsWith('media-tab:')) {
                 const tab = action.slice(10);
                 screen = 'media';
-                onclick = `navToScreen('media');setTimeout(function(){switchMediaTab('${tab}');},80)`;
+                onclick = `navToScreen('media');setTimeout(function(){switchMediaTab(${jsArg(tab)});},80)`;
             }
             const iconHtml = item.image
-                ? `<img src="${item.image}" class="w-6 h-6 object-contain nav-icon-img">`
-                : `<i class="${item.icon||'fas fa-circle'} text-lg"></i>`;
+                ? `<img src="${safeUrl(item.image)}" class="w-6 h-6 object-contain nav-icon-img">`
+                : `<i class="${escHtml(item.icon||'fas fa-circle')} text-lg"></i>`;
             return `<button class="nav-item flex flex-col items-center justify-center gap-0.5 flex-1" data-nav="${screen}" onclick="${onclick}">
                 ${iconHtml}
-                <span class="text-[9px] font-bold">${item.label||''}</span>
+                <span class="text-[9px] font-bold">${escHtml(item.label||'')}</span>
             </button>`;
         }).join('');
         // نوار کناری دسکتاپ همان آیتم‌های تنظیم‌شده در پنل را نشان دهد
@@ -687,9 +693,9 @@ async function loadBanners() {
         const bRadius = radius + 'px';
         for (const [sec, items] of Object.entries(groups)) {
             const html = items.map(b => {
-                const onclick = b.link ? `onclick="handleBannerLink('${b.link.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');"` : '';
+                const onclick = b.link ? `onclick="handleBannerLink(${jsArg(b.link)});"` : '';
                 return `<div class="overflow-hidden cursor-pointer active:scale-[0.98] transition-transform" style="border-radius:${bRadius};" ${onclick}>
-                    <img src="${b.image}" class="w-full object-cover" style="max-height:${height}px;" alt="${b.title||''}">
+                    <img src="${safeUrl(b.image)}" class="w-full object-cover" style="max-height:${height}px;" alt="${escHtml(b.title||'')}">
                 </div>`;
             }).join('');
             const el = document.getElementById('home-banner-' + sec);
@@ -737,9 +743,9 @@ async function loadSectionContent(page, domKey) {
                 if (active.length) {
                     bannerEl.style.padding = '0 ' + padding + 'px';
                     bannerEl.innerHTML = active.map(b => {
-                        const onclick = b.link ? `onclick="handleBannerLink('${b.link.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');"` : '';
+                        const onclick = b.link ? `onclick="handleBannerLink(${jsArg(b.link)});"` : '';
                         return `<div class="overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform mb-2" style="border-radius:${radius}px;" ${onclick}>
-                            <img src="${b.image}" class="w-full object-cover" style="max-height:${height}px;" alt="${b.title||''}">
+                            <img src="${safeUrl(b.image)}" class="w-full object-cover" style="max-height:${height}px;" alt="${escHtml(b.title||'')}">
                         </div>`;
                     }).join('');
                 }
@@ -779,9 +785,9 @@ async function loadSectionContent(page, domKey) {
         const slW = wrap.clientWidth || wrap.offsetWidth || window.innerWidth;
         track.style.width = (data.length * slW) + 'px';
         track.innerHTML = data.map(sl => {
-            const onclick = sl.link ? `onclick="handleBannerLink('${sl.link.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');"` : '';
+            const onclick = sl.link ? `onclick="handleBannerLink(${jsArg(sl.link)});"` : '';
             return `<div style="flex-shrink:0;width:${slW}px;height:${slH}px;cursor:pointer;overflow:hidden;border-radius:${slR}px;position:relative;" ${onclick}>
-                <img src="${sl.image}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${sl.title||''}">
+                <img src="${safeUrl(sl.image)}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${escHtml(sl.title||'')}">
             </div>`;
         }).join('');
         dots.innerHTML = data.map((_,i) =>
@@ -1192,7 +1198,7 @@ async function _loadQACategories() {
         if (!sel || !Array.isArray(cats)) return;
         const cur = sel.value;
         sel.innerHTML = '<option value="">-- دسته‌بندی سوال (اختیاری) --</option>' +
-            cats.map(c => `<option value="${c.id}"${c.id==cur?' selected':''}>${c.name}</option>`).join('');
+            cats.map(c => `<option value="${c.id}"${c.id==cur?' selected':''}>${escHtml(c.name)}</option>`).join('');
     } catch(e) {}
 }
 
@@ -2708,7 +2714,7 @@ function showPwaInstallPrompt() {
     if (!modal) return;
 
     // بارگذاری نام و آیکون اپ از سرور
-    fetch('/api/settings').then(r=>r.json()).then(s=>{
+    sharedJson('/api/settings').then(s=>{
         const el = document.getElementById('pwa-modal-appname');
         if(el && s.pwa_short_name) el.textContent = s.pwa_short_name;
         const iconEl = document.getElementById('pwa-modal-icon');

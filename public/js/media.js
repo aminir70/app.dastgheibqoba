@@ -70,7 +70,7 @@ function renderFavoritesTab() {
             vList.innerHTML = f.video.map(v => {
                 const thumb = v.thumbnail || v._catCover || '';
                 const thumbHtml = thumb
-                    ? `<img src="${thumb}" class="w-full h-full object-cover">`
+                    ? `<img src="${safeUrl(thumb)}" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-xl"></i></div>`;
                 return `
                 <div class="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100">
@@ -81,9 +81,9 @@ function renderFavoritesTab() {
                         </div>
                     </div>
                     <div class="flex-1 min-w-0 cursor-pointer" onclick="playFavVideo(${v.id})">
-                        <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
+                        <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>
                     </div>
-                    <button onclick="toggleMediaFav('video','${v.id}')" class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition" data-ftype="video" data-fid="${v.id}">
+                    <button onclick="toggleMediaFav('video',${jsArg(v.id)})" class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition" data-ftype="video" data-fid="${v.id}">
                         <i class="fas fa-heart text-red-500 text-xs"></i>
                     </button>
                 </div>`;
@@ -97,17 +97,17 @@ function renderFavoritesTab() {
         } else {
             aList.innerHTML = f.audio.map(tr => {
                 const cover = tr.cover || '';
-                const coverHtml = `<img src="${cover || '/img/default-audio.svg'}" class="w-full h-full object-cover">`;
+                const coverHtml = `<img src="${safeUrl(cover) || '/img/default-audio.svg'}" class="w-full h-full object-cover">`;
                 return `
                 <div class="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100">
                     <div class="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-gray-100 cursor-pointer" onclick="playFavAudio(${tr.id})">
                         ${coverHtml}
                     </div>
                     <div class="flex-1 min-w-0 cursor-pointer" onclick="playFavAudio(${tr.id})">
-                        <h4 class="font-bold text-xs text-gray-800 line-clamp-1">${tr.title}</h4>
-                        ${tr.artist ? `<p class="text-[10px] text-gray-400 mt-0.5">${tr.artist}</p>` : ''}
+                        <h4 class="font-bold text-xs text-gray-800 line-clamp-1">${escHtml(tr.title)}</h4>
+                        ${tr.artist ? `<p class="text-[10px] text-gray-400 mt-0.5">${escHtml(tr.artist)}</p>` : ''}
                     </div>
-                    <button onclick="toggleMediaFav('audio','${tr.id}')" class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition" data-ftype="audio" data-fid="${tr.id}">
+                    <button onclick="toggleMediaFav('audio',${jsArg(tr.id)})" class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition" data-ftype="audio" data-fid="${tr.id}">
                         <i class="fas fa-heart text-red-500 text-xs"></i>
                     </button>
                 </div>`;
@@ -245,7 +245,7 @@ function _reRenderGalleryPhotos() {
     if (!grid || !galleryCurrentPhotos.length) return;
     grid.className = _viewClasses('photos') + ' w-full';
     grid.innerHTML = galleryCurrentPhotos.map((ph, idx) => {
-        return `<div onclick="openGalleryImage(${idx})" class="aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer relative group shadow-sm"><img src="${ph.image}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200"></div></div>`;
+        return `<div onclick="openGalleryImage(${idx})" class="aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer relative group shadow-sm"><img src="${safeUrl(ph.image)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200"></div></div>`;
     }).join('');
 }
 
@@ -396,7 +396,7 @@ async function performMediaSearch(q) {
         if (!aItems.length && !vItems.length) {
             results.innerHTML = `<div class="flex flex-col items-center py-14 text-gray-400 gap-3 w-full">
                 <i class="fas fa-search text-4xl opacity-20"></i>
-                <p class="text-sm font-bold opacity-50">نتیجه‌ای برای «${q}» یافت نشد</p>
+                <p class="text-sm font-bold opacity-50">نتیجه‌ای برای «${escHtml(q)}» یافت نشد</p>
             </div>`;
             return;
         }
@@ -409,7 +409,7 @@ async function performMediaSearch(q) {
             html += vItems.map(v => {
                 const thumb = v.thumbnail || v._catCover || '';
                 const thumbHtml = thumb
-                    ? `<img src="${thumb}" class="w-full h-full object-cover">`
+                    ? `<img src="${safeUrl(thumb)}" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,#1e293b,#0f172a)"><i class="fas fa-video text-white/50 text-base"></i></div>`;
                 window._mfTmp['video_' + v.id] = {id:v.id,title:v.title,description:v.description||'',thumbnail:thumb,_catCover:v._catCover||'',embed_url:v.embed_url||''};
                 return `<div onclick="playVideoItem(${v.id})" class="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-3 p-3">
@@ -418,9 +418,9 @@ async function performMediaSearch(q) {
                         <div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center border border-white/40"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
-                        ${v.cat_name ? `<p class="text-[10px] text-gray-400 mt-0.5">${v.cat_name}</p>` : ''}
-                        ${v.publish_date ? `<p class="text-[10px] mt-0.5" style="color:#0d9488">${toFa(v.publish_date)}</p>` : ''}
+                        <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>
+                        ${v.cat_name ? `<p class="text-[10px] text-gray-400 mt-0.5">${escHtml(v.cat_name)}</p>` : ''}
+                        ${v.publish_date ? `<p class="text-[10px] mt-0.5" style="color:#0d9488">${escHtml(toFa(v.publish_date))}</p>` : ''}
                     </div>
                     <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
                 </div>`;
@@ -434,14 +434,14 @@ async function performMediaSearch(q) {
             </div><div class="flex flex-col gap-2">`;
             html += aItems.map(tr => {
                 const coverSrc = tr.cover || tr._catCover || '';
-                const coverInner = coverSrc ? `<img src="${coverSrc}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
+                const coverInner = coverSrc ? `<img src="${safeUrl(coverSrc)}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
                 window._mfTmp['audio_' + tr.id] = {id:tr.id,title:tr.title,artist:tr.artist||'',cover:coverSrc,url:tr.url||''};
                 return `<div onclick="openAudioTrackById(${tr.id})" class="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-3 p-3">
                     <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${coverInner}</div>
                     <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${tr.title}</h4>
-                        ${tr.cat_name ? `<p class="text-[10px] text-gray-400 mt-0.5">${tr.cat_name}</p>` : ''}
-                        ${tr.publish_date ? `<p class="text-[10px] mt-0.5" style="color:#0d9488">${toFa(tr.publish_date)}</p>` : ''}
+                        <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${escHtml(tr.title)}</h4>
+                        ${tr.cat_name ? `<p class="text-[10px] text-gray-400 mt-0.5">${escHtml(tr.cat_name)}</p>` : ''}
+                        ${tr.publish_date ? `<p class="text-[10px] mt-0.5" style="color:#0d9488">${escHtml(toFa(tr.publish_date))}</p>` : ''}
                     </div>
                     <i class="fas fa-play text-gray-300 text-xs shrink-0"></i>
                 </div>`;
@@ -501,7 +501,7 @@ async function initLiveScreen() {
             return;
         }
 
-        c.innerHTML = `<div class="h_iframe-aparat_embed_frame"><span style="display:block;padding-top:57%"></span><iframe scrolling="no" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${iframeSrc}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe></div>`;
+        c.innerHTML = `<div class="h_iframe-aparat_embed_frame"><span style="display:block;padding-top:57%"></span><iframe scrolling="no" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${escHtml(iframeSrc)}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe></div>`;
     } catch(e) {
         c.innerHTML = `<div class="flex flex-col items-center justify-center py-16 text-gray-400 gap-3"><i class="fas fa-exclamation-circle text-3xl opacity-40"></i><p class="text-sm opacity-50">خطا در بارگذاری پخش زنده</p></div>`;
     }
@@ -565,14 +565,14 @@ async function loadVideoCategories(parentId, parentName) {
             view.innerHTML = cats.map((cat, i) => {
                 const grad = _catGrads[i % _catGrads.length];
                 const coverHtml = cat.cover
-                    ? `<img src="${cat.cover}" class="w-full h-full object-cover">`
+                    ? `<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full flex items-center justify-center" style="background:${grad}"><i class="fas fa-video text-white text-2xl" style="opacity:0.85"></i></div>`;
                 const badge = cat.sub_count > 0 ? `${cat.sub_count} زیردسته` : `${cat.video_count} ویدیو`;
-                const clickFn = cat.sub_count > 0 ? `videoNavToSub(${cat.id},'${cat.name.replace(/'/g,"\\'")}')` : `loadVideoList(${cat.id},'${cat.name.replace(/'/g,"\\'")}',${cat.video_count})`;
+                const clickFn = cat.sub_count > 0 ? `videoNavToSub(${cat.id},${jsArg(cat.name)})` : `loadVideoList(${cat.id},${jsArg(cat.name)},${cat.video_count})`;
                 if (_mediaViewMode === 'list') return `
                 <div onclick="${clickFn}" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
                     <div class="w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-white relative">${coverHtml}</div>
-                    <div class="flex-1 min-w-0"><h3 class="font-black text-xs text-gray-800 line-clamp-1">${cat.name}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
+                    <div class="flex-1 min-w-0"><h3 class="font-black text-xs text-gray-800 line-clamp-1">${escHtml(cat.name)}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
                     <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
                 </div>`;
                 const hasFolder = cat.sub_count > 0 ? `<div class="absolute top-2 right-2 bg-white/20 backdrop-blur-sm rounded-lg px-1.5 py-0.5"><i class="fas fa-folder text-white text-[10px] ml-1"></i><span class="text-white text-[9px] font-bold">${cat.sub_count}</span></div>` : '';
@@ -582,7 +582,7 @@ async function loadVideoCategories(parentId, parentName) {
                         ${coverHtml}${hasFolder}
                         <div class="absolute inset-0 flex items-center justify-center"><div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30 shadow-lg"><i class="fas fa-${cat.sub_count>0?'folder-open':'play'} text-white text-lg ${cat.sub_count>0?'':'mr-[-2px]'}"></i></div></div>
                     </div>
-                    <div class="px-3 py-2"><h3 class="font-black text-xs text-gray-800 line-clamp-1">${cat.name}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
+                    <div class="px-3 py-2"><h3 class="font-black text-xs text-gray-800 line-clamp-1">${escHtml(cat.name)}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
                 </div>`;
             }).join('');
         } else {
@@ -677,20 +677,20 @@ function _renderVideoItems(pairs) {
     }
     const playBtn = `<div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center border border-white/40"><i class="fas fa-play text-white text-sm mr-[-1px]"></i></div></div>`;
     list.innerHTML = items.map(({v}) => {
-        const catCover = (v._catCover || '').replace(/'/g, "\\'");
+        const catCover = v._catCover || '';
         const thumb = v.thumbnail || v._catCover || '';
-        const errHandler = `_videoImgErr(this,'${catCover}')`;
-        const thumbHtml = thumb ? `<img src="${thumb}" onerror="${errHandler}" class="w-full h-full object-cover opacity-90">` : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-2xl"></i></div>`;
+        const errHandler = `_videoImgErr(this,${jsArg(catCover)})`;
+        const thumbHtml = thumb ? `<img src="${safeUrl(thumb)}" onerror="${errHandler}" class="w-full h-full object-cover opacity-90">` : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-2xl"></i></div>`;
         window._mfTmp['video_' + v.id] = {id: v.id, title: v.title, description: v.description||'', thumbnail: thumb, _catCover: v._catCover||'', embed_url: v.embed_url||''};
         const isFav = _isFav('video', v.id);
-        const favBtn = `<button class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="video" data-fid="${v.id}" onclick="event.stopPropagation();toggleMediaFav('video','${v.id}')">${isFav ? '<i class="fas fa-heart text-red-500 text-sm"></i>' : '<i class="far fa-heart text-gray-300 text-sm"></i>'}</button>`;
-        const dateStr = v.publish_date ? `<p class="text-[10px] text-gray-400 mt-0.5">${toFa(v.publish_date)}</p>` : '';
+        const favBtn = `<button class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="video" data-fid="${v.id}" onclick="event.stopPropagation();toggleMediaFav('video',${jsArg(v.id)})">${isFav ? '<i class="fas fa-heart text-red-500 text-sm"></i>' : '<i class="far fa-heart text-gray-300 text-sm"></i>'}</button>`;
+        const dateStr = v.publish_date ? `<p class="text-[10px] text-gray-400 mt-0.5">${escHtml(toFa(v.publish_date))}</p>` : '';
         if (_mediaViewMode === 'grid') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
             <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-white overflow-hidden relative">${thumbHtml}${playBtn}</div>
             <div class="px-2 py-2 flex flex-col gap-0.5">
                 <div class="flex items-start gap-1">
-                    <h4 onclick="playVideoItem(${v.id})" class="font-bold text-[11px] text-gray-800 line-clamp-2 leading-snug flex-1">${v.title}</h4>
+                    <h4 onclick="playVideoItem(${v.id})" class="font-bold text-[11px] text-gray-800 line-clamp-2 leading-snug flex-1">${escHtml(v.title)}</h4>
                     ${favBtn}
                 </div>
                 ${dateStr}
@@ -701,8 +701,8 @@ function _renderVideoItems(pairs) {
             <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-white overflow-hidden relative">${thumbHtml}${playBtn}</div>
             <div class="p-3 flex items-start gap-2">
                 <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
-                    <h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
-                    ${v.description ? `<p class="text-[11px] text-gray-400 mt-1 line-clamp-2">${v.description}</p>` : ''}
+                    <h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>
+                    ${v.description ? `<p class="text-[11px] text-gray-400 mt-1 line-clamp-2">${escHtml(v.description)}</p>` : ''}
                     ${dateStr}
                 </div>
                 ${favBtn}
@@ -712,8 +712,8 @@ function _renderVideoItems(pairs) {
         <div class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
             <div onclick="playVideoItem(${v.id})" class="w-28 h-[63px] bg-white rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
             <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
-                <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>
-                ${v.description ? `<p class="text-[10px] text-gray-400 mt-0.5 line-clamp-1">${v.description}</p>` : ''}
+                <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>
+                ${v.description ? `<p class="text-[10px] text-gray-400 mt-0.5 line-clamp-1">${escHtml(v.description)}</p>` : ''}
                 ${dateStr}
             </div>
             ${favBtn}
@@ -821,7 +821,7 @@ function _renderReels(items, title, startId) {
     }
     container.innerHTML = items.map((v, i) => {
         const thumb = safeUrl(v.thumbnail || v._catCover || '');
-        const poster = thumb ? `<img src="${thumb}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';
+        const poster = thumb ? `<img src="${safeUrl(thumb)}" class="absolute inset-0 w-full h-full object-cover opacity-50">` : '';
         const embed = safeUrl(v.embed_url || '');
         const dateStr = v.publish_date ? `<p class="text-white/60 text-[11px] mt-1">${escHtml(toFa(v.publish_date))}</p>` : '';
         // عمودی → cover (پر صفحه)، افقی → contain (واید) — بر اساس فلگ ادمین
@@ -916,12 +916,12 @@ function _renderGalleryCatGrid(cats, view, onClickFn) {
     const colors = ['from-teal-400 to-teal-600','from-emerald-400 to-emerald-600','from-cyan-400 to-cyan-600','from-blue-400 to-blue-600','from-violet-400 to-violet-600','from-rose-400 to-rose-600','from-amber-400 to-amber-600','from-pink-400 to-pink-600'];
     view.innerHTML = cats.map((cat, i) => {
         const grad = colors[i % colors.length];
-        const coverHtml = cat.cover ? `<img src="${cat.cover}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-gradient-to-br ${grad} flex items-center justify-center"><i class="fas fa-images text-white text-3xl opacity-80"></i></div>`;
+        const coverHtml = cat.cover ? `<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-gradient-to-br ${grad} flex items-center justify-center"><i class="fas fa-images text-white text-3xl opacity-80"></i></div>`;
         const badgeText = cat.sub_count > 0 ? `${cat.sub_count} زیردسته` : `${cat.photo_count} تصویر`;
         if (_mediaViewMode === 'list') return `
         <div onclick="${onClickFn(cat)}" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
             <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${coverHtml}</div>
-            <div class="flex-1 min-w-0"><h3 class="font-bold text-xs text-gray-800 line-clamp-1">${cat.name}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badgeText}</p></div>
+            <div class="flex-1 min-w-0"><h3 class="font-bold text-xs text-gray-800 line-clamp-1">${escHtml(cat.name)}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badgeText}</p></div>
             <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
         </div>`;
         const hasFolder = cat.sub_count > 0 ? `<div class="absolute top-2 right-2 bg-white/20 backdrop-blur-sm rounded-lg px-1.5 py-0.5"><i class="fas fa-folder text-white text-[10px] ml-1"></i><span class="text-white text-[9px] font-bold">${cat.sub_count}</span></div>` : '';
@@ -931,7 +931,7 @@ function _renderGalleryCatGrid(cats, view, onClickFn) {
             <div class="w-full ${aspectClass} overflow-hidden relative">
                 ${coverHtml}${hasFolder}
                 <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-                    <h3 class="font-black text-xs text-white line-clamp-1">${cat.name}</h3>
+                    <h3 class="font-black text-xs text-white line-clamp-1">${escHtml(cat.name)}</h3>
                     <p class="text-[10px] text-white/70 mt-0.5">${badgeText}</p>
                 </div>
             </div>
@@ -967,8 +967,8 @@ async function loadGalleryCategories(parentId, parentName) {
 
         if(cats && cats.length > 0) {
             _renderGalleryCatGrid(cats, view, (cat) => {
-                if(cat.sub_count > 0) return `galleryNavToSub(${cat.id},'${cat.name.replace(/'/g,"\\'")}')`;
-                return `loadGalleryPhotos(${cat.id},'${cat.name.replace(/'/g,"\\'")}',${cat.photo_count})`;
+                if(cat.sub_count > 0) return `galleryNavToSub(${cat.id},${jsArg(cat.name)})`;
+                return `loadGalleryPhotos(${cat.id},${jsArg(cat.name)},${cat.photo_count})`;
             });
         } else if(parentId == null) {
             view.innerHTML = `<div class="col-span-2 flex flex-col items-center justify-center py-20 text-gray-400 gap-4">
@@ -1001,7 +1001,7 @@ async function loadGalleryCategories(parentId, parentName) {
                     galleryCurrentPhotos = parentPhotos;
                     grid.innerHTML = parentPhotos.map((ph, idx) =>
                         `<div onclick="openGalleryImage(${idx})" class="aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer relative group shadow-sm">
-                            <img src="${ph.image}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            <img src="${safeUrl(ph.image)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200"></div>
                         </div>`
                     ).join('');
@@ -1305,13 +1305,13 @@ async function loadAudioCategories(parentId, parentName) {
             const colors = ['from-brand-500 to-brand-700','from-violet-500 to-violet-700','from-rose-500 to-rose-700','from-amber-500 to-amber-700','from-emerald-500 to-emerald-700','from-blue-500 to-blue-700','from-pink-500 to-pink-700','from-teal-500 to-teal-700'];
             view.innerHTML = cats.map((cat, i) => {
                 const grad = colors[i % colors.length];
-                const coverHtml = cat.cover ? `<img src="${cat.cover}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
+                const coverHtml = cat.cover ? `<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
                 const badge = cat.sub_count > 0 ? `${cat.sub_count} زیردسته` : `${cat.track_count} صوت`;
-                const clickFn = cat.sub_count > 0 ? `audioNavToSub(${cat.id},'${cat.name.replace(/'/g,"\\'")}')` : `loadAudioPlaylist(${cat.id},'${cat.name.replace(/'/g,"\\'")}',${cat.track_count})`;
+                const clickFn = cat.sub_count > 0 ? `audioNavToSub(${cat.id},${jsArg(cat.name)})` : `loadAudioPlaylist(${cat.id},${jsArg(cat.name)},${cat.track_count})`;
                 if (_mediaViewMode === 'list') return `
                 <div onclick="${clickFn}" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
                     <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${coverHtml}</div>
-                    <div class="flex-1 min-w-0"><h3 class="font-bold text-xs text-gray-800 line-clamp-1">${cat.name}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
+                    <div class="flex-1 min-w-0"><h3 class="font-bold text-xs text-gray-800 line-clamp-1">${escHtml(cat.name)}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
                     <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
                 </div>`;
                 const hasFolder = cat.sub_count > 0 ? `<div class="absolute top-2 right-2 bg-white/20 backdrop-blur-sm rounded-lg px-1.5 py-0.5"><i class="fas fa-folder text-white text-[10px] ml-1"></i><span class="text-white text-[9px] font-bold">${cat.sub_count}</span></div>` : '';
@@ -1321,7 +1321,7 @@ async function loadAudioCategories(parentId, parentName) {
                     <div class="w-full ${aspectClass} overflow-hidden relative">
                         ${coverHtml}${hasFolder}
                         <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-3">
-                            <h3 class="font-black text-xs text-white line-clamp-1">${cat.name}</h3>
+                            <h3 class="font-black text-xs text-white line-clamp-1">${escHtml(cat.name)}</h3>
                             <p class="text-[10px] text-white/70 mt-0.5">${badge}</p>
                         </div>
                     </div>
@@ -1590,20 +1590,20 @@ function _renderCalResults() {
     if (_csTab === 'audio') {
         res.innerHTML = filtered.map((tr, idx) => {
             const cover = tr.cover || '';
-            const ci = `<img src="${cover || '/img/default-audio.svg'}" class="w-full h-full object-cover">`;
+            const ci = `<img src="${safeUrl(cover) || '/img/default-audio.svg'}" class="w-full h-full object-cover">`;
             return `<div onclick="_csPlayAudio(${idx})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
                 <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${ci}</div>
-                <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${tr.title}</h4>${tr.artist?`<p class="text-xs text-gray-400 mt-0.5">${tr.artist}</p>`:''}${tr.publish_date?`<p class="text-xs text-teal-500 mt-0.5">${toFa(tr.publish_date)}</p>`:''}</div>
+                <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${escHtml(tr.title)}</h4>${tr.artist?`<p class="text-xs text-gray-400 mt-0.5">${escHtml(tr.artist)}</p>`:''}${tr.publish_date?`<p class="text-xs text-teal-500 mt-0.5">${escHtml(toFa(tr.publish_date))}</p>`:''}</div>
                 <div class="w-9 h-9 bg-teal-50 rounded-full flex items-center justify-center shrink-0"><i class="fas fa-play text-teal-600 text-xs mr-[-1px]"></i></div>
             </div>`;
         }).join('');
     } else if (_csTab === 'video') {
         res.innerHTML = filtered.map(v => {
             const thumb = v.thumbnail || '';
-            const th = thumb ? `<img src="${thumb}" class="w-full h-full object-cover opacity-90">` : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-2xl"></i></div>`;
-            return `<div onclick="_csPlayVideo('${v.id}')" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
+            const th = thumb ? `<img src="${safeUrl(thumb)}" class="w-full h-full object-cover opacity-90">` : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-2xl"></i></div>`;
+            return `<div onclick="_csPlayVideo(${jsArg(v.id)})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
                 <div class="w-28 h-16 bg-white rounded-xl overflow-hidden relative shadow-sm shrink-0">${th}<div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center border border-white/30"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div></div>
-                <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${v.title}</h4>${v.publish_date?`<p class="text-xs text-teal-500 mt-1">${toFa(v.publish_date)}</p>`:''}</div>
+                <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>${v.publish_date?`<p class="text-xs text-teal-500 mt-1">${escHtml(toFa(v.publish_date))}</p>`:''}</div>
             </div>`;
         }).join('');
     } else {
@@ -1766,18 +1766,18 @@ function renderAudioTrackList(pairs) {
         const isActive = idx === audioCurrentIndex;
         const activeCls = isActive ? 'bg-brand-50 border border-brand-100' : 'bg-white border border-gray-100 hover:bg-gray-50';
         const coverSrc = tr.cover || tr._catCover || '';
-        const coverInner = coverSrc ? `<img src="${coverSrc}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
+        const coverInner = coverSrc ? `<img src="${safeUrl(coverSrc)}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
         const activeOverlay = isActive ? `<div class="absolute inset-0 bg-brand-600/40 flex items-center justify-center"><i class="fas fa-volume-up text-white text-xs animate-pulse"></i></div>` : '';
         window._mfTmp['audio_' + tr.id] = {id: tr.id, title: tr.title, artist: tr.artist||'', cover: coverSrc, url: tr.url||''};
         const isFav = _isFav('audio', tr.id);
-        const favBtn = `<button class="mf-btn shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="audio" data-fid="${tr.id}" onclick="event.stopPropagation();toggleMediaFav('audio','${tr.id}')">${isFav ? '<i class="fas fa-heart text-red-500 text-xs"></i>' : '<i class="far fa-heart text-gray-300 text-xs"></i>'}</button>`;
-        const dateStr = tr.publish_date ? toFa(tr.publish_date) : '';
+        const favBtn = `<button class="mf-btn shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="audio" data-fid="${tr.id}" onclick="event.stopPropagation();toggleMediaFav('audio',${jsArg(tr.id)})">${isFav ? '<i class="fas fa-heart text-red-500 text-xs"></i>' : '<i class="far fa-heart text-gray-300 text-xs"></i>'}</button>`;
+        const dateStr = tr.publish_date ? escHtml(toFa(tr.publish_date)) : '';
         if (_mediaViewMode === 'grid') return `
         <div id="audio-track-item-${idx}" onclick="selectAudioTrack(${idx}, true)" class="${activeCls} rounded-2xl cursor-pointer transition-all active:scale-95 overflow-hidden shadow-sm flex flex-col relative">
             <div class="w-full aspect-square overflow-hidden relative bg-gray-100 flex items-center justify-center">${coverInner}${activeOverlay}</div>
             <div class="p-2 flex flex-col gap-1">
                 <div class="flex items-start gap-1">
-                    <h4 class="font-bold text-[10px] ${isActive?'text-brand-700':'text-gray-800'} line-clamp-2 leading-snug flex-1">${tr.title}</h4>
+                    <h4 class="font-bold text-[10px] ${isActive?'text-brand-700':'text-gray-800'} line-clamp-2 leading-snug flex-1">${escHtml(tr.title)}</h4>
                     ${favBtn}
                 </div>
                 ${dateStr ? `<p class="text-[10px] ${isActive?'text-brand-400':'text-gray-400'}">${dateStr}</p>` : ''}
@@ -1789,8 +1789,8 @@ function renderAudioTrackList(pairs) {
             class="flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all active:scale-[0.98] ${activeCls} shadow-sm">
             <div class="${coverSize} rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center relative">${coverInner}${activeOverlay}</div>
             <div class="flex-1 min-w-0">
-                <h4 class="font-bold text-xs ${isActive?'text-brand-700':'text-gray-800'} line-clamp-1">${tr.title}</h4>
-                ${tr.artist ? `<p class="text-[10px] ${isActive?'text-brand-500':'text-gray-400'} mt-0.5">${tr.artist}</p>` : ''}
+                <h4 class="font-bold text-xs ${isActive?'text-brand-700':'text-gray-800'} line-clamp-1">${escHtml(tr.title)}</h4>
+                ${tr.artist ? `<p class="text-[10px] ${isActive?'text-brand-500':'text-gray-400'} mt-0.5">${escHtml(tr.artist)}</p>` : ''}
                 ${dateStr ? `<p class="text-[10px] ${isActive?'text-brand-400':'text-gray-400'} mt-0.5">${dateStr}</p>` : ''}
             </div>
             ${favBtn}
@@ -1815,7 +1815,7 @@ function selectAudioTrack(idx, autoPlay) {
     const coverEl = document.getElementById('audio-player-cover');
     if(coverEl) {
         const coverSrc = tr.cover || tr._catCover || '';
-        coverEl.innerHTML = `<img src="${coverSrc || '/img/default-audio.svg'}" class="w-full h-full object-cover">`;
+        coverEl.innerHTML = `<img src="${safeUrl(coverSrc) || '/img/default-audio.svg'}" class="w-full h-full object-cover">`;
     }
 
     // Reset progress

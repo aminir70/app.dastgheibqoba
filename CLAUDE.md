@@ -114,6 +114,7 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 | `GET /api/notifications/public` | اعلان‌های عمومی |
 | `GET /api/push/vapid-public-key` | کلید عمومی VAPID + وضعیت فعال بودن پوش |
 | `GET /manifest.json` | PWA manifest (دینامیک از دیتابیس) |
+| `GET /api/health` · `GET /api/version` | سلامت سرور (`{ok, uptime}`) و نسخهٔ package.json |
 
 ### کاربر (JWT Bearer token)
 | Route | توضیح |
@@ -273,7 +274,6 @@ Tailwind CSS 3 (pre-compiled) — استایل‌دهی — node build.js
 esbuild (minify)              — فشرده‌سازی JS — node build.js
 FontAwesome 6 (local)         — آیکون‌ها
 Vazir / Shabnam               — فونت‌های فارسی
-PDF.js                        — نمایش PDF
 Quill.js                      — ویرایشگر rich text (admin)
 Sortable.js                   — drag-and-drop (admin)
 ```
@@ -309,6 +309,9 @@ JWT_SECRET=...
 - **Build step الزامی:** بعد از هر تغییر در JS یا HTML، باید `node build.js` اجرا شود تا dist files به‌روز شوند.
 - **RTL:** همه رابط کاربری راست‌به‌چپ (`dir="rtl"`).
 - **toFa():** برای نمایش اعداد فارسی در UI از این تابع استفاده شود.
+- **PDF:** کتاب‌های PDF در تب جدید باز می‌شوند (`openPdfBook`)؛ PDF.js در اپ نیست.
+- **شروع اپ (`init` در app.js):** تنظیمات، نوار پایین و کتاب‌ها هم‌زمان گرفته می‌شوند و اسپلش فقط منتظر همین سه می‌ماند؛ `sharedJson(url)` (books.js) درخواست‌های هم‌زمانِ یک نشانی را یکی می‌کند.
+- **سقف درخواست‌ها (server.js):** API ۶۰۰۰/۱۵دقیقه، جستجو ۹۰/دقیقه، ورود ۳۰/۱۵دقیقه (فقط ناموفق‌ها)، ثبت‌نام ۱۰/ساعت — چون کاربران موبایل پشت IP مشترک‌اند. بدنهٔ درخواست بیرون از `/api/admin` حداکثر ۱ مگابایت.
 - **WordPress proxy:** هیچ‌گاه مستقیم به `dastgheibqoba.info` درخواست نزنید؛ همیشه از `/api/wp?path=...` استفاده شود.
 - **ادمین:** احراز هویت با httpOnly cookie `admin_token` (JWT) — نه header.
 - **کاربر:** احراز هویت با `Authorization: Bearer <token>` header (JWT) — نه `x-user-id`.

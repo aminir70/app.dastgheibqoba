@@ -82,7 +82,7 @@ function _renderLecturesList(pairs) {
     postsView.innerHTML = items.map(({p: post}) => {
         let imgUrl = post._embedded && post._embedded['wp:featuredmedia'] ? post._embedded['wp:featuredmedia'][0].source_url : '';
         const date = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
-        return `<div onclick="showWPSingleView(${post.id})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98]">${imgUrl ? `<img src="${imgUrl}" class="w-20 h-20 rounded-xl object-contain bg-gray-100 shadow-sm shrink-0">` : `<div class="w-20 h-20 bg-brand-50 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-file-alt text-brand-300 text-2xl"></i></div>`}<div class="flex flex-col justify-center min-w-0"><h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug mb-2">${post.title.rendered}</h4><span class="text-[10px] text-gray-400 font-medium"><i class="far fa-calendar ml-1"></i>${date}</span></div></div>`;
+        return `<div onclick="showWPSingleView(${post.id})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98]">${imgUrl ? `<img src="${escHtml(imgUrl)}" class="w-20 h-20 rounded-xl object-contain bg-gray-100 shadow-sm shrink-0">` : `<div class="w-20 h-20 bg-brand-50 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-file-alt text-brand-300 text-2xl"></i></div>`}<div class="flex flex-col justify-center min-w-0"><h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug mb-2">${post.title.rendered}</h4><span class="text-[10px] text-gray-400 font-medium"><i class="far fa-calendar ml-1"></i>${date}</span></div></div>`;
     }).join('');
 }
 
@@ -356,7 +356,7 @@ function _paInitAll(container) {
 }
 function _paCtrl(uid, src, duration) {
     let h = `<div class="p-4" dir="ltr">`;
-    h += `<audio id="post-audio-${uid}"${src ? ' src="'+src+'"' : ''} class="hidden"></audio>`;
+    h += `<audio id="post-audio-${uid}"${src ? ' src="'+escHtml(src)+'"' : ''} class="hidden"></audio>`;
     h += `<input type="range" id="post-prog-${uid}" value="0" min="0" max="100" step="0.1" oninput="_paSeek('${uid}',this.value)" class="w-full h-1.5 rounded-full bg-gray-200 appearance-none cursor-pointer accent-brand-600 mb-1" style="-webkit-appearance:none;direction:ltr">`;
     h += `<div class="flex justify-between text-[10px] text-gray-400 font-mono mb-3"><span id="post-ct-${uid}">۰:۰۰</span><span id="post-dt-${uid}">${duration ? toFa(duration) : '۰:۰۰'}</span></div>`;
     h += `<div class="flex items-center justify-center gap-3 mb-3">`;
@@ -383,7 +383,7 @@ function _buildAudioHtml(tracks) {
         h += `<div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0"><i class="fas fa-headphones text-white/60 text-2xl"></i></div>`;
         h += `<div class="flex-1 min-w-0">`;
         if (tr.title) h += `<p class="font-bold text-white text-sm line-clamp-2 mb-1">${tr.title}</p>`;
-        h += `<a href="${tr.src}" target="_blank" download class="inline-flex items-center gap-1 text-xs font-bold mt-1 px-3 py-1 rounded-xl" style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.4);color:#fff"><i class="fas fa-download text-[10px]"></i>دانلود</a>`;
+        h += `<a href="${safeUrl(tr.src)}" target="_blank" download class="inline-flex items-center gap-1 text-xs font-bold mt-1 px-3 py-1 rounded-xl" style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.4);color:#fff"><i class="fas fa-download text-[10px]"></i>دانلود</a>`;
         h += `</div></div>`;
         h += _paCtrl(uid, tr.src, tr.duration);
         h += `</div>`;
@@ -407,7 +407,7 @@ function _buildAudioHtml(tracks) {
             h += `<p class="font-bold text-sm text-gray-800 line-clamp-2">${tr.title || toFa(i + 1)}</p>`;
             if (tr.duration) h += `<p class="text-xs text-gray-400 mt-0.5">${tr.duration}</p>`;
             h += `</div>`;
-            h += `<a href="${tr.src}" target="_blank" download onclick="event.stopPropagation()" class="shrink-0 w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-brand-50 text-gray-400 hover:text-brand-600 rounded-full border border-gray-100 transition"><i class="fas fa-download text-xs"></i></a>`;
+            h += `<a href="${safeUrl(tr.src)}" target="_blank" download onclick="event.stopPropagation()" class="shrink-0 w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-brand-50 text-gray-400 hover:text-brand-600 rounded-full border border-gray-100 transition"><i class="fas fa-download text-xs"></i></a>`;
             h += `</div>`;
         });
         h += `</div></div>`;
@@ -495,8 +495,8 @@ async function showWPSingleView(postId) {
         // برای تک‌فایل بدون عنوان: از عنوان پست استفاده کن
         if (m.audioTracks.length === 1 && !m.audioTracks[0].title) m.audioTracks[0].title = _postTitleText();
         let h = '';
-        m.iframes.forEach(src => { h += `<div class="h_iframe-aparat_embed_frame mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-200"><span style="display: block;padding-top: 57%"></span><iframe scrolling="no" allowFullScreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${src}"></iframe></div>`; });
-        m.videos.forEach(src => { h += `<video controls src="${src}" class="w-full rounded-2xl mb-6 shadow-sm bg-black"></video>`; });
+        m.iframes.forEach(src => { h += `<div class="h_iframe-aparat_embed_frame mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-200"><span style="display: block;padding-top: 57%"></span><iframe scrolling="no" allowFullScreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${safeUrl(src)}"></iframe></div>`; });
+        m.videos.forEach(src => { h += `<video controls src="${safeUrl(src)}" class="w-full rounded-2xl mb-6 shadow-sm bg-black"></video>`; });
         h += _buildAudioHtml(m.audioTracks);
         return h;
     };
@@ -509,10 +509,10 @@ async function showWPSingleView(postId) {
     const _featuredUrl = post._embedded && post._embedded['wp:featuredmedia'] ? (post._embedded['wp:featuredmedia'][0] || {}).source_url || '' : '';
     const _galleryImgs = (media.images || []).filter(src => src && src !== _featuredUrl);
     if (_galleryImgs.length === 1) {
-        finalHtml += `<div class="mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100"><img src="${_galleryImgs[0]}" class="w-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;
+        finalHtml += `<div class="mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100"><img src="${escHtml(_galleryImgs[0])}" class="w-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;
     } else if (_galleryImgs.length > 1) {
         finalHtml += `<div class="grid grid-cols-2 gap-2 mb-6">` +
-            _galleryImgs.map(src => `<a href="${src}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden bg-gray-100 aspect-square"><img src="${src}" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></a>`).join('') + `</div>`;
+            _galleryImgs.map(src => `<a href="${safeUrl(src)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden bg-gray-100 aspect-square"><img src="${escHtml(src)}" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></a>`).join('') + `</div>`;
     }
     finalHtml += media.cleanHtml;
 
@@ -565,7 +565,7 @@ async function fetchLatestLectures() {
             const date = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
             return `<div onclick="openLatestPost(${post.id})" class="snap-start shrink-0 w-32 cursor-pointer active:scale-95 transition">
                 <div class="w-full aspect-square rounded-xl overflow-hidden mb-1.5 bg-amber-50 shadow-sm">
-                    ${imgUrl ? `<img src="${imgUrl}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center"><i class="fas fa-microphone-alt text-amber-300 text-2xl"></i></div>`}
+                    ${imgUrl ? `<img src="${escHtml(imgUrl)}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center"><i class="fas fa-microphone-alt text-amber-300 text-2xl"></i></div>`}
                 </div>
                 <h4 class="font-bold text-[10px] text-gray-800 line-clamp-2 leading-snug px-0.5">${post.title.rendered}</h4>
                 <span class="text-[9px] text-gray-400 px-0.5">${date}</span>

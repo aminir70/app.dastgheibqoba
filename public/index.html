@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <title>نرم افزار آیت الله دستغیب</title>
     
     <link rel="manifest" href="/manifest.json">
@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="/vendor/fa/all.local.min.css">
 
     <link rel="stylesheet" href="/css/tailwind.dist.css?v=50">
-    <link rel="stylesheet" href="/css/app.css?v=46">
+    <link rel="stylesheet" href="/css/app.css?v=47">
     <!-- چیدمان دسکتاپ: فقط از ۶۴۰px به بالا بارگذاری/اعمال می‌شود؛ موبایل از آن اثر نمی‌گیرد -->
     <link rel="stylesheet" href="/css/desktop.css?v=3" media="(min-width: 640px)">
 </head>
@@ -113,7 +113,7 @@
         <!-- ============================================== -->
         <div id="screen-auth" class="screen flex-col bg-gray-50 h-full">
             <header class="shrink-0 pt-safe pt-3 pb-3 px-5 bg-white border-b border-gray-100 flex items-center gap-3 shadow-sm">
-                <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-2xl text-gray-500 hover:bg-gray-100 transition">
+                <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-2xl text-gray-500 hover:bg-gray-100 transition">
                     <i class="fas fa-arrow-right"></i>
                 </button>
                 <h1 class="font-black text-gray-800 text-base" id="auth-screen-title">ورود به حساب کاربری</h1>
@@ -206,13 +206,13 @@
                     </div>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="openGlobalSearch()" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
+                    <button aria-label="جستجو" onclick="openGlobalSearch()" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
                         <i class="fas fa-search"></i>
                     </button>
-                    <button onclick="toggleGlobalTheme()" id="global-theme-btn" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
+                    <button aria-label="حالت تاریک" onclick="toggleGlobalTheme()" id="global-theme-btn" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
                         <i class="fas fa-moon" id="global-theme-icon"></i>
                     </button>
-                    <button onclick="openNotifications()" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition relative" id="bell-btn">
+                    <button aria-label="اعلان‌ها" onclick="openNotifications()" class="w-10 h-10 bg-white shadow-sm border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition relative" id="bell-btn">
                         <i class="far fa-bell"></i>
                         <span id="notif-badge" class="hidden absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
                     </button>
@@ -228,11 +228,11 @@
                     <span class="text-xs">جستجو در کتاب‌ها، سخنرانی‌ها، مطالب...</span>
                 </button>
                 <div class="flex gap-2 shrink-0">
-                    <button onclick="openNotifications()" class="w-9 h-9 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition relative" id="bell-btn-desk">
+                    <button aria-label="اعلان‌ها" onclick="openNotifications()" class="w-9 h-9 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition relative" id="bell-btn-desk">
                         <i class="far fa-bell text-sm"></i>
                         <span id="notif-badge-desk" class="hidden absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
                     </button>
-                    <button onclick="navToScreen('auth')" class="w-9 h-9 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
+                    <button aria-label="حساب کاربری" onclick="navToScreen('auth')" class="w-9 h-9 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:text-brand-600 transition">
                         <i class="fas fa-user text-sm"></i>
                     </button>
                 </div>
@@ -243,8 +243,8 @@
                 <!-- SLIDER -->
                 <div id="home-slider" class="relative w-full overflow-hidden mb-4" style="height:180px;display:none;">
                     <div id="slider-track" class="flex h-full transition-transform duration-500 ease-in-out" style="direction:ltr;will-change:transform;"></div>
-                    <button onclick="sliderNext()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/30 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm"><i class="fas fa-chevron-right text-xs"></i></button>
-                    <button onclick="sliderPrev()" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/30 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm"><i class="fas fa-chevron-left text-xs"></i></button>
+                    <button aria-label="اسلاید بعدی" onclick="sliderNext()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/30 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm"><i class="fas fa-chevron-right text-xs"></i></button>
+                    <button aria-label="اسلاید قبلی" onclick="sliderPrev()" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/30 text-white rounded-full flex items-center justify-center z-10 backdrop-blur-sm"><i class="fas fa-chevron-left text-xs"></i></button>
                     <div id="slider-dots" class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5"></div>
                 </div>
 
@@ -364,7 +364,7 @@
         <div id="screen-library" class="screen flex-col bg-gray-50 h-full">
             <header class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition">
+                    <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition">
                         <i class="fas fa-arrow-right"></i>
                     </button>
                     <div>
@@ -372,7 +372,7 @@
                         <p class="text-[10px] text-gray-400 mt-0.5" id="lib-count">در حال بارگذاری...</p>
                     </div>
                 </div>
-                <button onclick="openGlobalSearch()" class="w-9 h-9 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center hover:bg-gray-100 transition active:scale-95"><i class="fas fa-search"></i></button>
+                <button aria-label="جستجو" onclick="openGlobalSearch()" class="w-9 h-9 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center hover:bg-gray-100 transition active:scale-95"><i class="fas fa-search"></i></button>
             </header>
 
             <div class="flex-1 overflow-y-auto px-3 pb-20 pt-4">
@@ -396,15 +396,15 @@
             <header class="shrink-0 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex flex-col">
                 <!-- ردیف اول: عنوان + دکمه‌های عملکرد -->
                 <div class="flex items-center gap-2 px-4 pt-3 pb-2.5">
-                    <button onclick="handleBackButton()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition shrink-0">
+                    <button aria-label="بازگشت" onclick="handleBackButton()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition shrink-0">
                         <i class="fas fa-arrow-right text-sm"></i>
                     </button>
                     <h1 class="font-black text-lg text-gray-800 flex-1 text-center">رسانه</h1>
-                    <button id="media-search-toggle" onclick="toggleMediaSearch()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition shrink-0">
+                    <button aria-label="جستجو" id="media-search-toggle" onclick="toggleMediaSearch()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 transition shrink-0">
                         <i class="fas fa-search text-sm"></i>
                     </button>
                     <div class="relative shrink-0">
-                        <button onclick="toggleViewModeDropdown()" id="view-mode-trigger" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full transition text-gray-500 hover:bg-gray-200">
+                        <button aria-label="نحوهٔ نمایش" onclick="toggleViewModeDropdown()" id="view-mode-trigger" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full transition text-gray-500 hover:bg-gray-200">
                             <i id="view-mode-icon" class="fas fa-th text-sm"></i>
                         </button>
                         <div id="view-mode-dropdown" class="hidden absolute top-11 left-0 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 py-1 min-w-[130px]">
@@ -435,7 +435,7 @@
                             class="w-full bg-gray-100 rounded-2xl px-4 py-2.5 pr-9 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-brand-200 transition text-right"
                             oninput="onMediaSearchDebounced(this.value)">
                     </div>
-                    <button onclick="openCalendarScreen()" class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-brand-50 hover:text-brand-500 transition shrink-0" title="جستجو با تقویم">
+                    <button aria-label="تقویم" onclick="openCalendarScreen()" class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-full text-gray-500 hover:bg-brand-50 hover:text-brand-500 transition shrink-0" title="جستجو با تقویم">
                         <i class="fas fa-calendar-alt text-sm"></i>
                     </button>
                 </div>
@@ -446,7 +446,7 @@
             <!-- نوار عنوان پلی‌لیست صوت — خارج از scroll تا همیشه بالا بچسبه -->
             <div id="audio-playlist-header-bar" class="hidden shrink-0 bg-white px-4 py-2 border-b border-gray-100 shadow-sm z-10">
                 <div class="flex items-center gap-2">
-                    <button onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                    <button aria-label="بازگشت" onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                     <h2 id="audio-cat-title" class="font-bold text-sm text-gray-800 truncate flex-1"></h2>
                     <div class="relative shrink-0">
                         <button id="audio-sort-btn" onclick="toggleAudioSortDropdown()" class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1.5 rounded-lg font-bold flex items-center gap-1"><i class="fas fa-sort-amount-down text-[9px]"></i><span id="audio-sort-label">ترتیب</span></button>
@@ -479,7 +479,7 @@
                     <!-- نمای دسته‌بندی‌ها -->
                     <div class="flex flex-col gap-3 w-full">
                       <div id="video-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                        <button id="video-cats-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <button aria-label="بازگشت" id="video-cats-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                         <h2 id="video-cats-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری ویدیو</h2>
                       </div>
                       <button id="video-reels-banner" onclick="openAllVideoReels()" class="hidden w-full mb-1 bg-gradient-to-l from-rose-500 to-pink-600 text-white rounded-2xl p-3.5 flex items-center gap-3 shadow-md active:scale-[0.98] transition">
@@ -496,7 +496,7 @@
                     <!-- نمای لیست ویدیوها -->
                     <div id="video-list-view" class="hidden flex-col gap-3 w-full">
                         <div class="flex items-center gap-2 mb-1 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                            <button onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <button aria-label="بازگشت" onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                             <h2 id="video-cat-title" class="font-bold text-sm text-gray-800 truncate flex-1">ویدیوها</h2>
                             <button onclick="openVideoReels()" id="video-reels-btn" class="text-[10px] bg-rose-50 text-rose-500 px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1 shrink-0 hover:bg-rose-100 transition"><i class="fas fa-film text-[9px]"></i>ریلز</button>
                             <div class="relative shrink-0">
@@ -518,7 +518,7 @@
                     <!-- نمای پخش ویدیو -->
                     <div id="video-player-view" class="hidden flex-col gap-4 w-full">
                         <div class="flex items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                            <button onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <button aria-label="بازگشت" onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                             <h2 id="video-player-title" class="font-bold text-xs text-gray-800 line-clamp-2 flex-1 leading-snug">پخش ویدیو</h2>
                         </div>
                         <!-- پلیر آپارات -->
@@ -537,7 +537,7 @@
                     <!-- نمای دسته‌بندی‌ها -->
                     <div class="flex flex-col gap-3 w-full">
                       <div id="audio-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                        <button id="audio-cats-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <button aria-label="بازگشت" id="audio-cats-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                         <h2 id="audio-cats-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری صوت</h2>
                       </div>
                       <div id="audio-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
@@ -557,8 +557,8 @@
                                     <h3 id="audio-player-title" class="font-black text-white text-sm line-clamp-2 mb-1">انتخاب کنید</h3>
                                     <p id="audio-player-artist" class="text-white/70 text-xs"></p>
                                     <div class="flex items-center gap-2 mt-2">
-                                        <button onclick="downloadCurrentAudio()" class="w-7 h-7 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition text-xs" title="دانلود"><i class="fas fa-download"></i></button>
-                                        <button onclick="shareCurrentAudio()" class="w-7 h-7 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition text-xs" title="اشتراک‌گذاری"><i class="fas fa-share-alt"></i></button>
+                                        <button aria-label="دانلود" onclick="downloadCurrentAudio()" class="w-7 h-7 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition text-xs" title="دانلود"><i class="fas fa-download"></i></button>
+                                        <button aria-label="اشتراک‌گذاری" onclick="shareCurrentAudio()" class="w-7 h-7 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center transition text-xs" title="اشتراک‌گذاری"><i class="fas fa-share-alt"></i></button>
                                     </div>
                                 </div>
                             </div>
@@ -578,13 +578,13 @@
                             <div class="px-5 pb-4 flex flex-col gap-3">
                                 <!-- دکمه‌های کنترل -->
                                 <div class="flex items-center justify-center gap-4" style="direction:ltr;">
-                                    <button onclick="prevAudioTrack()" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition" title="قبلی"><i class="fas fa-step-backward"></i></button>
+                                    <button aria-label="قطعهٔ قبلی" onclick="prevAudioTrack()" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition" title="قبلی"><i class="fas fa-step-backward"></i></button>
                                     <button onclick="skipAudio(-15)" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition relative" title="۱۵ ثانیه عقب"><i class="fas fa-undo text-sm"></i><span class="text-[9px] absolute" style="bottom:6px;right:6px;">۱۵</span></button>
-                                    <button id="audio-play-btn" onclick="toggleAudioPlay()" class="w-16 h-16 bg-brand-600 hover:bg-brand-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95">
+                                    <button aria-label="پخش یا توقف" id="audio-play-btn" onclick="toggleAudioPlay()" class="w-16 h-16 bg-brand-600 hover:bg-brand-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95">
                                         <i id="audio-play-icon" class="fas fa-play text-xl ml-0.5"></i>
                                     </button>
                                     <button onclick="skipAudio(15)" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition relative" title="۱۵ ثانیه جلو"><i class="fas fa-redo text-sm"></i><span class="text-[9px] absolute" style="bottom:6px;left:6px;">۱۵</span></button>
-                                    <button onclick="nextAudioTrack()" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition" title="بعدی"><i class="fas fa-step-forward"></i></button>
+                                    <button aria-label="قطعهٔ بعدی" onclick="nextAudioTrack()" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center transition" title="بعدی"><i class="fas fa-step-forward"></i></button>
                                 </div>
 
                                 <!-- تنظیمات سرعت -->
@@ -609,7 +609,7 @@
                     <!-- نمای دسته‌بندی‌ها -->
                     <div class="flex flex-col gap-3 w-full">
                       <div id="gallery-cats-header" class="hidden items-center gap-2 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                        <button id="gallery-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                        <button aria-label="بازگشت" id="gallery-back-btn" onclick="handleBackButton()" style="display:none" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                         <h2 id="gallery-cat-list-title" class="font-bold text-sm text-gray-800 truncate flex-1">گالری عکس</h2>
                       </div>
                       <div id="gallery-categories-view" class="grid grid-cols-2 gap-4 w-full"></div>
@@ -618,7 +618,7 @@
                     <!-- نمای تصاویر داخل دسته -->
                     <div id="gallery-photos-view" class="hidden flex-col gap-3 w-full">
                         <div class="flex items-center gap-2 mb-3 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                            <button onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                            <button aria-label="بازگشت" onclick="handleBackButton()" class="w-8 h-8 flex items-center justify-center bg-gray-50 rounded-full text-gray-600 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                             <h2 id="gallery-category-title" class="font-bold text-sm text-gray-800 truncate flex-1">تصاویر</h2>
                             <span id="gallery-photo-count" class="text-[10px] text-gray-400 font-medium shrink-0"></span>
                         </div>
@@ -650,7 +650,7 @@
         <div id="screen-qa" class="screen flex-col bg-gray-50 h-full">
             <header class="shrink-0 pt-3 pb-3 px-6 bg-white border-b border-gray-100 shadow-sm flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
+                    <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
                     <h1 class="font-black text-xl text-gray-800">پرسش و پاسخ</h1>
                 </div>
                 <div class="flex items-center gap-2">
@@ -702,7 +702,7 @@
                 </div>
                 <div class="flex gap-2">
                     <button onclick="submitQATicket()" class="flex-1 bg-brand-600 text-white font-bold py-3 rounded-xl text-sm"><i class="fas fa-paper-plane ml-2"></i>ارسال سوال</button>
-                    <button onclick="hideQAForm()" class="w-12 bg-gray-100 rounded-xl text-gray-500 font-bold"><i class="fas fa-times"></i></button>
+                    <button aria-label="بستن" onclick="hideQAForm()" class="w-12 bg-gray-100 rounded-xl text-gray-500 font-bold"><i class="fas fa-times"></i></button>
                 </div>
             </div>
 
@@ -712,12 +712,12 @@
             <!-- نمایش مکالمه یک تیکت -->
             <div id="qa-conversation" class="hidden absolute inset-0 bg-gray-50 flex-col z-10" style="height:100%;max-height:100%;">
                 <header class="shrink-0 pt-3 pb-3 px-6 bg-white border-b border-gray-100 shadow-sm flex items-center gap-3">
-                    <button onclick="closeQAConversation()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
+                    <button aria-label="بازگشت" onclick="closeQAConversation()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
                     <div class="flex-1 min-w-0">
                         <h1 id="qa-conv-title" class="font-black text-base text-gray-800 truncate">سوال</h1>
                         <span id="qa-conv-status" class="text-xs text-brand-600 font-bold"></span>
                     </div>
-                    <button onclick="refreshQAConversation()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-400 flex items-center justify-center hover:bg-gray-100 transition"><i class="fas fa-sync-alt text-xs"></i></button>
+                    <button aria-label="بازخوانی" onclick="refreshQAConversation()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-400 flex items-center justify-center hover:bg-gray-100 transition"><i class="fas fa-sync-alt text-xs"></i></button>
                 </header>
                 <div id="qa-conv-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3" style="-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0;"></div>
                 <div id="qa-conv-reply" class="shrink-0 bg-white border-t border-gray-100 hidden safe-bottom">
@@ -727,7 +727,7 @@
                             <div id="qa-conv-reply-quote-who" class="text-[10px] font-bold text-brand-600"></div>
                             <div id="qa-conv-reply-quote-text" class="text-[11px] text-gray-500 truncate"></div>
                         </div>
-                        <button onclick="qaCancelReply()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="لغو پاسخ"><i class="fas fa-times text-xs"></i></button>
+                        <button aria-label="لغو پاسخ" onclick="qaCancelReply()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="لغو پاسخ"><i class="fas fa-times text-xs"></i></button>
                     </div>
                     <!-- ردیف پیوست/ویس -->
                     <div id="qa-conv-attach-row" class="px-3 pt-2 flex items-center gap-2">
@@ -735,7 +735,7 @@
                             <i class="fas fa-paperclip text-[11px]"></i>
                             <input type="file" id="qa-conv-file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf" class="hidden" onchange="qaConvPreviewFile()">
                         </label>
-                        <button id="qa-conv-voice-btn" onclick="qaConvToggleVoice()" class="flex items-center gap-1 bg-gray-100 px-2.5 py-1.5 rounded-lg text-xs text-gray-500 hover:bg-gray-200 transition">
+                        <button aria-label="ضبط صدا" id="qa-conv-voice-btn" onclick="qaConvToggleVoice()" class="flex items-center gap-1 bg-gray-100 px-2.5 py-1.5 rounded-lg text-xs text-gray-500 hover:bg-gray-200 transition">
                             <i class="fas fa-microphone text-[11px]"></i>
                         </button>
                         <span id="qa-conv-file-name" class="text-xs text-gray-400 flex-1 truncate"></span>
@@ -749,7 +749,7 @@
                     <!-- ردیف ورودی متن -->
                     <div class="flex gap-2 p-3">
                         <input type="text" id="qa-conv-input" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-500 text-sm" placeholder="پیام خود را بنویسید..." onkeypress="if(event.key==='Enter')sendQAConvMessage()">
-                        <button onclick="sendQAConvMessage()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 rounded-xl font-bold text-sm transition"><i class="fas fa-paper-plane"></i></button>
+                        <button aria-label="ارسال" onclick="sendQAConvMessage()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 rounded-xl font-bold text-sm transition"><i class="fas fa-paper-plane"></i></button>
                     </div>
                 </div>
                 <div id="qa-conv-limit-msg" class="hidden shrink-0 p-3 bg-amber-50 border-t border-amber-100 text-center text-xs text-amber-700 font-bold">
@@ -760,7 +760,7 @@
             <!-- اورلی ورود / ثبت‌نام -->
             <div id="qa-auth" class="hidden absolute inset-0 bg-gray-50 flex-col z-20">
                 <header class="shrink-0 pt-3 pb-3 px-6 bg-white border-b border-gray-100 shadow-sm flex items-center gap-3">
-                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500"><i class="fas fa-arrow-right"></i></button>
+                    <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500"><i class="fas fa-arrow-right"></i></button>
                     <h1 class="font-black text-xl text-gray-800">پرسش و پاسخ</h1>
                 </header>
                 <div class="flex-1 overflow-y-auto p-5 flex flex-col justify-center gap-4 max-w-sm mx-auto w-full">
@@ -796,17 +796,17 @@
         <div id="screen-lectures" class="screen flex-col bg-gray-50 relative h-full">
             <header id="lectures-header" class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between transition-colors duration-300">
                 <div class="flex items-center gap-3 min-w-0 flex-1">
-                    <button id="btn-lectures-back" onclick="wpNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0">
+                    <button aria-label="بازگشت" id="btn-lectures-back" onclick="wpNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0">
                         <i class="fas fa-arrow-right"></i>
                     </button>
                     <div class="min-w-0 flex-1">
                         <h1 id="lectures-header-title" class="font-black text-xl text-gray-800 truncate transition-colors duration-300">سخنرانی‌ها</h1>
                     </div>
                 </div>
-                <button id="btn-lectures-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm">
+                <button aria-label="تنظیمات نمایش" id="btn-lectures-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm">
                     <i class="fas fa-font"></i>
                 </button>
-                <button id="lectures-cal-btn" onclick="openCalendarScreen('lecture')" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-calendar-alt text-sm"></i></button>
+                <button aria-label="تقویم" id="lectures-cal-btn" onclick="openCalendarScreen('lecture')" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-calendar-alt text-sm"></i></button>
             </header>
 
             <div class="flex-1 overflow-y-auto px-6 pb-20 pt-6 relative">
@@ -845,10 +845,10 @@
         <div id="screen-news" class="screen flex-col bg-gray-50 relative h-full">
             <header id="news-header" class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between transition-colors duration-300">
                 <div class="flex items-center gap-3 min-w-0 flex-1">
-                    <button onclick="newsNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                    <button aria-label="بازگشت" onclick="newsNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                     <h1 id="news-header-title" class="font-black text-xl text-gray-800 truncate">اخبار</h1>
                 </div>
-                <button id="btn-news-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-font"></i></button>
+                <button aria-label="تنظیمات نمایش" id="btn-news-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-font"></i></button>
             </header>
             <div class="flex-1 overflow-y-auto px-6 pb-20 pt-6 relative">
                 <div id="news-loading" class="hidden flex-col items-center justify-center py-20 opacity-70">
@@ -872,10 +872,10 @@
         <div id="screen-statements" class="screen flex-col bg-gray-50 relative h-full">
             <header id="statements-header" class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between transition-colors duration-300">
                 <div class="flex items-center gap-3 min-w-0 flex-1">
-                    <button onclick="statementsNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
+                    <button aria-label="بازگشت" onclick="statementsNavBack()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0"><i class="fas fa-arrow-right"></i></button>
                     <h1 id="statements-header-title" class="font-black text-xl text-gray-800 truncate">بیانیه‌ها</h1>
                 </div>
-                <button id="btn-statements-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-font"></i></button>
+                <button aria-label="تنظیمات نمایش" id="btn-statements-settings" onclick="openSettings()" class="hidden w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0 ml-2 shadow-sm"><i class="fas fa-font"></i></button>
             </header>
             <div class="flex-1 overflow-y-auto px-6 pb-20 pt-6 relative">
                 <div id="statements-loading" class="hidden flex-col items-center justify-center py-20 opacity-70">
@@ -899,7 +899,7 @@
         <div id="screen-payment" class="screen flex-col bg-gray-50 h-full">
             <header class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
+                    <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition"><i class="fas fa-arrow-right"></i></button>
                     <h1 class="font-black text-xl text-gray-800">پرداخت</h1>
                 </div>
             </header>
@@ -924,7 +924,7 @@
         <div id="screen-live" class="screen flex-col bg-gray-50 h-full">
             <header class="shrink-0 pt-3 pb-3 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition">
+                    <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition">
                         <i class="fas fa-arrow-right"></i>
                     </button>
                     <div class="flex items-center gap-2">
@@ -983,17 +983,17 @@
 <!-- مودال نمایش تمام صفحه عکس با دانلود و اشتراک‌گذاری -->
 <div id="image-modal" class="fixed inset-0 z-[300] hidden bg-black/95 backdrop-blur-sm flex-col" onclick="handleModalBackdropClick(event)">
     <div class="flex items-center justify-between p-4 shrink-0">
-        <button onclick="closeImageModal()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition"><i class="fas fa-times text-lg"></i></button>
+        <button aria-label="بستن" onclick="closeImageModal()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition"><i class="fas fa-times text-lg"></i></button>
         <p id="modal-image-title" class="text-white text-xs font-bold truncate flex-1 text-center px-3 opacity-80"></p>
         <div class="flex gap-2">
-            <button onclick="downloadCurrentImage()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition" title="دانلود"><i class="fas fa-download"></i></button>
-            <button onclick="shareCurrentImage()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition" title="اشتراک‌گذاری"><i class="fas fa-share-alt"></i></button>
+            <button aria-label="دانلود" onclick="downloadCurrentImage()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition" title="دانلود"><i class="fas fa-download"></i></button>
+            <button aria-label="اشتراک‌گذاری" onclick="shareCurrentImage()" class="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition" title="اشتراک‌گذاری"><i class="fas fa-share-alt"></i></button>
         </div>
     </div>
     <div class="flex-1 flex items-center justify-center relative overflow-hidden" id="modal-img-container">
-        <button onclick="navigateGallery(-1)" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition z-10" id="modal-prev-btn"><i class="fas fa-chevron-right"></i></button>
+        <button aria-label="تصویر قبلی" onclick="navigateGallery(-1)" class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition z-10" id="modal-prev-btn"><i class="fas fa-chevron-right"></i></button>
         <img id="fullscreen-image" src="" class="max-w-[90vw] max-h-[75vh] object-contain select-none" draggable="false">
-        <button onclick="navigateGallery(1)" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition z-10" id="modal-next-btn"><i class="fas fa-chevron-left"></i></button>
+        <button aria-label="تصویر بعدی" onclick="navigateGallery(1)" class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center transition z-10" id="modal-next-btn"><i class="fas fa-chevron-left"></i></button>
     </div>
     <div class="p-4 shrink-0 flex justify-center gap-2" id="modal-dots"></div>
 </div>
@@ -1007,7 +1007,7 @@
     <header class="shrink-0 pt-3 pb-2 px-6 bg-white border-b border-gray-100 shadow-sm">
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-3 min-w-0">
-                <button onclick="handleBackButton()" class="w-10 h-10 bg-gray-50 text-gray-500 rounded-2xl flex items-center justify-center shrink-0">
+                <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 bg-gray-50 text-gray-500 rounded-2xl flex items-center justify-center shrink-0">
                     <i class="fas fa-arrow-right"></i>
                 </button>
                 <h1 class="font-black text-lg text-gray-800 truncate" id="toc-book-title">کتاب</h1>
@@ -1053,7 +1053,7 @@
 <div id="reader-overlay" class="theme-light">
     <header id="reader-header" class="fixed top-0 inset-x-0 h-16 glass border-b border-gray-200/50 flex items-center justify-between px-4 z-[210] fade-transform">
         <div class="flex items-center flex-1 min-w-0">
-            <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 text-gray-600 ml-3 shrink-0">
+            <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 text-gray-600 ml-3 shrink-0">
                 <i class="fas fa-arrow-right"></i>
             </button>
             <div class="truncate pr-1">
@@ -1062,9 +1062,9 @@
             </div>
         </div>
         <div class="flex items-center space-x-reverse space-x-1 shrink-0 relative">
-            <button onclick="openSearch()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-search"></i></button>
-            <button onclick="openSettings()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-font"></i></button>
-            <button onclick="togglePageMenu()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-ellipsis-v"></i></button>
+            <button aria-label="جستجو" onclick="openSearch()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-search"></i></button>
+            <button aria-label="تنظیمات نمایش" onclick="openSettings()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-font"></i></button>
+            <button aria-label="منوی بیشتر" onclick="togglePageMenu()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-500"><i class="fas fa-ellipsis-v"></i></button>
             <div id="page-action-menu" class="hidden absolute top-12 left-0 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50">
                 <button onclick="toggleBookmark()" class="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center border-b border-gray-100">
                     <i id="menu-bookmark-icon" class="far fa-bookmark ml-3 w-4 text-center"></i> نشان‌گذاری
@@ -1085,14 +1085,14 @@
     </main>
     <footer id="reader-footer" class="fixed bottom-0 inset-x-0 glass border-t border-gray-100/60 z-[210] fade-transform" style="padding-bottom:var(--safe-bottom);">
         <div class="h-16 flex items-center gap-4 px-6">
-            <button onclick="nextPage()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-all active:scale-90">
+            <button aria-label="صفحهٔ بعد" onclick="nextPage()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-all active:scale-90">
                 <i class="fas fa-chevron-right"></i>
             </button>
             <div class="flex-1 flex flex-col items-center gap-2.5">
                 <span id="page-counter" class="text-[11px] font-bold text-gray-400 tracking-widest" dir="ltr">1 / 100</span>
                 <input type="range" id="page-slider" min="0" max="100" value="0" class="w-full h-[3px] bg-gray-200 rounded-full appearance-none cursor-pointer accent-brand-600 outline-none">
             </div>
-            <button onclick="prevPage()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-all active:scale-90">
+            <button aria-label="صفحهٔ قبل" onclick="prevPage()" class="w-10 h-10 flex items-center justify-center rounded-full text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-all active:scale-90">
                 <i class="fas fa-chevron-left"></i>
             </button>
         </div>
@@ -1104,7 +1104,7 @@
     <div class="bg-white rounded-t-[2rem] p-6 shadow-2xl">
         <div class="flex justify-between items-center mb-4">
             <h3 class="font-bold text-gray-800">درج یادداشت</h3>
-            <button onclick="closeNoteModal()" class="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-500"><i class="fas fa-times"></i></button>
+            <button aria-label="بستن" onclick="closeNoteModal()" class="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-500"><i class="fas fa-times"></i></button>
         </div>
         <textarea id="note-textarea" rows="4" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4 text-gray-800 outline-none focus:border-brand-500 transition" placeholder="یادداشت..."></textarea>
         <button onclick="saveNote()" class="w-full bg-brand-600 text-white font-bold py-3 rounded-xl">ذخیره</button>
@@ -1113,9 +1113,9 @@
 
 <div id="search-modal" class="fixed inset-y-0 inset-x-0 z-[240] hidden flex-col bg-gray-50 shadow-2xl">
     <div class="h-16 bg-white border-b border-gray-200 flex items-center px-4 shrink-0">
-        <button onclick="closeSearch()" class="w-10 h-10 flex items-center justify-center text-gray-500"><i class="fas fa-arrow-right"></i></button>
+        <button aria-label="بازگشت" onclick="closeSearch()" class="w-10 h-10 flex items-center justify-center text-gray-500"><i class="fas fa-arrow-right"></i></button>
         <input type="text" id="search-input" placeholder="جستجو..." class="flex-1 border-none bg-transparent outline-none px-4 text-gray-800 font-medium">
-        <button onclick="performSearch()" class="w-10 h-10 flex items-center justify-center text-brand-600 bg-brand-50 rounded-full"><i class="fas fa-search"></i></button>
+        <button aria-label="جستجو" onclick="performSearch()" class="w-10 h-10 flex items-center justify-center text-brand-600 bg-brand-50 rounded-full"><i class="fas fa-search"></i></button>
     </div>
     <div id="search-results" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
 </div>
@@ -1139,9 +1139,9 @@
                 <span id="font-size-display" class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">16px</span>
             </div>
             <div class="flex items-center bg-gray-50 p-1.5 rounded-2xl">
-                <button onclick="changeFontSize(1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
+                <button aria-label="بزرگ‌تر کردن متن" onclick="changeFontSize(1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
                 <div class="w-2"></div>
-                <button onclick="changeFontSize(-1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
+                <button aria-label="کوچک‌تر کردن متن" onclick="changeFontSize(-1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
             </div>
         </div>
         <div class="mb-6">
@@ -1150,9 +1150,9 @@
                 <span id="line-height-display" class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">2.2</span>
             </div>
             <div class="flex items-center bg-gray-50 p-1.5 rounded-2xl">
-                <button onclick="changeLineHeight(0.2)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
+                <button aria-label="افزایش فاصلهٔ خطوط" onclick="changeLineHeight(0.2)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
                 <div class="w-2"></div>
-                <button onclick="changeLineHeight(-0.2)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
+                <button aria-label="کاهش فاصلهٔ خطوط" onclick="changeLineHeight(-0.2)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
             </div>
         </div>
         <div class="mb-6">
@@ -1170,9 +1170,9 @@
                 <span id="title-size-display" class="text-xs font-bold bg-gray-100 text-gray-600 px-3 py-1 rounded-full">۱۸px</span>
             </div>
             <div class="flex items-center bg-gray-50 p-1.5 rounded-2xl">
-                <button onclick="changeTitleSize(1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
+                <button aria-label="بزرگ‌تر کردن عنوان" onclick="changeTitleSize(1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-plus"></i></button>
                 <div class="w-2"></div>
-                <button onclick="changeTitleSize(-1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
+                <button aria-label="کوچک‌تر کردن عنوان" onclick="changeTitleSize(-1)" class="flex-1 py-2 flex justify-center bg-white rounded-xl shadow-sm text-gray-700 hover:bg-gray-100"><i class="fas fa-minus"></i></button>
             </div>
         </div>
         <div class="mb-6">
@@ -1218,16 +1218,16 @@
 
 <!-- HIGHLIGHT TOOLBAR -->
 <div id="highlight-toolbar" ontouchstart="saveSelectionForMobile()" class="fixed z-[260] bg-gray-900 text-white rounded-2xl shadow-2xl px-3 py-2 flex items-center gap-2 hidden" style="transform:translateX(-50%);direction:ltr;">
-    <button onclick="saveSelectionToNote()" class="w-7 h-7 bg-amber-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="ذخیره در یادداشت"><i class="fas fa-sticky-note text-xs"></i></button>
-    <button onclick="copySelectedText()" class="w-7 h-7 bg-sky-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="کپی متن"><i class="fas fa-copy text-xs"></i></button>
-    <button onclick="shareSelectedText()" class="w-7 h-7 bg-teal-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="انتشار متنی"><i class="fas fa-share-alt text-xs"></i></button>
-    <button onclick="shareSelectedTextAsImage()" class="w-7 h-7 bg-purple-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="انتشار به صورت عکس"><i class="fas fa-image text-xs"></i></button>
+    <button aria-label="ذخیره در یادداشت" onclick="saveSelectionToNote()" class="w-7 h-7 bg-amber-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="ذخیره در یادداشت"><i class="fas fa-sticky-note text-xs"></i></button>
+    <button aria-label="کپی" onclick="copySelectedText()" class="w-7 h-7 bg-sky-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="کپی متن"><i class="fas fa-copy text-xs"></i></button>
+    <button aria-label="اشتراک‌گذاری" onclick="shareSelectedText()" class="w-7 h-7 bg-teal-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="انتشار متنی"><i class="fas fa-share-alt text-xs"></i></button>
+    <button aria-label="اشتراک به‌صورت تصویر" onclick="shareSelectedTextAsImage()" class="w-7 h-7 bg-purple-500 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white" title="انتشار به صورت عکس"><i class="fas fa-image text-xs"></i></button>
     <div class="w-px h-5 bg-white/20"></div>
     <button onclick="applyHighlight('#fde68a')" class="w-7 h-7 bg-yellow-300 rounded-full border-2 border-white shadow-sm" title="زرد"></button>
     <button onclick="applyHighlight('#bbf7d0')" class="w-7 h-7 bg-green-300 rounded-full border-2 border-white shadow-sm" title="سبز"></button>
     <button onclick="applyHighlight('#bfdbfe')" class="w-7 h-7 bg-blue-300 rounded-full border-2 border-white shadow-sm" title="آبی"></button>
     <button onclick="applyHighlight('#fecaca')" class="w-7 h-7 bg-red-300 rounded-full border-2 border-white shadow-sm" title="قرمز"></button>
-    <button onclick="removeHighlight()" class="w-7 h-7 bg-gray-200 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-gray-700" title="حذف"><i class="fas fa-times text-xs"></i></button>
+    <button aria-label="حذف هایلایت" onclick="removeHighlight()" class="w-7 h-7 bg-gray-200 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-gray-700" title="حذف"><i class="fas fa-times text-xs"></i></button>
 </div>
 
 <!-- SHARE AS IMAGE MODAL -->
@@ -1235,7 +1235,7 @@
     <div class="bg-white rounded-t-3xl w-full max-w-md overflow-y-auto" style="max-height:92vh;padding-bottom:max(env(safe-area-inset-bottom),16px)">
         <div class="flex items-center justify-between px-5 pt-5 pb-3">
             <h3 class="font-bold text-gray-800 text-base">انتشار به صورت عکس</h3>
-            <button onclick="closeShareImageModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500"><i class="fas fa-times text-sm"></i></button>
+            <button aria-label="بستن" onclick="closeShareImageModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500"><i class="fas fa-times text-sm"></i></button>
         </div>
         <!-- Size toggle -->
         <div class="px-5 pb-3">
@@ -1307,7 +1307,7 @@
       <h2 class="font-black text-lg">اعلان‌ها</h2>
       <div class="flex items-center gap-2">
         <button onclick="markAllNotifsRead()" class="text-xs text-brand-600 font-bold bg-brand-50 px-3 py-1.5 rounded-full">همه خوانده شد</button>
-        <button onclick="closeNotifications()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-500 flex items-center justify-center"><i class="fas fa-times"></i></button>
+        <button aria-label="بستن" onclick="closeNotifications()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-500 flex items-center justify-center"><i class="fas fa-times"></i></button>
       </div>
     </div>
     <div id="notif-list" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"></div>
@@ -1323,7 +1323,7 @@
         <div id="notif-detail-icon-wrap" class="w-9 h-9 bg-teal-100 rounded-full flex items-center justify-center shrink-0"><i id="notif-detail-icon" class="fas fa-bullhorn text-teal-600 text-sm"></i></div>
         <h2 id="notif-detail-title" class="font-black text-base truncate"></h2>
       </div>
-      <button onclick="closeNotifDetail()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-500 flex items-center justify-center shrink-0"><i class="fas fa-times"></i></button>
+      <button aria-label="بستن" onclick="closeNotifDetail()" class="w-9 h-9 bg-gray-50 rounded-full text-gray-500 flex items-center justify-center shrink-0"><i class="fas fa-times"></i></button>
     </div>
     <div class="flex-1 overflow-y-auto p-5">
       <p id="notif-detail-message" class="text-sm text-gray-700 leading-loose whitespace-pre-wrap"></p>
@@ -1332,44 +1332,11 @@
   </div>
 </div>
 
-<!-- ====== PDF VIEWER ====== -->
-<div id="pdf-viewer-overlay" class="fixed inset-0 z-[290] hidden flex-col bg-gray-800">
-  <!-- Header -->
-  <div class="shrink-0 h-12 bg-gray-900 flex items-center px-3 gap-1">
-    <button onclick="closePdfViewer()" class="w-9 h-9 flex items-center justify-center text-white rounded-full hover:bg-white/10 transition"><i class="fas fa-times"></i></button>
-    <span id="pdf-viewer-title" class="flex-1 text-sm font-bold text-white truncate text-center px-1"></span>
-    <button onclick="pdfZoomOut()" class="w-8 h-8 flex items-center justify-center text-gray-300 rounded-full hover:bg-white/10 transition"><i class="fas fa-search-minus text-xs"></i></button>
-    <button onclick="pdfZoomIn()" class="w-8 h-8 flex items-center justify-center text-gray-300 rounded-full hover:bg-white/10 transition"><i class="fas fa-search-plus text-xs"></i></button>
-    <button onclick="downloadPdfBook()" class="w-8 h-8 flex items-center justify-center text-gray-300 rounded-full hover:bg-white/10 transition"><i class="fas fa-download text-xs"></i></button>
-  </div>
-  <!-- Page image container -->
-  <div id="pdf-canvas-container" class="flex-1 overflow-auto bg-gray-700 flex flex-col items-center p-3">
-    <img id="pdf-page-img" src="" alt="" class="shadow-2xl rounded select-none" draggable="false" style="width:100%;max-width:100%">
-  </div>
-  <!-- Loading overlay -->
-  <div id="pdf-loading" class="absolute inset-0 bg-gray-900/90 flex flex-col items-center justify-center z-10">
-    <i class="fas fa-spinner fa-spin text-4xl text-teal-400 mb-4"></i>
-    <p class="text-white text-sm font-bold">در حال بارگذاری...</p>
-  </div>
-  <!-- Bottom navigation -->
-  <div class="shrink-0 h-14 bg-gray-900 flex items-center justify-between px-5">
-    <button id="pdf-btn-prev" onclick="pdfPrevPage()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-700 text-white active:scale-90 transition disabled:opacity-30 disabled:pointer-events-none">
-      <i class="fas fa-chevron-right text-sm"></i>
-    </button>
-    <button onclick="pdfGoToPage()" class="text-center active:opacity-70">
-      <div class="text-white text-sm font-bold"><span id="pdf-page-current">--</span> / <span id="pdf-page-total">--</span></div>
-      <div class="text-gray-400 text-[10px] mt-0.5">برو به صفحه</div>
-    </button>
-    <button id="pdf-btn-next" onclick="pdfNextPage()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-700 text-white active:scale-90 transition disabled:opacity-30 disabled:pointer-events-none">
-      <i class="fas fa-chevron-left text-sm"></i>
-    </button>
-  </div>
-</div>
 <!-- GLOBAL SEARCH PANEL -->
 <!-- ====== CONTENT PAGE OVERLAY ====== -->
 <div id="content-page-overlay" class="fixed inset-0 z-[290] hidden flex-col bg-gray-50">
   <header class="shrink-0 pt-3 pb-3 px-4 bg-white/90 backdrop-blur-md sticky top-0 z-10 border-b border-gray-100 shadow-sm flex items-center gap-3">
-    <button onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0">
+    <button aria-label="بازگشت" onclick="handleBackButton()" class="w-10 h-10 flex items-center justify-center bg-gray-50 rounded-full text-gray-500 hover:bg-gray-100 transition shrink-0">
       <i class="fas fa-arrow-right"></i>
     </button>
     <h1 id="content-page-title" class="font-black text-lg text-gray-800 truncate"></h1>
@@ -1382,14 +1349,14 @@
 <!-- ====== WEBVIEW MODAL ====== -->
 <div id="webview-modal" class="fixed inset-0 z-[300] hidden flex-col bg-white">
   <div class="shrink-0 h-12 bg-white border-b border-gray-100 shadow-sm flex items-center px-2 gap-1">
-    <button onclick="closeWebView()" class="w-9 h-9 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition" title="بستن"><i class="fas fa-times text-sm"></i></button>
-    <button onclick="webviewGoBack()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="برگشت"><i class="fas fa-arrow-right text-xs"></i></button>
+    <button aria-label="بستن" onclick="closeWebView()" class="w-9 h-9 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition" title="بستن"><i class="fas fa-times text-sm"></i></button>
+    <button aria-label="بازگشت" onclick="webviewGoBack()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="برگشت"><i class="fas fa-arrow-right text-xs"></i></button>
     <div class="flex-1 min-w-0 bg-gray-100 rounded-full px-3 py-1.5 flex items-center gap-2 overflow-hidden cursor-pointer" onclick="webviewCopyUrl()">
       <i class="fas fa-lock text-emerald-500 text-xs shrink-0"></i>
       <span id="webview-url-bar" class="text-xs text-gray-500 truncate font-medium flex-1 text-right" dir="ltr"></span>
     </div>
-    <button onclick="webviewReload()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="بارگذاری مجدد"><i class="fas fa-sync-alt text-xs"></i></button>
-    <button onclick="webviewOpenExternal()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="باز کردن در مرورگر"><i class="fas fa-external-link-alt text-xs"></i></button>
+    <button aria-label="بازخوانی" onclick="webviewReload()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="بارگذاری مجدد"><i class="fas fa-sync-alt text-xs"></i></button>
+    <button aria-label="باز کردن در مرورگر" onclick="webviewOpenExternal()" class="w-9 h-9 flex items-center justify-center text-gray-400 rounded-full hover:bg-gray-100 transition" title="باز کردن در مرورگر"><i class="fas fa-external-link-alt text-xs"></i></button>
   </div>
   <!-- نوار پیشرفت بارگذاری -->
   <div id="webview-progress-bar" class="absolute top-12 left-0 right-0 h-0.5 bg-transparent z-20 overflow-hidden hidden">
@@ -1408,10 +1375,10 @@
 
 <div id="global-search-modal" class="fixed inset-0 z-[270] hidden flex-col bg-white">
   <div class="h-16 bg-white border-b border-gray-200 flex items-center px-4 shrink-0 gap-2">
-    <button onclick="closeGlobalSearch()" class="w-10 h-10 flex items-center justify-center text-gray-500 shrink-0"><i class="fas fa-arrow-right"></i></button>
+    <button aria-label="بازگشت" onclick="closeGlobalSearch()" class="w-10 h-10 flex items-center justify-center text-gray-500 shrink-0"><i class="fas fa-arrow-right"></i></button>
     <input type="text" id="global-search-input" placeholder="جستجو در کتاب‌ها، سخنرانی‌ها، صوت و ویدیو..." class="flex-1 border-none bg-transparent outline-none text-gray-800 font-medium text-sm">
-    <button onclick="closeGlobalSearch();openCalendarScreen('audio')" title="انتخاب بر اساس تاریخ" class="w-10 h-10 flex items-center justify-center text-teal-600 bg-teal-50 rounded-full shrink-0"><i class="fas fa-calendar-alt"></i></button>
-    <button onclick="performGlobalSearch()" class="w-10 h-10 flex items-center justify-center text-brand-600 bg-brand-50 rounded-full shrink-0"><i class="fas fa-search"></i></button>
+    <button aria-label="جستجو بر اساس تاریخ" onclick="closeGlobalSearch();openCalendarScreen('audio')" title="انتخاب بر اساس تاریخ" class="w-10 h-10 flex items-center justify-center text-teal-600 bg-teal-50 rounded-full shrink-0"><i class="fas fa-calendar-alt"></i></button>
+    <button aria-label="جستجو" onclick="performGlobalSearch()" class="w-10 h-10 flex items-center justify-center text-brand-600 bg-brand-50 rounded-full shrink-0"><i class="fas fa-search"></i></button>
   </div>
   <div class="p-4 border-b border-gray-100 bg-gray-50">
     <p class="text-xs text-gray-500">جستجو در کتاب‌ها، سخنرانی‌ها، صوت و ویدیو — یا انتخاب بر اساس تاریخ</p>
@@ -1419,16 +1386,14 @@
   <div id="global-search-results" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
 </div>
 
-<script src="/vendor/pdfjs/pdf.min.js"></script>
-<script>if(typeof pdfjsLib!=='undefined') pdfjsLib.GlobalWorkerOptions.workerSrc='/vendor/pdfjs/pdf.worker.min.js';</script>
-<script src="/js/dist/utils.min.js?v=61"></script>
-<script src="/js/dist/offline.min.js?v=61"></script>
-<script src="/js/dist/books.min.js?v=61"></script>
-<script src="/js/dist/lectures.min.js?v=61"></script>
-<script src="/js/dist/media.min.js?v=61"></script>
-<script src="/js/dist/news.min.js?v=61"></script>
-<script src="/js/dist/aichat.min.js?v=61"></script>
-<script src="/js/dist/app.min.js?v=61"></script>
+<script src="/js/dist/utils.min.js?v=62"></script>
+<script src="/js/dist/offline.min.js?v=62"></script>
+<script src="/js/dist/books.min.js?v=62"></script>
+<script src="/js/dist/lectures.min.js?v=62"></script>
+<script src="/js/dist/media.min.js?v=62"></script>
+<script src="/js/dist/news.min.js?v=62"></script>
+<script src="/js/dist/aichat.min.js?v=62"></script>
+<script src="/js/dist/app.min.js?v=62"></script>
 
 <!-- PWA Install Modal -->
 <div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" onclick="closePwaModal()">
@@ -1440,7 +1405,7 @@
         <div class="font-black text-white text-base" id="pwa-modal-appname">نرم افزار آیت الله دستغیب</div>
         <div class="text-xs text-white/70 mt-0.5">نصب اپلیکیشن رایگان</div>
       </div>
-      <button onclick="closePwaModal()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition shrink-0">
+      <button aria-label="بستن" onclick="closePwaModal()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition shrink-0">
         <i class="fas fa-times text-sm"></i>
       </button>
     </div>
@@ -1512,7 +1477,7 @@
     <i class="fas fa-download text-sm"></i>
     <span>نصب اپ</span>
   </button>
-  <button onclick="document.getElementById('pwa-fab').classList.add('hidden')" class="w-6 h-6 bg-gray-700/80 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition" title="بستن">
+  <button aria-label="بستن" onclick="document.getElementById('pwa-fab').classList.add('hidden')" class="w-6 h-6 bg-gray-700/80 text-white rounded-full flex items-center justify-center shadow-md active:scale-95 transition" title="بستن">
     <i class="fas fa-times text-[10px]"></i>
   </button>
 </div>
@@ -1521,14 +1486,14 @@
 <div id="ai-chat-screen" class="fixed inset-0 bg-gray-50 z-[330] flex-col hidden" dir="rtl">
   <!-- هدر -->
   <div class="flex items-center gap-2 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">
-    <button onclick="closeAIChat()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0"><i class="fas fa-arrow-right text-sm"></i></button>
+    <button aria-label="بازگشت" onclick="closeAIChat()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0"><i class="fas fa-arrow-right text-sm"></i></button>
     <div class="w-9 h-9 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shrink-0"><i class="fas fa-robot text-white text-sm"></i></div>
     <div class="flex-1 min-w-0">
       <h2 class="font-black text-sm text-gray-800 truncate">دستیار رساله آیت‌الله دستغیب</h2>
       <p id="aic-status" class="text-[10px] text-emerald-500 font-bold">آنلاین</p>
     </div>
-    <button onclick="aicNewConversation()" title="گفتگوی جدید" class="w-9 h-9 flex items-center justify-center bg-violet-50 rounded-full text-violet-600 hover:bg-violet-100 transition shrink-0"><i class="fas fa-plus text-sm"></i></button>
-    <button onclick="aicToggleHistory()" title="تاریخچه" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0"><i class="fas fa-history text-sm"></i></button>
+    <button aria-label="گفتگوی جدید" onclick="aicNewConversation()" title="گفتگوی جدید" class="w-9 h-9 flex items-center justify-center bg-violet-50 rounded-full text-violet-600 hover:bg-violet-100 transition shrink-0"><i class="fas fa-plus text-sm"></i></button>
+    <button aria-label="تاریخچهٔ گفتگوها" onclick="aicToggleHistory()" title="تاریخچه" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0"><i class="fas fa-history text-sm"></i></button>
   </div>
   <!-- پیام‌ها -->
   <div id="aic-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"></div>
@@ -1536,7 +1501,7 @@
   <div class="shrink-0 bg-white border-t border-gray-100 px-3 pt-3 pb-2">
     <div class="flex items-end gap-2">
       <textarea id="aic-input" rows="1" placeholder="سوال خود را بنویسید…" class="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-violet-400 resize-none leading-relaxed" style="max-height:120px" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aicSend();}"></textarea>
-      <button id="aic-send-btn" onclick="aicSend()" class="w-11 h-11 bg-violet-600 hover:bg-violet-700 text-white rounded-full flex items-center justify-center shadow-md transition active:scale-95 shrink-0"><i class="fas fa-paper-plane text-sm"></i></button>
+      <button aria-label="ارسال" id="aic-send-btn" onclick="aicSend()" class="w-11 h-11 bg-violet-600 hover:bg-violet-700 text-white rounded-full flex items-center justify-center shadow-md transition active:scale-95 shrink-0"><i class="fas fa-paper-plane text-sm"></i></button>
     </div>
     <p class="text-[10px] text-gray-400 text-center mt-2 leading-relaxed px-2">پاسخ‌ها توسط هوش مصنوعی و بر اساس رساله تهیه می‌شود و ممکن است خطا داشته باشد. برای عمل، به رساله یا دفتر مرجع مراجعه کنید.</p>
   </div>
@@ -1544,7 +1509,7 @@
   <div id="aic-history" class="hidden absolute inset-0 top-[61px] bg-white z-10 flex-col">
     <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
       <h3 class="font-bold text-sm text-gray-800">گفتگوهای قبلی</h3>
-      <button onclick="aicToggleHistory()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 flex items-center justify-center"><i class="fas fa-times text-xs"></i></button>
+      <button aria-label="تاریخچهٔ گفتگوها" onclick="aicToggleHistory()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 flex items-center justify-center"><i class="fas fa-times text-xs"></i></button>
     </div>
     <div id="aic-history-list" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2"></div>
   </div>
@@ -1553,7 +1518,7 @@
     <div class="bg-white w-full rounded-t-3xl flex flex-col" style="max-height:78%" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
         <h3 id="aic-ruling-title" class="font-black text-sm text-gray-800 truncate">مسأله</h3>
-        <button onclick="aicCloseRuling()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 flex items-center justify-center shrink-0"><i class="fas fa-times text-xs"></i></button>
+        <button aria-label="بستن" onclick="aicCloseRuling()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 flex items-center justify-center shrink-0"><i class="fas fa-times text-xs"></i></button>
       </div>
       <div id="aic-ruling-body" class="flex-1 overflow-y-auto p-4 text-sm leading-loose text-gray-700 whitespace-pre-wrap" style="padding-bottom:max(env(safe-area-inset-bottom),16px)"></div>
     </div>
@@ -1574,7 +1539,7 @@
 </style>
 <div id="video-reels-screen" class="fixed inset-0 bg-black z-[320] flex-col hidden" dir="rtl">
   <div class="absolute top-0 inset-x-0 z-20 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
-    <button onclick="closeVideoReels()" class="pointer-events-auto w-9 h-9 flex items-center justify-center bg-white/15 backdrop-blur-sm rounded-full text-white shrink-0"><i class="fas fa-arrow-right text-sm"></i></button>
+    <button aria-label="بازگشت" onclick="closeVideoReels()" class="pointer-events-auto w-9 h-9 flex items-center justify-center bg-white/15 backdrop-blur-sm rounded-full text-white shrink-0"><i class="fas fa-arrow-right text-sm"></i></button>
     <h2 id="reels-title" class="font-bold text-sm text-white flex-1 text-center truncate" style="text-shadow:0 1px 3px rgba(0,0,0,.6)">ریلز</h2>
     <div class="w-9 shrink-0"></div>
   </div>
@@ -1584,7 +1549,7 @@
 <div id="calendar-screen" class="fixed inset-0 bg-gray-50 z-[300] flex-col hidden" dir="rtl">
   <!-- هدر -->
   <div class="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">
-    <button onclick="closeCalendarScreen()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0">
+    <button aria-label="بازگشت" onclick="closeCalendarScreen()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0">
       <i class="fas fa-arrow-right text-sm"></i>
     </button>
     <h2 class="font-bold text-base text-gray-800 flex-1 text-center">تقویم</h2>
@@ -1612,7 +1577,7 @@
 <!-- صفحهٔ پخش تکی صوت (از «آخرین صوت‌ها» در صفحه اصلی) -->
 <div id="audio-single-screen" class="fixed inset-0 bg-gray-50 z-[300] flex-col hidden" dir="rtl">
   <div class="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm shrink-0">
-    <button onclick="closeAudioSingleScreen()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0">
+    <button aria-label="بازگشت" onclick="closeAudioSingleScreen()" class="w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 transition shrink-0">
       <i class="fas fa-arrow-right text-sm"></i>
     </button>
     <h2 class="font-bold text-base text-gray-800 flex-1 text-center">پخش صوت</h2>

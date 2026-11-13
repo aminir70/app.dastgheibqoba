@@ -281,7 +281,7 @@ function renderWPPostsList(posts, screen) {
         let imgUrl = post._embedded && post._embedded['wp:featuredmedia'] ? post._embedded['wp:featuredmedia'][0].source_url : '';
         const date = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
         return `<div onclick="${onclickFn}(${post.id})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98]">
-            ${imgUrl ? `<img src="${imgUrl}" class="w-20 h-20 rounded-xl object-contain bg-gray-100 shadow-sm shrink-0">` : `<div class="w-20 h-20 bg-brand-50 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-file-alt text-brand-300 text-2xl"></i></div>`}
+            ${imgUrl ? `<img src="${escHtml(imgUrl)}" class="w-20 h-20 rounded-xl object-contain bg-gray-100 shadow-sm shrink-0">` : `<div class="w-20 h-20 bg-brand-50 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-file-alt text-brand-300 text-2xl"></i></div>`}
             <div class="flex flex-col justify-center min-w-0">
                 <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug mb-2">${post.title.rendered}</h4>
                 <span class="text-[10px] text-gray-400 font-medium"><i class="far fa-calendar ml-1"></i>${date}</span>
@@ -324,8 +324,8 @@ async function renderWPSingle(post, screen) {
     }
 
     let finalHtml = '';
-    media.iframes.forEach(src => { finalHtml += `<div class="h_iframe-aparat_embed_frame mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-200"><span style="display: block;padding-top: 57%"></span><iframe scrolling="no" allowFullScreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${src}"></iframe></div>`; });
-    media.videos.forEach(src => { finalHtml += `<video controls src="${src}" class="w-full rounded-2xl mb-6 shadow-sm bg-black"></video>`; });
+    media.iframes.forEach(src => { finalHtml += `<div class="h_iframe-aparat_embed_frame mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-200"><span style="display: block;padding-top: 57%"></span><iframe scrolling="no" allowFullScreen="true" webkitallowfullscreen="true" mozallowfullscreen="true" src="${safeUrl(src)}"></iframe></div>`; });
+    media.videos.forEach(src => { finalHtml += `<video controls src="${safeUrl(src)}" class="w-full rounded-2xl mb-6 shadow-sm bg-black"></video>`; });
     if (media.audioTracks && media.audioTracks.length > 0) {
         const multi = media.audioTracks.length > 1;
         finalHtml += `<div class="bg-brand-50/50 p-4 rounded-2xl mb-8 border border-brand-100 shadow-sm">`;
@@ -334,8 +334,8 @@ async function renderWPSingle(post, screen) {
             if (multi && track.title) {
                 finalHtml += `<p class="text-xs font-bold text-brand-700 mb-1 mt-${i > 0 ? '4' : '0'}">${i + 1}. ${track.title}${track.duration ? ' <span class="font-normal text-gray-400">' + track.duration + '</span>' : ''}</p>`;
             }
-            finalHtml += `<audio controls src="${track.src}" class="w-full h-11 mb-2 outline-none"></audio>`;
-            finalHtml += `<a href="${track.src}" target="_blank" download class="inline-flex items-center bg-white text-brand-600 px-3 py-2 rounded-xl text-[11px] font-bold mb-3 shadow-sm border border-gray-200" style="text-decoration:none"><i class="fas fa-download ml-1.5"></i>دانلود${track.title ? ' — ' + track.title : ''}</a>`;
+            finalHtml += `<audio controls src="${escHtml(track.src)}" class="w-full h-11 mb-2 outline-none"></audio>`;
+            finalHtml += `<a href="${safeUrl(track.src)}" target="_blank" download class="inline-flex items-center bg-white text-brand-600 px-3 py-2 rounded-xl text-[11px] font-bold mb-3 shadow-sm border border-gray-200" style="text-decoration:none"><i class="fas fa-download ml-1.5"></i>دانلود${track.title ? ' — ' + track.title : ''}</a>`;
         });
         finalHtml += `</div>`;
     }
@@ -343,11 +343,11 @@ async function renderWPSingle(post, screen) {
     const featuredUrl = post._embedded && post._embedded['wp:featuredmedia'] ? (post._embedded['wp:featuredmedia'][0] || {}).source_url || '' : '';
     const galleryImgs = (media.images || []).filter(src => src && src !== featuredUrl);
     if (galleryImgs.length === 1) {
-        finalHtml += `<div class="mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100"><img src="${galleryImgs[0]}" class="w-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;
+        finalHtml += `<div class="mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100"><img src="${escHtml(galleryImgs[0])}" class="w-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;
     } else if (galleryImgs.length > 1) {
         finalHtml += `<div class="grid grid-cols-2 gap-2 mb-6">` +
             galleryImgs.map(src =>
-                `<a href="${src}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden bg-gray-100 aspect-square"><img src="${src}" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></a>`
+                `<a href="${safeUrl(src)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden bg-gray-100 aspect-square"><img src="${escHtml(src)}" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></a>`
             ).join('') + `</div>`;
     }
     finalHtml += media.cleanHtml;
