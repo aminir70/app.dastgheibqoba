@@ -211,8 +211,14 @@ test('بازسازی فهرست از راه API', async () => {
   assert.equal(unauth.status, 401);
 });
 
-test('پاکسازی: پوشهٔ books/ بعد از حذف کتاب‌ها تمیز است', async () => {
+test('پاکسازی: فایل‌های کتاب‌های همین فایل تست بعد از حذف پاک می‌شوند', async () => {
+  // فقط فایل‌های خودِ این تست بررسی می‌شوند (فایل‌های تست‌های هم‌زمان دیگر در books/ دخیل نیستند)
+  const mine = [];
+  for (const id of bookIds) {
+    const b = await srv.api('GET', `/api/books/${id}`);
+    if (b.body && b.body.db_filename) mine.push(path.join(ROOT, 'books', b.body.db_filename));
+  }
   for (const id of bookIds.splice(0)) await srv.api('DELETE', `/api/admin/books/${id}`, { cookie });
-  const left = fs.readdirSync(path.join(ROOT, 'books')).filter(f => /\.(db|sqlite3?)$/i.test(f));
-  assert.deepEqual(left, []);
+  assert.ok(mine.length >= 1);
+  assert.deepEqual(mine.filter(f => fs.existsSync(f)), []);
 });
