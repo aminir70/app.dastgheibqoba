@@ -19,32 +19,36 @@
   "license": "ISC",
   "type": "commonjs",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "compression": "^1.8.1",
+    "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^16.3.1",
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "express-rate-limit": "^7.1.5",
-    "express-validator": "^7.0.1",
-    "geoip-country": "^5.0.202609230144",
+    "express-validator": "^7.3.2",
+    "geoip-country": "^5.0.202611110258",
     "helmet": "^7.1.0",
     "jalaali-js": "^1.2.8",
     "jsonwebtoken": "^9.0.3",
-    "multer": "^1.4.5-lts.1",
-    "music-metadata": "^11.12.3",
-    "sharp": "^0.34.5",
+    "multer": "^2.5.0",
+    "music-metadata": "^12.5.0",
+    "sharp": "^0.35.5",
     "sortablejs": "^1.15.7",
-    "sqlite3": "^5.1.7",
+    "sqlite3": "^6.0.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
     "esbuild": "^0.28.0",
     "nodemon": "^3.0.2",
-    "pdfjs-dist": "^3.11.174",
     "tailwindcss": "^3.4.19"
+  },
+  "overrides": {
+    "geoip-country": {
+      "ip-address": "^10.7.6"
+    }
   }
 }
