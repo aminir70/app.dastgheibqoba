@@ -1,26 +1,18 @@
 // Service Worker - مرکز نشر آثار
-const CACHE_NAME = 'nashr-asar-v55';
-const STATIC_CACHE = 'nashr-static-v55';
-const DYNAMIC_CACHE = 'nashr-dynamic-v55';
+const CACHE_NAME = 'nashr-asar-v56';
+const STATIC_CACHE = 'nashr-static-v56';
+const DYNAMIC_CACHE = 'nashr-dynamic-v56';
 
-// صفحه اصلی و فونت‌ها را pre-cache می‌کنیم
+// صفحه اصلی و فقط فونت‌های لازم بازدید اول را pre-cache می‌کنیم (بقیهٔ فونت‌ها با قاعدهٔ cache-first هنگام اولین استفاده کش می‌شوند)
 // فایل‌های JS/CSS با استراتژی network-first بارگذاری می‌شوند (همیشه به‌روز)
 const STATIC_ASSETS = [
   '/',
-  '/vendor/fa/webfonts/fa-solid-900.woff2',
-  '/vendor/fa/webfonts/fa-regular-400.woff2',
-  '/vendor/fa/webfonts/fa-brands-400.woff2',
-  '/vendor/fonts/vazir/Vazir-Thin.woff2',
-  '/vendor/fonts/vazir/Vazir-Light.woff2',
+  '/vendor/fa/webfonts/fa-solid-900.subset.woff2',
+  '/vendor/fa/webfonts/fa-regular-400.subset.woff2',
+  '/vendor/fa/webfonts/fa-brands-400.subset.woff2',
   '/vendor/fonts/vazir/Vazir-Regular.woff2',
-  '/vendor/fonts/vazir/Vazir-Medium.woff2',
   '/vendor/fonts/vazir/Vazir-Bold.woff2',
   '/vendor/fonts/vazir/Vazir-Black.woff2',
-  '/vendor/fonts/shabnam/Shabnam-Thin.woff2',
-  '/vendor/fonts/shabnam/Shabnam-Light.woff2',
-  '/vendor/fonts/shabnam/Shabnam.woff2',
-  '/vendor/fonts/shabnam/Shabnam-Medium.woff2',
-  '/vendor/fonts/shabnam/Shabnam-Bold.woff2',
 ];
 
 function offlineResponse(msg) {
