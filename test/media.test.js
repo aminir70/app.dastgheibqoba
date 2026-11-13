@@ -3,8 +3,9 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const { startServer, adminLogin } = require('./helpers');
-const { makeImage, makeWav, makeForm, diskPath, tracker, served } = require('./fixtures');
+const { makeImage, makeWav, makeForm, diskPath, tracker, served, ROOT } = require('./fixtures');
 
 let srv, cookie;
 const files = tracker();
@@ -25,6 +26,13 @@ const img = async name => ({ data: await makeImage('png'), type: 'image/png', na
 const wav = name => ({ data: makeWav(), type: 'audio/wav', name });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // تا ۳ ثانیه منتظر می‌ماند که شرط برقرار شود (پاک‌سازی فایل‌ها در callbackهای جدا بعد از پاسخ انجام می‌شود)
+// فایلی در public/<dir> (یا ریشهٔ پروژه با dir='../books') با همین محتوای دقیق؛ آپلودهای رد‌شده نباید جایی بمانند
+function findByContent(dir, buf) {
+  const base = path.join(ROOT, dir.startsWith('books') ? '' : 'public', dir), hits = [];
+  for (const f of fs.readdirSync(base)) { try { if (fs.readFileSync(path.join(base, f)).equals(buf)) hits.push(path.join(base, f)); } catch (e) { /* ignore */ } }
+  hits.forEach(h => files.track(h, true));   // اگر باگ برگشت، تست خودش پاک‌سازی کند
+  return hits;
+}
 async function waitFor(pred) { for (let i = 0; i < 60 && !(await pred()); i++) await sleep(50); }
 
 // ================================================================ گالری
@@ -146,27 +154,52 @@ test('گالری: حذف دستهٔ اصلی زیردستهٔ بدون عکس ر
   // پاک‌شدن فایل کاور قطعی نیست: ناپایدار است و در todo بعدی بررسی می‌شود
 });
 
-// باگ شناخته‌شده (ناپایدار): کوئری SELECT کاور و DELETE دسته هم‌زمان صف می‌شوند؛ اگر DELETE زودتر اجرا شود
-// فایل کاور روی دیسک می‌ماند (یتیم).
-test('گالری: حذف دسته فایل کاورش را همیشه پاک می‌کند [باگ شناخته‌شده، ناپایدار]', { todo: 'گاهی فایل کاور یتیم می‌ماند' }, async () => {
-  const c = await form('POST', '/api/admin/gallery/categories', { name: 'کاوردار' }, { gallery_image: await img('cv.png') });
-  const cover = (await get('/api/gallery/categories')).body.find(x => x.id === c.body.id).cover;
-  files.track(cover);
-  assert.equal((await srv.api('DELETE', `/api/admin/gallery/categories/${c.body.id}`, { cookie })).status, 200);
-  await waitFor(async () => !files.exists(cover));
-  assert.ok(!files.exists(cover), 'کاور باید پاک شود');
+test('گالری: حذف دسته فایل کاورش را همیشه پاک می‌کند', async () => {
+  for (let i = 0; i < 5; i++) {
+    const c = await form('POST', '/api/admin/gallery/categories', { name: 'کاوردار' }, { gallery_image: await img('cv.png') });
+    const cover = (await get('/api/gallery/categories')).body.find(x => x.id === c.body.id).cover;
+    files.track(cover);
+    assert.ok(files.exists(cover));
+    assert.equal((await srv.api('DELETE', `/api/admin/gallery/categories/${c.body.id}`, { cookie })).status, 200);
+    assert.ok(!files.exists(cover), 'کاور باید هم‌زمان با پاسخ پاک شده باشد');  // بدون انتظار
+  }
 });
 
-// باگ شناخته‌شده (server.js): با foreign_keys=ON، DELETE دسته پیش از DELETE عکس‌ها اجرا می‌شود،
-// پس دستهٔ دارای عکس بی‌صدا پاک نمی‌شود ولی پاسخ success:true است.
-test('گالری: حذف دستهٔ دارای عکس واقعاً دسته را پاک می‌کند [باگ شناخته‌شده]', { todo: 'دستهٔ دارای عکس حذف نمی‌شود (FK race)' }, async () => {
+test('گالری: حذف دستهٔ دارای عکس واقعاً دسته را پاک می‌کند', async () => {
   const c = await form('POST', '/api/admin/gallery/categories', { name: 'دارای عکس' });
   cleanup.gallery.push(c.body.id);
   const p = await form('POST', '/api/admin/gallery/photos', { category_id: c.body.id, image_url: 'https://example.com/a.jpg' });
   assert.equal(p.status, 200);
   assert.equal((await srv.api('DELETE', `/api/admin/gallery/categories/${c.body.id}`, { cookie })).status, 200);
-  await sleep(200);
   assert.equal((await get('/api/gallery/categories')).body.find(x => x.id === c.body.id), undefined);
+  assert.equal((await get('/api/admin/gallery/categories', cookie)).body.find(x => x.id === c.body.id), undefined);
+  assert.deepEqual((await get(`/api/gallery/categories/${c.body.id}/photos`)).body, []);
+});
+
+test('گالری: حذف دسته عکس‌ها، زیردسته‌ها (چند سطح) و همهٔ فایل‌هایشان را پاک می‌کند', async () => {
+  const mk = async (name, parent, withCover) => {
+    const r = await form('POST', '/api/admin/gallery/categories', { name, ...(parent ? { parent_id: parent } : {}) }, withCover ? { gallery_image: await img('c.png') } : {});
+    assert.equal(r.status, 200, r.text);
+    cleanup.gallery.push(r.body.id);
+    return r.body.id;
+  };
+  const top = await mk('ریشه', null, true), mid = await mk('میانی', top, true), low = await mk('پایین', mid, false);
+  const urls = [];
+  for (const cat of [top, mid, low]) for (let i = 0; i < 2; i++) {
+    const r = await form('POST', '/api/admin/gallery/photos', { category_id: cat }, { gallery_image: await img('p.png') });
+    assert.equal(r.status, 200, r.text);
+    urls.push(files.track(r.body.image));
+  }
+  const all = (await get('/api/admin/gallery/categories', cookie)).body;
+  for (const id of [top, mid]) urls.push(files.track(all.find(c => c.id === id).cover));
+  assert.ok(urls.every(u => files.exists(u)));
+  const d = await srv.api('DELETE', `/api/admin/gallery/categories/${top}`, { cookie });
+  assert.equal(d.status, 200, d.text);
+  assert.deepEqual(d.body, { success: true });
+  const left = (await get('/api/admin/gallery/categories', cookie)).body.map(c => c.id);
+  for (const id of [top, mid, low]) assert.ok(!left.includes(id), 'دسته ' + id);
+  for (const id of [top, mid, low]) assert.deepEqual((await get(`/api/gallery/categories/${id}/photos`)).body, []);
+  for (const u of urls) assert.ok(!files.exists(u), u);
 });
 
 // ================================================================ صوت
@@ -292,6 +325,8 @@ test('صوت: ترتیب‌دهی دسته‌ها', async () => {
 });
 
 test('صوت: extract-covers برای قطعهٔ بدون کاور از کاور دسته استفاده می‌کند', async () => {
+  // کاور دسته باید تصویر باشد (قطعهٔ این دسته کاور ندارد و دسته هم تا اینجا بی‌کاور است)
+  assert.equal((await form('PUT', `/api/admin/audio/categories/${aSub}`, { name: 'زیرمجموعهٔ ویرایش‌شده', parent_id: aParent, cover_url: 'https://example.com/sub.jpg' })).status, 200);
   const r = await srv.api('POST', '/api/admin/audio/extract-covers', { cookie });
   assert.equal(r.status, 200, r.text);
   assert.equal(r.body.success, true);
@@ -452,17 +487,140 @@ test('ویدیو: حذف دسته آیتم‌هایش را هم حذف می‌ک
   assert.equal((await get(`/api/videos/categories?parent_id=${vParent}`)).body.length, 0);
 });
 
-// باگ شناخته‌شده: حذف دستهٔ صوت/ویدیو زیردسته‌ها را پاک نمی‌کند (گالری می‌کند)؛ یتیم می‌مانند.
-test('صوت/ویدیو: حذف دستهٔ اصلی زیردسته‌ها را هم پاک می‌کند [باگ شناخته‌شده]', { todo: 'زیردسته‌ها یتیم می‌مانند' }, async () => {
-  for (const kind of ['audio', 'video']) {
-    const pub = kind === 'audio' ? 'audio' : 'videos';
-    const p = await form('POST', `/api/admin/${kind}/categories`, { name: 'والد' });
-    cleanup[kind].push(p.body.id);
-    const s = await form('POST', `/api/admin/${kind}/categories`, { name: 'فرزند', parent_id: p.body.id });
-    cleanup[kind].push(s.body.id);
-    await srv.api('DELETE', `/api/admin/${kind}/categories/${p.body.id}`, { cookie });
-    assert.deepEqual((await get(`/api/${pub}/categories?parent_id=${p.body.id}`)).body, [], kind);
+test('صوت/ویدیو: حذف دستهٔ اصلی زیردسته‌ها (هر عمق)، آیتم‌ها و فایل‌هایشان را هم پاک می‌کند', async () => {
+  const mk = async (kind, name, parent) => {
+    const r = await form('POST', `/api/admin/${kind}/categories`, { name, ...(parent ? { parent_id: parent } : {}) });
+    assert.equal(r.status, 200, r.text);
+    cleanup[kind].push(r.body.id);
+    return r.body.id;
+  };
+  // ---- صوت: ریشه ← فرزند ← نوه، با فایل‌های آپلودی در هر سطح
+  const ap = await mk('audio', 'والد'), ac = await mk('audio', 'فرزند', ap), ag = await mk('audio', 'نوه', ac);
+  const keepCat = await mk('audio', 'دستهٔ جدا');
+  const audioUrls = [];
+  for (const cat of [ap, ac, ag]) {
+    const t = await form('POST', '/api/admin/audio/tracks', { category_id: cat, title: 'قطعه' }, { audio_file: wav('t.wav'), audio_cover: await img('tc.png') });
+    assert.equal(t.status, 200, t.text);
+    audioUrls.push(files.track(t.body.audio_url), files.track(t.body.cover));
   }
+  // فایلی که ردیف دیگری (در دستهٔ بیرون از درخت) هنوز به آن اشاره می‌کند باید بماند
+  const shared = audioUrls[2];                       // صوت قطعهٔ فرزند
+  const ext = await form('POST', '/api/admin/audio/tracks', { category_id: keepCat, title: 'اشتراکی', audio_url: shared });
+  assert.equal(ext.status, 200, ext.text);
+  assert.equal((await srv.api('DELETE', `/api/admin/audio/categories/${ap}`, { cookie })).status, 200);
+  const aCats = (await get('/api/admin/audio/categories', cookie)).body.map(c => c.id);
+  for (const id of [ap, ac, ag]) {
+    assert.ok(!aCats.includes(id), 'دستهٔ صوت ' + id);
+    assert.deepEqual((await get(`/api/audio/categories/${id}/tracks`)).body, []);
+  }
+  assert.ok(aCats.includes(keepCat));
+  audioUrls.forEach((u, i) => assert.equal(files.exists(u), u === shared, u + ' #' + i));
+  assert.equal((await get(`/api/audio/categories/${keepCat}/tracks`)).body.length, 1);
+  assert.equal((await srv.api('DELETE', `/api/admin/audio/categories/${keepCat}`, { cookie })).status, 200);
+  assert.ok(!files.exists(shared), 'با رفتن آخرین ارجاع فایل پاک می‌شود');
+
+  // ---- ویدیو
+  const vp = await mk('video', 'والد'), vc = await mk('video', 'فرزند', vp), vg = await mk('video', 'نوه', vc);
+  const thumbs = [];
+  for (const cat of [vp, vc, vg]) {
+    const r = await form('POST', '/api/admin/video/items', { category_id: cat, title: 'v', embed_input: 'https://www.aparat.com/v/h' + cat }, { gallery_image: await img('t.png') });
+    assert.equal(r.status, 200, r.text);
+    thumbs.push(files.track(r.body.thumbnail));
+  }
+  assert.equal((await srv.api('DELETE', `/api/admin/video/categories/${vp}`, { cookie })).status, 200);
+  const vCats = (await get('/api/admin/video/categories', cookie)).body.map(c => c.id);
+  for (const id of [vp, vc, vg]) {
+    assert.ok(!vCats.includes(id), 'دستهٔ ویدیو ' + id);
+    assert.deepEqual((await get(`/api/videos/categories/${id}/items`)).body, []);
+  }
+  assert.ok(!(await get('/api/videos/all-dates')).body.some(v => [vp, vc, vg].some(c => String(v.embed_url).includes('/h' + c))));
+  thumbs.forEach(u => assert.ok(!files.exists(u), u));
+});
+
+test('صوت: کاور دسته هرگز از آدرس صوت ساخته نمی‌شود؛ حذف قطعه کاور مورداستفادهٔ دسته را پاک نمی‌کند', async () => {
+  const c = await form('POST', '/api/admin/audio/categories', { name: 'بدون کاور' });
+  cleanup.audio.push(c.body.id);
+  const cover = async () => (await get('/api/admin/audio/categories', cookie)).body.find(x => x.id === c.body.id).cover;
+
+  const t1 = await form('POST', '/api/admin/audio/tracks', { category_id: c.body.id, title: 'لینکی', audio_url: 'https://example.com/x.mp3' });
+  assert.equal(t1.status, 200, t1.text);
+  assert.equal(await cover(), '', 'لینک صوتی نباید کاور دسته شود');
+  const t2 = await form('POST', '/api/admin/audio/tracks', { category_id: c.body.id, title: 'آپلودی بدون کاور' }, { audio_file: wav('n.wav') });
+  assert.equal(t2.status, 200, t2.text);
+  files.track(t2.body.audio_url);
+  assert.equal(await cover(), '', 'فایل صوتی نباید کاور دسته شود');
+
+  const t3 = await form('POST', '/api/admin/audio/tracks', { category_id: c.body.id, title: 'کاوردار' }, { audio_file: wav('m.wav'), audio_cover: await img('m.png') });
+  assert.equal(t3.status, 200, t3.text);
+  files.track(t3.body.audio_url); files.track(t3.body.cover);
+  assert.equal(await cover(), t3.body.cover, 'کاور تصویری قطعه کاور دسته می‌شود');
+
+  assert.equal((await srv.api('DELETE', `/api/admin/audio/tracks/${t3.body.id}`, { cookie })).status, 200);
+  assert.ok(!files.exists(t3.body.audio_url), 'فایل صوتی پاک شد');
+  assert.ok(files.exists(t3.body.cover), 'کاور هنوز کاور دسته است و پاک نمی‌شود');
+  assert.equal(await cover(), t3.body.cover);
+
+  // قطعهٔ دیگری که همان کاور را دارد: حذف دسته هم بعد از رفتن آخرین ارجاع فایل را پاک می‌کند
+  assert.equal((await srv.api('DELETE', `/api/admin/audio/categories/${c.body.id}`, { cookie })).status, 200);
+  assert.ok(!files.exists(t3.body.cover));
+  assert.ok(!files.exists(t2.body.audio_url));
+});
+
+test('آپلود ردشده: فایل‌های ذخیره‌شده پیش از پاسخ خطا پاک می‌شوند', async () => {
+  const uniq = () => makeWav(300 + Math.floor(Math.random() * 5000));
+  const bytes = Buffer.concat([Buffer.from('%PDF-1.4\n'), require('node:crypto').randomBytes(64)]);
+  const c = await form('POST', '/api/admin/audio/categories', { name: 'برای رد' });
+  cleanup.audio.push(c.body.id);
+  const g = await form('POST', '/api/admin/gallery/categories', { name: 'برای رد' });
+  cleanup.gallery.push(g.body.id);
+
+  // صوت: عنوان خالی (فایل صوتی و کاور هر دو)
+  const w = uniq(), im1 = await makeImage('png');
+  let r = await form('POST', '/api/admin/audio/tracks', { category_id: c.body.id, title: ' ' },
+    { audio_file: { data: w, type: 'audio/wav', name: 'a.wav' }, audio_cover: { data: im1, type: 'image/png', name: 'a.png' } });
+  assert.equal(r.status, 400);
+  assert.deepEqual([findByContent('audio', w), findByContent('gallery', im1)], [[], []], 'صوت: عنوان خالی');
+
+  // صوت: فقط کاور بدون فایل/لینک صوتی
+  const im2 = await makeImage('png');
+  r = await form('POST', '/api/admin/audio/tracks', { category_id: c.body.id, title: 'x' }, { audio_cover: { data: im2, type: 'image/png', name: 'a.png' } });
+  assert.equal(r.status, 400);
+  assert.deepEqual(findByContent('gallery', im2), [], 'صوت: بدون فایل صوتی');
+
+  // صوت: ویرایش با عنوان خالی
+  const t = await form('POST', '/api/admin/audio/tracks', { category_id: c.body.id, title: 'ok', audio_url: 'https://example.com/a.mp3' });
+  const w2 = uniq();
+  r = await form('PUT', `/api/admin/audio/tracks/${t.body.id}`, { title: '' }, { audio_file: { data: w2, type: 'audio/wav', name: 'a.wav' } });
+  assert.equal(r.status, 400);
+  assert.deepEqual(findByContent('audio', w2), [], 'ویرایش صوت');
+
+  // کتاب: عنوان خالی (PDF + جلد)، سپس نوع pdf بدون فایل pdf (فقط جلد)
+  const im3 = await makeImage('png'), im4 = await makeImage('png');
+  r = await form('POST', '/api/admin/books', { title: '', book_type: 'pdf' },
+    { pdf_file: { data: bytes, type: 'application/pdf', name: 'b.pdf' }, cover: { data: im3, type: 'image/png', name: 'c.png' } });
+  assert.equal(r.status, 400);
+  assert.deepEqual([findByContent('books', bytes), findByContent('covers', im3)], [[], []], 'کتاب: عنوان خالی');
+  r = await form('POST', '/api/admin/books', { title: 'بدون فایل', book_type: 'pdf' }, { cover: { data: im4, type: 'image/png', name: 'c.png' } });
+  assert.equal(r.status, 400);
+  assert.deepEqual(findByContent('covers', im4), [], 'کتاب: بدون PDF');
+
+  // گالری: عکس بدون دسته / با دستهٔ نامعتبر / دستهٔ ناموجود، دسته بدون نام
+  for (const [label, fields] of [['بدون دسته', {}], ['دستهٔ صفر', { category_id: '' }], ['دستهٔ ناموجود', { category_id: 987654 }]]) {
+    const im = await makeImage('png');
+    r = await form('POST', '/api/admin/gallery/photos', fields, { gallery_image: { data: im, type: 'image/png', name: 'p.png' } });
+    assert.ok(r.status === 400 || r.status === 500, label + ' ' + r.status);
+    assert.deepEqual(findByContent('gallery', im), [], 'گالری: ' + label);
+  }
+  const im5 = await makeImage('png');
+  r = await form('POST', '/api/admin/gallery/categories', { name: ' ' }, { gallery_image: { data: im5, type: 'image/png', name: 'p.png' } });
+  assert.equal(r.status, 400);
+  assert.deepEqual(findByContent('gallery', im5), [], 'گالری: دسته بدون نام');
+
+  // ویدیو: لینک نامعتبر با تامبنیل
+  const im6 = await makeImage('png');
+  r = await form('POST', '/api/admin/video/items', { category_id: 1, title: 'x', embed_input: 'nope' }, { gallery_image: { data: im6, type: 'image/png', name: 't.png' } });
+  assert.equal(r.status, 400);
+  assert.deepEqual(findByContent('gallery', im6), [], 'ویدیو: لینک نامعتبر');
 });
 
 test('گالری/صوت/ویدیو: مسیرهای ادمین بدون کوکی 401 هستند', async () => {

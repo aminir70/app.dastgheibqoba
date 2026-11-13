@@ -896,6 +896,14 @@ function unlinkPublicFile(rel) {
     if (full !== base && !full.startsWith(base + path.sep)) return; // outside public/
     try { if (fs.existsSync(full)) fs.unlinkSync(full); } catch(e) {}
 }
+// فایل‌های همین درخواست (multer: req.file / req.files) را پاک می‌کند؛ هنگام رد
+// کردن درخواست بعد از ذخیرهٔ فایل صدا زده می‌شود تا فایل یتیم نماند.
+function _discardUploads(req) {
+    const list = [];
+    if (req && req.file) list.push(req.file);
+    if (req && req.files) (Array.isArray(req.files) ? req.files : Object.values(req.files).flat()).forEach(f => list.push(f));
+    list.forEach(f => { try { if (f && f.path) fs.unlinkSync(f.path); } catch (e) {} });
+}
 // ---------------------------------------------------------------------------
 // Sanitizers
 //
@@ -1789,11 +1797,11 @@ app.get('/api/tickets',userAuth,(req,res)=>{
 });
 app.post('/api/tickets',userAuth,uploadTicketFile.single('ticket_file'),(req,res)=>{
     const s=sanText(req.body.subject),m=sanText(req.body.message);
-    if(!s||!m) return res.status(400).json({error:'موضوع و پیام الزامی است'});
+    if(!s||!m){_discardUploads(req);return res.status(400).json({error:'موضوع و پیام الزامی است'});}
     const catId=req.body.category_id?+req.body.category_id:null;
     // Daily limit: max 5 tickets per day
     mainDb.get(`SELECT COUNT(*) as cnt FROM tickets WHERE user_id=? AND date(created_at)=date('now')`,[req.userId],(err,row)=>{
-        if((row?.cnt||0)>=5) return res.status(429).json({error:'روزانه حداکثر ۵ سوال مجاز است. فردا دوباره تلاش کنید.'});
+        if((row?.cnt||0)>=5){_discardUploads(req);return res.status(429).json({error:'روزانه حداکثر ۵ سوال مجاز است. فردا دوباره تلاش کنید.'});}
         let tracking_code,tries=0;
         const tryInsert=()=>{
             tracking_code=genTrackingCode();
@@ -1801,7 +1809,7 @@ app.post('/api/tickets',userAuth,uploadTicketFile.single('ticket_file'),(req,res
                 const uname=user?user.username:'کاربر';
                 mainDb.run('INSERT INTO tickets (username,subject,user_id,category_id,tracking_code) VALUES (?,?,?,?,?)',[uname,s,req.userId,catId,tracking_code],function(err2){
                     if(err2&&err2.message.includes('UNIQUE')&&tries++<3) return tryInsert();
-                    if(err2) return res.status(500).json({error:failMsg(err2)});
+                    if(err2){_discardUploads(req);return res.status(500).json({error:failMsg(err2)});}
                     const tid=this.lastID;
                     const att=req.file?('/ticket-files/'+req.file.filename):null;
                     const attType=req.file?_detectAttachmentType(req.file):null;
@@ -1889,23 +1897,23 @@ app.delete('/api/tickets/:id',userAuth,(req,res)=>{
 });
 // ارسال پیام اضافه در تیکت توسط کاربر
 app.post('/api/tickets/:id/messages',userAuth,uploadTicketFile.single('ticket_file'),(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
+    const id=+req.params.id;if(isNaN(id)){_discardUploads(req);return res.status(400).json({error:'شناسه نامعتبر'});}
     const t=sanText(req.body.text)||'';
     const att=req.file?('/ticket-files/'+req.file.filename):null;
     const attType=req.file?_detectAttachmentType(req.file):null;
     let replyTo=_parseReplyTo(req.body.reply_to);
-    if(!t.trim()&&!att) return res.status(400).json({error:'پیام یا فایل الزامی است'});
+    if(!t.trim()&&!att){_discardUploads(req);return res.status(400).json({error:'پیام یا فایل الزامی است'});}
     mainDb.get('SELECT id,status FROM tickets WHERE id=? AND user_id=?',[id,req.userId],(err,ticket)=>{
-        if(err||!ticket) return res.status(404).json({error:'تیکت یافت نشد'});
-        if(ticket.status==='closed') return res.status(400).json({error:'این تیکت بسته شده است'});
+        if(err||!ticket){_discardUploads(req);return res.status(404).json({error:'تیکت یافت نشد'});}
+        if(ticket.status==='closed'){_discardUploads(req);return res.status(400).json({error:'این تیکت بسته شده است'});}
         mainDb.all('SELECT sender_type FROM ticket_messages WHERE ticket_id=? ORDER BY created_at DESC, id DESC LIMIT 5',[id],(err2,msgs)=>{
             let consecutiveUser=0;
             for(const m of (msgs||[])){ if(m.sender_type==='user') consecutiveUser++; else break; }
-            if(consecutiveUser>=2) return res.status(400).json({error:'لطفاً صبر کنید تا ادمین جواب دهد. حداکثر ۲ پیام متوالی مجاز است.'});
+            if(consecutiveUser>=2){_discardUploads(req);return res.status(400).json({error:'لطفاً صبر کنید تا ادمین جواب دهد. حداکثر ۲ پیام متوالی مجاز است.'});}
             // reply_to باید به پیامی در همین تیکت اشاره کند، وگرنه نادیده گرفته می‌شود
             _validateReplyTo(replyTo,id,(validReplyTo)=>{
                 mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,attachment,attachment_type,reply_to) VALUES (?,?,"user",?,?,?)',[id,t.trim(),att,attType,validReplyTo],function(err3){
-                    if(err3) return res.status(500).json({error:failMsg(err3)});
+                    if(err3){_discardUploads(req);return res.status(500).json({error:failMsg(err3)});}
                     // اگر ادمین قبلاً پاسخ داده بود، وضعیت را به «پاسخ کاربر» ببر تا
                     // پیام جدید کاربر در پنل گم نشود. تیکت تازه (open) باز می‌ماند.
                     const newStatus = ticket.status==='open' ? 'open' : 'user_replied';
@@ -2325,7 +2333,7 @@ app.get('/api/admin/analytics', adminAuth, async (req, res) => {
 
 // === NOTIFICATIONS PUBLIC (broadcast - no login needed) ===
 app.get('/api/notifications/public',(req,res)=>{
-    mainDb.all(`SELECT id, title, message, type, created_at FROM notifications WHERE type='broadcast' ORDER BY created_at DESC LIMIT 20`,[],(err,rows)=>{
+    mainDb.all(`SELECT id, title, message, type, created_at FROM notifications WHERE type='broadcast' ORDER BY created_at DESC, id DESC LIMIT 20`,[],(err,rows)=>{
         if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows||[]);
     });
@@ -2341,7 +2349,7 @@ app.get('/api/notifications',userAuth,(req,res)=>{
         FROM notifications n
         INNER JOIN user_notifications un ON un.notification_id=n.id AND un.user_id=?
         GROUP BY n.id
-        ORDER BY n.created_at DESC LIMIT 50
+        ORDER BY n.created_at DESC, n.id DESC LIMIT 50
     `,[req.userId],(err,rows)=>{
         if(err) return res.status(500).json({error:failMsg(err)});
         res.json(rows||[]);
@@ -2513,7 +2521,7 @@ app.post('/api/admin/books',adminAuth,upload.fields([{name:'database',maxCount:1
         const t=sanText(req.body.title),a=sanText(req.body.author),d=sanText(req.body.description);
         const bookType=req.body.book_type==='pdf'?'pdf':'db';
         console.log('[books] upload start - type:',bookType,'files:',Object.keys(req.files||{}));
-        if(!t) return res.status(400).json({error:'عنوان الزامی است'});
+        if(!t){_discardUploads(req);return res.status(400).json({error:'عنوان الزامی است'});}
         const cf=req.files&&req.files['cover']?req.files['cover'][0]:null;
         const cp=cf?`/covers/${cf.filename}`:'';
         // sort_order جدید = حداکثر موجود + ۱ (تا ترتیب دستی خراب نشود)
@@ -2521,24 +2529,24 @@ app.post('/api/admin/books',adminAuth,upload.fields([{name:'database',maxCount:1
             const nextOrder=(row&&!err2)?row.next_order:9999;
             if(bookType==='pdf'){
                 const pf=req.files&&req.files['pdf_file']?req.files['pdf_file'][0]:null;
-                if(!pf) return res.status(400).json({error:'فایل PDF الزامی است'});
+                if(!pf){_discardUploads(req);return res.status(400).json({error:'فایل PDF الزامی است'});}
                 console.log('[books] pdf file saved:',pf.filename,'size:',pf.size);
                 mainDb.run('INSERT INTO books (title,author,description,cover,db_filename,page_count,book_type,pdf_filename,sort_order) VALUES (?,?,?,?,?,?,?,?,?)',[t,a||'',d||'',cp,'',0,'pdf',pf.filename,nextOrder],function(err){
-                    if(err){console.error('[books] db insert error:',err.message);return res.status(500).json({error:failMsg(err)});}
+                    if(err){_discardUploads(req);console.error('[books] db insert error:',err.message);return res.status(500).json({error:failMsg(err)});}
                     res.json({success:true,id:this.lastID,page_count:0});
                 });
             } else {
                 const dbf=req.files&&req.files['database']?req.files['database'][0]:null;
-                if(!dbf) return res.status(400).json({error:'فایل دیتابیس الزامی است'});
+                if(!dbf){_discardUploads(req);return res.status(400).json({error:'فایل دیتابیس الزامی است'});}
                 const pc=await countPages(path.resolve(__dirname,'books',dbf.filename));
                 mainDb.run('INSERT INTO books (title,author,description,cover,db_filename,page_count,book_type,pdf_filename,sort_order) VALUES (?,?,?,?,?,?,?,?,?)',[t,a||'',d||'',cp,dbf.filename,pc,'db','',nextOrder],function(err){
-                    if(err){console.error('[books] db insert error:',err.message);return res.status(500).json({error:failMsg(err)});}
+                    if(err){_discardUploads(req);console.error('[books] db insert error:',err.message);return res.status(500).json({error:failMsg(err)});}
                     res.json({success:true,id:this.lastID,page_count:pc});
                     bookSearch.sync();
                 });
             }
         });
-    }catch(e){console.error('[books] caught error:',e.message);res.status(500).json({error:failMsg(e)});}
+    }catch(e){_discardUploads(req);console.error('[books] caught error:',e.message);res.status(500).json({error:failMsg(e)});}
 });
 app.delete('/api/admin/books/:id',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
@@ -2557,9 +2565,9 @@ app.put('/api/admin/books/sort',adminAuth,(req,res)=>{
     stmt.finalize(()=>res.json({success:true}));
 });
 app.put('/api/admin/books/:id',adminAuth,upload.fields([{name:'cover',maxCount:1},{name:'pdf_file',maxCount:1},{name:'database',maxCount:1}]),(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
+    const id=+req.params.id;if(isNaN(id)){_discardUploads(req);return res.status(400).json({error:'شناسه نامعتبر'});}
     mainDb.get('SELECT * FROM books WHERE id=?',[id],async(err,b)=>{
-        if(err||!b) return res.status(404).json({error:'کتاب یافت نشد'});
+        if(err||!b){_discardUploads(req);return res.status(404).json({error:'کتاب یافت نشد'});}
         const cf=req.files&&req.files['cover']?req.files['cover'][0]:null;
         const pf=req.files&&req.files['pdf_file']?req.files['pdf_file'][0]:null;
         const df=req.files&&req.files['database']?req.files['database'][0]:null;
@@ -2859,7 +2867,7 @@ app.get('/api/admin/banners',adminAuth,(req,res)=>{
     mainDb.all('SELECT * FROM banners ORDER BY position ASC',[],(err,rows)=>res.json(rows||[]));
 });
 app.put('/api/admin/banners/:pos',adminAuth,uploadImage.single('banner_image'),(req,res)=>{
-    const pos=+req.params.pos;if(isNaN(pos)||pos<1||pos>10) return res.status(400).json({error:'موقعیت نامعتبر'});
+    const pos=+req.params.pos;if(isNaN(pos)||pos<1||pos>10){_discardUploads(req);return res.status(400).json({error:'موقعیت نامعتبر'});}
     mainDb.get('SELECT * FROM banners WHERE position=?',[pos],(err,bn)=>{
         let img=bn?bn.image:'';
         if(req.file){
@@ -2906,15 +2914,15 @@ app.get('/api/admin/sliders',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/sliders',adminAuth,uploadImage.single('slider_image'),(req,res)=>{
     const imageUrl = req.body.image_url && req.body.image_url.trim().length > 5 ? (sanUrl(req.body.image_url) || null) : null;
-    if(!req.file && !imageUrl) return res.status(400).json({error:'تصویر یا لینک تصویر الزامی است'});
+    if(!req.file && !imageUrl){_discardUploads(req);return res.status(400).json({error:'تصویر یا لینک تصویر الزامی است'});}
     mainDb.get('SELECT COUNT(*) as c FROM sliders',[],(err,r)=>{
-        if(r&&r.c>=10) return res.status(400).json({error:'حداکثر ۱۰ اسلاید مجاز است'});
+        if(r&&r.c>=10){_discardUploads(req);return res.status(400).json({error:'حداکثر ۱۰ اسلاید مجاز است'});}
         const img = req.file ? `/sliders/${req.file.filename}` : imageUrl;
         const section = ['main','after_books','after_shortcuts','after_lectures','after_banners'].includes(req.body.display_section) ? req.body.display_section : 'main';
         const validSliderPages=['home','media_video','media_audio','media_photo','lectures','library'];
         const sliderPages=(req.body.pages||'home').split(',').filter(p=>validSliderPages.includes(p)).join(',') || 'home';
         mainDb.run('INSERT INTO sliders (title,image,link,sort_order,display_section,pages) VALUES (?,?,?,?,?,?)',[sanText(req.body.title||''),img,sanLink(req.body.link||''),r?r.c:0,section,sliderPages],function(err){
-            if(err) return res.status(500).json({error:failMsg(err)});
+            if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}
             res.json({success:true,id:this.lastID,image:img});
         });
     });
@@ -3114,16 +3122,16 @@ app.get('/api/admin/tickets/:id/messages',adminAuth,(req,res)=>{
                 WHERE m.ticket_id=? ORDER BY m.created_at ASC, m.id ASC`,[id],(err,rows)=>res.json(withSignedAttachments(rows)));
 });
 app.post('/api/admin/tickets/:id/reply',adminAuth,uploadAdminTicketFile.single('ticket_file'),(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
+    const id=+req.params.id;if(isNaN(id)){_discardUploads(req);return res.status(400).json({error:'شناسه نامعتبر'});}
     const t=sanText(req.body.text)||'';
     const att=req.file?('/ticket-files/'+req.file.filename):null;
     const attType=req.file?_detectAttachmentType(req.file):null;
     // پیام می‌تواند فقط متن، فقط پیوست، یا هر دو باشد — ولی نه هیچ‌کدام.
-    if(!t.trim()&&!att) return res.status(400).json({error:'متن یا پیوست الزامی است'});
+    if(!t.trim()&&!att){_discardUploads(req);return res.status(400).json({error:'متن یا پیوست الزامی است'});}
     const replyTo=_parseReplyTo(req.body.reply_to);
     _validateReplyTo(replyTo,id,(validReplyTo)=>{
     mainDb.run('INSERT INTO ticket_messages (ticket_id,text,sender_type,attachment,attachment_type,reply_to) VALUES (?,?,"admin",?,?,?)',[id,t.trim(),att,attType,validReplyTo],function(err){
-        if(err) return res.status(500).json({error:failMsg(err)});
+        if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}
         mainDb.run('UPDATE tickets SET status="answered",updated_at=CURRENT_TIMESTAMP WHERE id=?',[id]);
         mainDb.get('SELECT user_id,subject FROM tickets WHERE id=?',[id],(err2,ticket)=>{
             if(ticket&&ticket.user_id){
@@ -3160,7 +3168,7 @@ app.put('/api/admin/tickets/:id/status',adminAuth,(req,res)=>{
 app.get('/api/admin/notifications',adminAuth,(req,res)=>{
     // فقط پیام‌های همگانی؛ اعلان‌های خودکارِ «پاسخ تیکت» اینجا جایی ندارند
     // (به ازای هر پاسخ یک ردیف ساخته می‌شود و لیست را پر می‌کردند).
-    mainDb.all(`SELECT * FROM notifications WHERE type='broadcast' ORDER BY created_at DESC LIMIT 50`,[],(err,rows)=>res.json(rows||[]));
+    mainDb.all(`SELECT * FROM notifications WHERE type='broadcast' ORDER BY created_at DESC, id DESC LIMIT 50`,[],(err,rows)=>res.json(rows||[]));
 });
 app.post('/api/admin/notifications',adminAuth,(req,res)=>{
     const title=sanText(req.body.title),msg=sanText(req.body.message);
@@ -3288,7 +3296,7 @@ app.get('/api/admin/gallery/categories',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/gallery/categories',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
     const name=sanText(req.body.name||'').trim();
-    if(!name) return res.status(400).json({error:'نام دسته‌بندی الزامی است'});
+    if(!name){_discardUploads(req);return res.status(400).json({error:'نام دسته‌بندی الزامی است'});}
     const imgUrl=req.body.image_url&&req.body.image_url.trim().length>5?sanUrl(req.body.image_url):null;
     const cover=req.file?`/gallery/${req.file.filename}`:(imgUrl||'');
     const desc=sanText(req.body.description||'');
@@ -3296,15 +3304,15 @@ app.post('/api/admin/gallery/categories',adminAuth,uploadImage.single('gallery_i
     mainDb.get('SELECT MAX(sort_order) as mx FROM gallery_categories',[],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO gallery_categories (name,description,cover,sort_order,parent_id) VALUES (?,?,?,?,?)',[name,desc,cover,so,parentId],function(err2){
-            if(err2) return res.status(500).json({error:failMsg(err2)});
+            if(err2){_discardUploads(req);return res.status(500).json({error:failMsg(err2)});}
             res.json({success:true,id:this.lastID});
         });
     });
 });
 app.put('/api/admin/gallery/categories/:id',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
+    const id=+req.params.id;if(isNaN(id)){_discardUploads(req);return res.status(400).json({error:'شناسه نامعتبر'});}
     mainDb.get('SELECT * FROM gallery_categories WHERE id=?',[id],(err,cat)=>{
-        if(err||!cat) return res.status(404).json({error:'دسته‌بندی یافت نشد'});
+        if(err||!cat){_discardUploads(req);return res.status(404).json({error:'دسته‌بندی یافت نشد'});}
         const name=sanText(req.body.name||cat.name).trim();
         const desc=sanText(req.body.description||cat.description);
         let cover=cat.cover;
@@ -3317,35 +3325,44 @@ app.put('/api/admin/gallery/categories/:id',adminAuth,uploadImage.single('galler
         mainDb.run('UPDATE gallery_categories SET name=?,description=?,cover=? WHERE id=?',[name,desc,cover,id],()=>res.json({success:true,cover}));
     });
 });
-app.delete('/api/admin/gallery/categories/:id',adminAuth,(req,res)=>{
+// --- حذف درخته‌ای دسته‌ها (گالری/صوت/ویدیو) ---
+// فایل‌های محلی که هنوز ردیفی به آن‌ها اشاره می‌کند (مثلاً کاور دسته = کاور یک قطعه) پاک نمی‌شوند.
+const _MEDIA_FILE_REFS = [['audio_tracks','audio_url'],['audio_tracks','cover'],['audio_categories','cover'],['video_categories','cover'],['video_items','thumbnail'],['gallery_categories','cover'],['gallery_photos','image']];
+async function _unlinkMediaIfOrphan(rel, prefix) {
+    if (!rel || typeof rel !== 'string' || !rel.startsWith(prefix)) return;   // فقط آپلودهای محلی همان پوشه
+    for (const [t, c] of _MEDIA_FILE_REFS) if (await _dbGetP(`SELECT 1 AS x FROM ${t} WHERE ${c}=? LIMIT 1`, [rel])) return;
+    unlinkPublicFile(rel);
+}
+// دستهٔ id و همهٔ زیردسته‌ها (هر عمق)، آیتم‌ها و فایل‌های فقط-متعلق‌به‌آن‌ها را حذف می‌کند.
+// ترتیب: نام فایل‌ها خوانده می‌شود، سپس آیتم‌ها، سپس دسته‌ها، و در آخر فایل‌ها.
+async function _deleteCategoryTree(catTable, itemTable, itemFileCols, id) {
+    const ids = (await _dbAllP(`WITH RECURSIVE t(id) AS (SELECT id FROM ${catTable} WHERE id=? UNION SELECT c.id FROM ${catTable} c JOIN t ON c.parent_id=t.id) SELECT id FROM t`, [id])).map(r => r.id);
+    if (!ids.length) return;
+    const ph = ids.map(() => '?').join(',');
+    const files = new Map();   // rel → prefix
+    for (const [col, prefix] of itemFileCols) (await _dbAllP(`SELECT ${col} AS f FROM ${itemTable} WHERE category_id IN (${ph})`, ids)).forEach(r => r.f && files.set(r.f, prefix));
+    (await _dbAllP(`SELECT cover AS f FROM ${catTable} WHERE id IN (${ph})`, ids)).forEach(r => r.f && files.set(r.f, '/gallery/'));
+    await _dbRunP(`DELETE FROM ${itemTable} WHERE category_id IN (${ph})`, ids);
+    await _dbRunP(`DELETE FROM ${catTable} WHERE id IN (${ph})`, ids);
+    for (const [rel, prefix] of files) await _unlinkMediaIfOrphan(rel, prefix);
+}
+app.delete('/api/admin/gallery/categories/:id',adminAuth,async(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    // Delete subcategories recursively
-    mainDb.all('SELECT id FROM gallery_categories WHERE parent_id=?',[id],(err,subs)=>{
-        const subIds=(subs||[]).map(s=>s.id);
-        const allIds=[id,...subIds];
-        allIds.forEach(catId=>{
-            mainDb.all('SELECT image FROM gallery_photos WHERE category_id=?',[catId],(e2,photos)=>{
-                (photos||[]).forEach(p=>unlinkPublicFile(p&&p.image));
-                mainDb.run('DELETE FROM gallery_photos WHERE category_id=?',[catId]);
-            });
-            mainDb.get('SELECT cover FROM gallery_categories WHERE id=?',[catId],(e3,cat)=>{
-                if(cat) unlinkPublicFile(cat.cover);
-            });
-        });
-        const placeholders=allIds.map(()=>'?').join(',');
-        mainDb.run(`DELETE FROM gallery_categories WHERE id IN (${placeholders})`,allIds,()=>res.json({success:true}));
-    });
+    try{
+        await _deleteCategoryTree('gallery_categories','gallery_photos',[['image','/gallery/']],id);
+        res.json({success:true});
+    }catch(e){res.status(500).json({error:failMsg(e)});}
 });
 app.post('/api/admin/gallery/photos',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
-    const catId=+req.body.category_id;if(isNaN(catId)) return res.status(400).json({error:'دسته‌بندی الزامی است'});
+    const catId=+req.body.category_id;if(!(catId>0)){_discardUploads(req);return res.status(400).json({error:'دسته‌بندی الزامی است'});}
     const imgUrl=req.body.image_url&&req.body.image_url.trim().length>5?sanUrl(req.body.image_url):null;
-    if(!req.file&&!imgUrl) return res.status(400).json({error:'تصویر یا لینک تصویر الزامی است'});
+    if(!req.file&&!imgUrl){_discardUploads(req);return res.status(400).json({error:'تصویر یا لینک تصویر الزامی است'});}
     const img=req.file?`/gallery/${req.file.filename}`:imgUrl;
     const title=sanText(req.body.title||'');
     mainDb.get('SELECT MAX(sort_order) as mx FROM gallery_photos WHERE category_id=?',[catId],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO gallery_photos (category_id,title,image,sort_order) VALUES (?,?,?,?)',[catId,title,img,so],function(err2){
-            if(err2) return res.status(500).json({error:failMsg(err2)});
+            if(err2){_discardUploads(req);return res.status(500).json({error:failMsg(err2)});}
             // Update category cover if empty
             mainDb.run('UPDATE gallery_categories SET cover=? WHERE id=? AND (cover IS NULL OR cover="")',[img,catId]);
             res.json({success:true,id:this.lastID,image:img});
@@ -3405,7 +3422,7 @@ app.get('/api/admin/audio/all-tracks',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/audio/categories',adminAuth,uploadImage.single('audio_cover'),(req,res)=>{
     const name=sanText(req.body.name||'').trim();
-    if(!name) return res.status(400).json({error:'نام دسته‌بندی الزامی است'});
+    if(!name){_discardUploads(req);return res.status(400).json({error:'نام دسته‌بندی الزامی است'});}
     const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const cover=req.file?`/gallery/${req.file.filename}`:(coverUrl||'');
     const desc=sanText(req.body.description||'');
@@ -3413,27 +3430,24 @@ app.post('/api/admin/audio/categories',adminAuth,uploadImage.single('audio_cover
     mainDb.get('SELECT MAX(sort_order) as mx FROM audio_categories',[],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO audio_categories (name,description,cover,sort_order,parent_id) VALUES (?,?,?,?,?)',[name,desc,cover,so,parentId],function(err2){
-            if(err2) return res.status(500).json({error:failMsg(err2)});
+            if(err2){_discardUploads(req);return res.status(500).json({error:failMsg(err2)});}
             res.json({success:true,id:this.lastID});
         });
     });
 });
-app.delete('/api/admin/audio/categories/:id',adminAuth,(req,res)=>{
+app.delete('/api/admin/audio/categories/:id',adminAuth,async(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    mainDb.all('SELECT audio_url FROM audio_tracks WHERE category_id=?',[id],(err,tracks)=>{
-        (tracks||[]).forEach(t=>{ if(t&&t.audio_url&&t.audio_url.startsWith('/audio/')) unlinkPublicFile(t.audio_url); });
-        mainDb.get('SELECT cover FROM audio_categories WHERE id=?',[id],(err2,cat)=>{
-            if(cat&&cat.cover&&cat.cover.startsWith('/gallery/')) unlinkPublicFile(cat.cover);
-            mainDb.run('DELETE FROM audio_tracks WHERE category_id=?',[id],()=>mainDb.run('DELETE FROM audio_categories WHERE id=?',[id],()=>res.json({success:true})));
-        });
-    });
+    try{
+        await _deleteCategoryTree('audio_categories','audio_tracks',[['audio_url','/audio/'],['cover','/gallery/']],id);
+        res.json({success:true});
+    }catch(e){res.status(500).json({error:failMsg(e)});}
 });
 app.post('/api/admin/audio/tracks',adminAuth,uploadAudio.fields([{name:'audio_file',maxCount:1},{name:'audio_cover',maxCount:1}]),async(req,res)=>{
-    const catId=+req.body.category_id;if(isNaN(catId)) return res.status(400).json({error:'دسته‌بندی الزامی است'});
-    const title=sanText(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان صوت الزامی است'});
+    const catId=+req.body.category_id;if(isNaN(catId)){_discardUploads(req);return res.status(400).json({error:'دسته‌بندی الزامی است'});}
+    const title=sanText(req.body.title||'').trim();if(!title){_discardUploads(req);return res.status(400).json({error:'عنوان صوت الزامی است'});}
     const audioUrlInput=req.body.audio_url&&req.body.audio_url.trim().length>5?sanUrl(req.body.audio_url):null;
     const audioFile=req.files&&req.files['audio_file']?req.files['audio_file'][0]:null;
-    if(!audioFile&&!audioUrlInput) return res.status(400).json({error:'فایل صوتی یا لینک الزامی است'});
+    if(!audioFile&&!audioUrlInput){_discardUploads(req);return res.status(400).json({error:'فایل صوتی یا لینک الزامی است'});}
     const audioUrl=audioFile?`/audio/${audioFile.filename}`:audioUrlInput;
     const coverUrlInput=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const coverFile=req.files&&req.files['audio_cover']?req.files['audio_cover'][0]:null;
@@ -3459,8 +3473,9 @@ app.post('/api/admin/audio/tracks',adminAuth,uploadAudio.fields([{name:'audio_fi
     mainDb.get('SELECT MAX(sort_order) as mx FROM audio_tracks WHERE category_id=?',[catId],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO audio_tracks (category_id,title,artist,audio_url,cover,sort_order,publish_date) VALUES (?,?,?,?,?,?,?)',[catId,title,artist,audioUrl,cover,so,publishDate],function(err2){
-            if(err2) return res.status(500).json({error:failMsg(err2)});
-            mainDb.run('UPDATE audio_categories SET cover=? WHERE id=? AND (cover IS NULL OR cover="")',[cover||audioUrl,catId]);
+            if(err2){_discardUploads(req);if(!coverFile&&cover&&cover!==coverUrlInput) unlinkPublicFile(cover);   // کاور استخراج‌شده از ID3
+            return res.status(500).json({error:failMsg(err2)});}
+            if(cover) mainDb.run('UPDATE audio_categories SET cover=? WHERE id=? AND (cover IS NULL OR cover="")',[cover,catId]);   // کاور دسته فقط از تصویر
             res.json({success:true,id:this.lastID,audio_url:audioUrl,cover});
         });
     });
@@ -3468,22 +3483,27 @@ app.post('/api/admin/audio/tracks',adminAuth,uploadAudio.fields([{name:'audio_fi
 app.delete('/api/admin/audio/tracks/:id',adminAuth,(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
     mainDb.get('SELECT audio_url,cover FROM audio_tracks WHERE id=?',[id],(err,t)=>{
-        if(t&&t.audio_url&&t.audio_url.startsWith('/audio/')) unlinkPublicFile(t.audio_url);
-        if(t&&t.cover&&t.cover.startsWith('/gallery/')) unlinkPublicFile(t.cover);
-        mainDb.run('DELETE FROM audio_tracks WHERE id=?',[id],()=>res.json({success:true}));
+        mainDb.run('DELETE FROM audio_tracks WHERE id=?',[id],async(err2)=>{
+            if(err2) return res.status(500).json({error:failMsg(err2)});
+            try{
+                // بعد از حذف ردیف: فایلی که هنوز کاور دسته/قطعهٔ دیگر است پاک نمی‌شود
+                if(t){await _unlinkMediaIfOrphan(t.audio_url,'/audio/');await _unlinkMediaIfOrphan(t.cover,'/gallery/');}
+            }catch(e){console.warn('track file cleanup:',e.message);}
+            res.json({success:true});
+        });
     });
 });
 app.put('/api/admin/audio/categories/:id',adminAuth,uploadImage.single('audio_cover'),(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const name=sanText(req.body.name||'').trim();if(!name) return res.status(400).json({error:'نام الزامی است'});
+    const id=+req.params.id;if(isNaN(id)){_discardUploads(req);return res.status(400).json({error:'شناسه نامعتبر'});}
+    const name=sanText(req.body.name||'').trim();if(!name){_discardUploads(req);return res.status(400).json({error:'نام الزامی است'});}
     const desc=sanText(req.body.description||'');
     const parentId=req.body.parent_id&&+req.body.parent_id>0?+req.body.parent_id:null;
     const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const newCover=req.file?`/gallery/${req.file.filename}`:coverUrl;
     if(newCover){
-        mainDb.run('UPDATE audio_categories SET name=?,description=?,cover=?,parent_id=? WHERE id=?',[name,desc,newCover,parentId,id],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
+        mainDb.run('UPDATE audio_categories SET name=?,description=?,cover=?,parent_id=? WHERE id=?',[name,desc,newCover,parentId,id],err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});
     } else {
-        mainDb.run('UPDATE audio_categories SET name=?,description=?,parent_id=? WHERE id=?',[name,desc,parentId,id],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
+        mainDb.run('UPDATE audio_categories SET name=?,description=?,parent_id=? WHERE id=?',[name,desc,parentId,id],err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});
     }
 });
 // sort قبل از :id تا Express آن را با id='sort' مطابقت ندهد
@@ -3500,8 +3520,8 @@ app.put('/api/admin/audio/tracks/sort',adminAuth,express.json(),(req,res)=>{
     stmt.finalize(()=>res.json({success:true}));
 });
 app.put('/api/admin/audio/tracks/:id',adminAuth,uploadAudio.fields([{name:'audio_file',maxCount:1},{name:'audio_cover',maxCount:1}]),(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const title=sanText(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان الزامی است'});
+    const id=+req.params.id;if(isNaN(id)){_discardUploads(req);return res.status(400).json({error:'شناسه نامعتبر'});}
+    const title=sanText(req.body.title||'').trim();if(!title){_discardUploads(req);return res.status(400).json({error:'عنوان الزامی است'});}
     const artist=sanText(req.body.artist||'');
     const publishDate=req.body.publish_date||null;
     const sets=['title=?','artist=?','publish_date=?'];const vals=[title,artist,publishDate];
@@ -3514,7 +3534,7 @@ app.put('/api/admin/audio/tracks/:id',adminAuth,uploadAudio.fields([{name:'audio
     if(coverFile){sets.push('cover=?');vals.push(`/gallery/${coverFile.filename}`);}
     else if(coverUrlInput){sets.push('cover=?');vals.push(coverUrlInput);}
     vals.push(id);
-    mainDb.run(`UPDATE audio_tracks SET ${sets.join(',')} WHERE id=?`,vals,err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
+    mainDb.run(`UPDATE audio_tracks SET ${sets.join(',')} WHERE id=?`,vals,err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});
 });
 
 // === AUDIO DOWNLOAD (force download with proper headers) ===
@@ -3599,7 +3619,7 @@ app.get('/api/admin/video/all-items',adminAuth,(req,res)=>{
 });
 app.post('/api/admin/video/categories',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
     const name=sanText(req.body.name||'').trim();
-    if(!name) return res.status(400).json({error:'نام دسته‌بندی الزامی است'});
+    if(!name){_discardUploads(req);return res.status(400).json({error:'نام دسته‌بندی الزامی است'});}
     const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const cover=req.file?`/gallery/${req.file.filename}`:(coverUrl||'');
     const desc=sanText(req.body.description||'');
@@ -3607,25 +3627,25 @@ app.post('/api/admin/video/categories',adminAuth,uploadImage.single('gallery_ima
     mainDb.get('SELECT MAX(sort_order) as mx FROM video_categories',[],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO video_categories (name,description,cover,sort_order,parent_id) VALUES (?,?,?,?,?)',[name,desc,cover,so,parentId],function(err2){
-            if(err2) return res.status(500).json({error:failMsg(err2)});
+            if(err2){_discardUploads(req);return res.status(500).json({error:failMsg(err2)});}
             res.json({success:true,id:this.lastID});
         });
     });
 });
-app.delete('/api/admin/video/categories/:id',adminAuth,(req,res)=>{
+app.delete('/api/admin/video/categories/:id',adminAuth,async(req,res)=>{
     const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    mainDb.get('SELECT cover FROM video_categories WHERE id=?',[id],(err,cat)=>{
-        if(cat&&cat.cover&&cat.cover.startsWith('/gallery/')) unlinkPublicFile(cat.cover);
-        mainDb.run('DELETE FROM video_items WHERE category_id=?',[id],()=>mainDb.run('DELETE FROM video_categories WHERE id=?',[id],()=>res.json({success:true})));
-    });
+    try{
+        await _deleteCategoryTree('video_categories','video_items',[['thumbnail','/gallery/']],id);
+        res.json({success:true});
+    }catch(e){res.status(500).json({error:failMsg(e)});}
 });
 app.post('/api/admin/video/items',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
-    const catId=+req.body.category_id;if(isNaN(catId)) return res.status(400).json({error:'دسته‌بندی الزامی است'});
-    const title=sanText(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان ویدیو الزامی است'});
+    const catId=+req.body.category_id;if(isNaN(catId)){_discardUploads(req);return res.status(400).json({error:'دسته‌بندی الزامی است'});}
+    const title=sanText(req.body.title||'').trim();if(!title){_discardUploads(req);return res.status(400).json({error:'عنوان ویدیو الزامی است'});}
     // از مقدار خام پارس می‌شود (نه sanText) چون ادمین ممکن است کد کامل <iframe>
     // را پیست کند؛ خروجی parseEmbedUrl خودش به URL معتبر محدود شده است.
     const embedUrl=parseEmbedUrl(req.body.embed_input||'');
-    if(!embedUrl) return res.status(400).json({error:'لینک یا کد آپارات نامعتبر است'});
+    if(!embedUrl){_discardUploads(req);return res.status(400).json({error:'لینک یا کد آپارات نامعتبر است'});}
     // Thumbnail: uploaded file, provided URL, or auto-extracted from embed
     const thumbUrlInput=req.body.thumbnail_url&&req.body.thumbnail_url.trim().length>5?sanUrl(req.body.thumbnail_url):null;
     const thumbFile=req.file;
@@ -3636,7 +3656,7 @@ app.post('/api/admin/video/items',adminAuth,uploadImage.single('gallery_image'),
     mainDb.get('SELECT MAX(sort_order) as mx FROM video_items WHERE category_id=?',[catId],(err,r)=>{
         const so=(r&&r.mx!=null)?r.mx+1:0;
         mainDb.run('INSERT INTO video_items (category_id,title,embed_url,thumbnail,description,sort_order,publish_date,vertical) VALUES (?,?,?,?,?,?,?,?)',[catId,title,embedUrl,thumbnail,desc,so,publishDate,vertical],function(err2){
-            if(err2) return res.status(500).json({error:failMsg(err2)});
+            if(err2){_discardUploads(req);return res.status(500).json({error:failMsg(err2)});}
             // Auto-set category cover if empty
             if(thumbnail) mainDb.run('UPDATE video_categories SET cover=? WHERE id=? AND (cover IS NULL OR cover="")',[thumbnail,catId]);
             res.json({success:true,id:this.lastID,embed_url:embedUrl,thumbnail});
@@ -3651,16 +3671,16 @@ app.delete('/api/admin/video/items/:id',adminAuth,(req,res)=>{
     });
 });
 app.put('/api/admin/video/categories/:id',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const name=sanText(req.body.name||'').trim();if(!name) return res.status(400).json({error:'نام الزامی است'});
+    const id=+req.params.id;if(isNaN(id)){_discardUploads(req);return res.status(400).json({error:'شناسه نامعتبر'});}
+    const name=sanText(req.body.name||'').trim();if(!name){_discardUploads(req);return res.status(400).json({error:'نام الزامی است'});}
     const desc=sanText(req.body.description||'');
     const parentId=req.body.parent_id&&+req.body.parent_id>0?+req.body.parent_id:null;
     const coverUrl=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     const newCover=req.file?`/gallery/${req.file.filename}`:coverUrl;
     if(newCover){
-        mainDb.run('UPDATE video_categories SET name=?,description=?,cover=?,parent_id=? WHERE id=?',[name,desc,newCover,parentId,id],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
+        mainDb.run('UPDATE video_categories SET name=?,description=?,cover=?,parent_id=? WHERE id=?',[name,desc,newCover,parentId,id],err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});
     } else {
-        mainDb.run('UPDATE video_categories SET name=?,description=?,parent_id=? WHERE id=?',[name,desc,parentId,id],err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
+        mainDb.run('UPDATE video_categories SET name=?,description=?,parent_id=? WHERE id=?',[name,desc,parentId,id],err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});
     }
 });
 // sort قبل از :id
@@ -3683,8 +3703,8 @@ app.put('/api/admin/video/items/sort',adminAuth,express.json(),(req,res)=>{
     stmt.finalize(()=>res.json({success:true}));
 });
 app.put('/api/admin/video/items/:id',adminAuth,uploadImage.single('gallery_image'),(req,res)=>{
-    const id=+req.params.id;if(isNaN(id)) return res.status(400).json({error:'شناسه نامعتبر'});
-    const title=sanText(req.body.title||'').trim();if(!title) return res.status(400).json({error:'عنوان الزامی است'});
+    const id=+req.params.id;if(isNaN(id)){_discardUploads(req);return res.status(400).json({error:'شناسه نامعتبر'});}
+    const title=sanText(req.body.title||'').trim();if(!title){_discardUploads(req);return res.status(400).json({error:'عنوان الزامی است'});}
     const desc=sanText(req.body.description||'');
     const publishDate=req.body.publish_date||null;
     const vertical=(req.body.vertical==='1'||req.body.vertical==='on'||req.body.vertical===true)?1:0;
@@ -3695,7 +3715,7 @@ app.put('/api/admin/video/items/:id',adminAuth,uploadImage.single('gallery_image
     if(req.file){sets.push('thumbnail=?');vals.push(`/gallery/${req.file.filename}`);}
     else if(thumbUrlInput){sets.push('thumbnail=?');vals.push(thumbUrlInput);}
     vals.push(id);
-    mainDb.run(`UPDATE video_items SET ${sets.join(',')} WHERE id=?`,vals,err=>err?res.status(500).json({error:failMsg(err)}):res.json({success:true}));
+    mainDb.run(`UPDATE video_items SET ${sets.join(',')} WHERE id=?`,vals,err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});
 });
 // === استخراج کاور از فایل‌های صوتی موجود ===
 // استخراج کاور از فایل صوتی با music-metadata

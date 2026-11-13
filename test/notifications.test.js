@@ -54,6 +54,26 @@ test('اعلان: پیام همگانی در لیست عمومی، ادمین و
   }
 });
 
+test('اعلان: ترتیب لیست‌ها با created_at یکسان بر اساس id نزولی است (عمومی/کاربر/ادمین)', async () => {
+  const ids = [];
+  for (let i = 0; i < 4; i++) {
+    const r = await srv.api('POST', '/api/admin/notifications', { cookie, json: { title: 'ترتیب ' + i, message: 'م' } });
+    assert.equal(r.status, 200, r.text);
+    ids.push(r.body.id); created.push(r.body.id);
+  }
+  const cmp = (a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : b.id - a.id);
+  const lists = {
+    public: (await get('/api/notifications/public')).body,
+    user: (await get('/api/notifications', { token: U1.token })).body,
+    admin: (await get('/api/admin/notifications', { cookie })).body,
+  };
+  for (const [name, rows] of Object.entries(lists)) {
+    const mineRows = rows.filter(n => ids.includes(n.id));
+    assert.equal(mineRows.length, 4, name);
+    assert.deepEqual(rows.map(n => n.id), [...rows].sort(cmp).map(n => n.id), name + ': باید created_at نزولی و id نزولی باشد');
+  }
+});
+
 test('اعلان: کاربری که بعد از پیام ثبت‌نام کند هم آن را می‌بیند', async () => {
   U3 = await registerUser(srv);
   const n = await mine(U3);
