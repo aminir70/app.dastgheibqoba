@@ -1354,6 +1354,17 @@ body.h-screen{height:100vh;height:100dvh;height:var(--app-h,100dvh);}
           <button onclick="loadWpMirrorStatus()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition">بروزرسانی وضعیت</button>
         </div>
       </div>
+
+      <!-- فهرست جستجوی کتاب‌ها (lib/book-search.js) -->
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h2 class="text-lg font-black mb-2 border-b pb-4"><i class="fas fa-search text-teal-600 ml-2"></i>فهرست جستجوی کتاب‌ها</h2>
+        <p class="text-xs text-gray-500 mb-4 leading-relaxed">متن کتاب‌ها برای جستجوی سریع در یک فهرست جدا نگه داشته می‌شود و با افزودن، ویرایش یا حذف کتاب خودکار به‌روز می‌شود. اگر جستجو در متن کتاب‌ها ناقص بود، «بازسازی فهرست» را بزنید.</p>
+        <div id="bsi-status" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-3 text-gray-600 leading-6 break-words">...</div>
+        <div class="flex flex-wrap items-center gap-2 mt-4">
+          <button id="bsi-rebuild-btn" onclick="bookIndexRebuild()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition"><i class="fas fa-sync-alt ml-2"></i>بازسازی فهرست</button>
+          <button onclick="loadBookIndexStatus()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition">بروزرسانی وضعیت</button>
+        </div>
+      </div>
     </div>
     <div id="settings-pane-shortcuts" class="settings-pane hidden">
       <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -1712,13 +1723,39 @@ async function wpMirrorSync(){
   }catch(e){ showToast('خطا: '+e.message,false); }
 }
 
+// وضعیت فهرست جستجوی کتاب‌ها
+let _bsiPoll=null;
+async function loadBookIndexStatus(){
+  const el=document.getElementById('bsi-status'); if(!el) return;
+  try{
+    const r=await adminFetch('/api/admin/search-index/status'); const d=await r.json();
+    if(!r.ok) throw new Error(d.error||r.status);
+    const fa=n=>Number(n||0).toLocaleString('fa-IR');
+    let st;
+    if(!d.available) st='<b class="text-gray-500">در دسترس نیست</b> — جستجو از روش قدیمی (کندتر) استفاده می‌کند';
+    else if(d.running||!d.ready) st='<b class="text-amber-600"><i class="fas fa-spinner fa-spin ml-1"></i>در حال ساخت…</b>';
+    else st='<b class="text-green-600"><i class="fas fa-check-circle ml-1"></i>آماده</b>';
+    el.innerHTML=`وضعیت: ${st}<br>تعداد کتاب: <b>${fa(d.books)}</b> — صفحه: <b>${fa(d.pages)}</b><br>آخرین به‌روزرسانی: ${d.lastSync?new Date(+d.lastSync).toLocaleString('fa-IR'):'—'}`+
+      (d.lastError?`<br><span class="text-red-600">آخرین خطا: ${escHtml(d.lastError)}</span>`:'');
+    clearTimeout(_bsiPoll);
+    if(d.available&&(d.running||!d.ready)) _bsiPoll=setTimeout(()=>{ if(!document.getElementById('settings-pane-general').classList.contains('hidden')) loadBookIndexStatus(); },3000);
+  }catch(e){ el.textContent='خطا در دریافت وضعیت: '+e.message; }
+}
+async function bookIndexRebuild(){
+  try{
+    const r=await adminFetch('/api/admin/search-index/rebuild',{method:'POST'});
+    if(r.ok){ showToast('بازسازی فهرست شروع شد'); setTimeout(loadBookIndexStatus,800); }
+    else showToast('خطا',false);
+  }catch(e){ showToast('خطا: '+e.message,false); }
+}
+
 // زیربخش‌های تنظیمات: عمومی، آیکن‌های خانه، لینک‌های خانه، نوار پایین، مدیران
 function switchSettingsPane(pane){
   if(!SETTINGS_PANES.includes(pane)) pane='general';
   SETTINGS_PANES.forEach(p=>document.getElementById('settings-pane-'+p).classList.toggle('hidden',p!==pane));
   document.querySelectorAll('#settings-subnav button').forEach(b=>b.classList.toggle('active',b.dataset.pane===pane));
   const tab=document.getElementById('tab-settings'); if(tab) tab.scrollTop=0;
-  if(pane==='general'){ loadSettings(); loadAssetLinks(); loadWpMirrorStatus(); }
+  if(pane==='general'){ loadSettings(); loadAssetLinks(); loadWpMirrorStatus(); loadBookIndexStatus(); }
   if(pane==='shortcuts') loadShortcuts();
   if(pane==='linkshortcuts') loadLinkShortcuts();
   if(pane==='navitems') loadNavItemsAdmin();

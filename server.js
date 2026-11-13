@@ -406,6 +406,7 @@ const mainDb = new sqlite3.Database(mainDbPath, (err) => {
     // تاخیر کوچک تا اطمینان از اتمام initDb و قابل دسترس بودن جدول settings
     mainDb.serialize(() => { ensureJwtSecret(); ensureVapidKeys(); });
     wpMirror.start();
+    bookSearch.start();
 });
 
 // نسخهٔ محلی مطالب وردپرس (سخنرانی‌ها) — lib/wp-mirror.js
@@ -417,6 +418,18 @@ const wpMirror = createWpMirror({
     setSetting: (key, value) => new Promise(res => mainDb.run(
         'INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)',
         [key, value], () => res())),
+});
+
+// فهرست تمام‌متن کتاب‌ها (FTS5) — lib/book-search.js
+// فایل کنار دیتابیس اصلی؛ BOOKS_INDEX_PATH فقط برای تست‌ها (جدا کردن فایل هر سرور)
+const { createBookSearch, rowToPage: _bookRowToPage } = require('./lib/book-search');
+const bookSearch = createBookSearch({
+    sqlite3,
+    mainDb,
+    booksDir: path.resolve(__dirname, 'books'),
+    indexPath: process.env.BOOKS_INDEX_PATH ? path.resolve(process.env.BOOKS_INDEX_PATH) : path.join(path.dirname(mainDbPath), 'books-index.sqlite'),
+    normFa: s => _normFa(s),
+    findBestTable: bDb => findBestTable(bDb),
 });
 
 // کلیدهای VAPID — اگر در env نباشند در settings ذخیره می‌شوند.
@@ -1019,11 +1032,7 @@ app.get('/api/books/:id/pages',(req,res)=>{
                     bDb.close();if(err) return res.status(500).json({error:failMsg(err)});
                     // محتوای کتاب تغییر نمی‌کند؛ پاسخ می‌تواند بزرگ باشد → کش شود
                     res.set('Cache-Control','public, max-age=3600');
-                    const norm=rows.map((r,idx)=>{
-                        const ks=Object.keys(r);
-                        const gv=ns=>{for(const k of ks){if(ns.includes(k.toLowerCase().trim())){let v=r[k];if(Buffer.isBuffer(v))v=v.toString('utf8');return v;}}return null;};
-                        return{ID:gv(['id','_id','bookid','rowid'])??idx,name:(gv(['name','title','subject','topic','heading','عنوان'])??'بدون عنوان').toString(),text:(gv(['text','content','body','matn','description','html','متن'])??'').toString(),page:gv(['page','pagenumber','r'])??idx,season:(gv(['season','chapter','part','category','فصل'])??'').toString()};
-                    });
+                    const norm=rows.map(_bookRowToPage);
                     res.json(norm);
                 });
             };
@@ -1112,7 +1121,13 @@ app.get('/api/search', searchLimiter, async (req, res) => {
     });
 
     // ۳) محتوای متن همه کتاب‌ها (همه کتاب‌ها جستجو می‌شوند)
-    const allB = await new Promise(resolve => {
+    // اگر فهرست FTS آماده باشد از همان (بدون بودجهٔ زمانی)، وگرنه اسکن قدیمی
+    let usedIndex = false;
+    if (bookSearch.isReady()) {
+        try { result.pages = await bookSearch.search(q, { perBook: 3, limit: 50 }); usedIndex = true; }
+        catch (e) { result.pages = []; }
+    }
+    const allB = usedIndex ? [] : await new Promise(resolve => {
         mainDb.all('SELECT id, title, author, cover, db_filename FROM books', [], (e, rows) => resolve(rows || []));
     });
 
@@ -1361,6 +1376,15 @@ app.get('/api/admin/wp-mirror/status', adminAuth, async (req, res) => {
 app.post('/api/admin/wp-mirror/sync', adminAuth, (req, res) => {
     // در پس‌زمینه — اولین بار ممکن است چند دقیقه طول بکشد
     wpMirror.sync({ full: true });
+    res.json({ ok: true });
+});
+
+// فهرست جستجوی کتاب‌ها (lib/book-search.js)
+app.get('/api/admin/search-index/status', adminAuth, async (req, res) => {
+    try { res.json(await bookSearch.status()); } catch (e) { res.status(500).json({ error: failMsg(e) }); }
+});
+app.post('/api/admin/search-index/rebuild', adminAuth, (req, res) => {
+    bookSearch.rebuild();   // در پس‌زمینه
     res.json({ ok: true });
 });
 
@@ -2510,6 +2534,7 @@ app.post('/api/admin/books',adminAuth,upload.fields([{name:'database',maxCount:1
                 mainDb.run('INSERT INTO books (title,author,description,cover,db_filename,page_count,book_type,pdf_filename,sort_order) VALUES (?,?,?,?,?,?,?,?,?)',[t,a||'',d||'',cp,dbf.filename,pc,'db','',nextOrder],function(err){
                     if(err){console.error('[books] db insert error:',err.message);return res.status(500).json({error:failMsg(err)});}
                     res.json({success:true,id:this.lastID,page_count:pc});
+                    bookSearch.sync();
                 });
             }
         });
@@ -2522,7 +2547,7 @@ app.delete('/api/admin/books/:id',adminAuth,(req,res)=>{
         if(b.book_type==='pdf'&&b.pdf_filename){const pp=path.resolve(__dirname,'books',path.basename(b.pdf_filename));if(fs.existsSync(pp)) fs.unlinkSync(pp);}
         else if(b.db_filename){const dp=path.resolve(__dirname,'books',path.basename(b.db_filename));if(fs.existsSync(dp)) fs.unlinkSync(dp);}
         unlinkPublicFile(b.cover);
-        mainDb.run('DELETE FROM books WHERE id=?',[id],()=>res.json({success:true}));
+        mainDb.run('DELETE FROM books WHERE id=?',[id],()=>{res.json({success:true});bookSearch.sync();});
     });
 });
 app.put('/api/admin/books/sort',adminAuth,(req,res)=>{
@@ -2549,7 +2574,7 @@ app.put('/api/admin/books/:id',adminAuth,upload.fields([{name:'cover',maxCount:1
             dbFn=df.filename;
             try{pc=await countPages(path.resolve(__dirname,'books',df.filename));}catch(e){}
         }
-        mainDb.run('UPDATE books SET title=?,author=?,description=?,cover=?,pdf_filename=?,db_filename=?,page_count=? WHERE id=?',[sanText(req.body.title)||b.title,sanText(req.body.author)||b.author,sanText(req.body.description)||b.description,cp,pdfFn,dbFn,pc,id],()=>res.json({success:true}));
+        mainDb.run('UPDATE books SET title=?,author=?,description=?,cover=?,pdf_filename=?,db_filename=?,page_count=? WHERE id=?',[sanText(req.body.title)||b.title,sanText(req.body.author)||b.author,sanText(req.body.description)||b.description,cp,pdfFn,dbFn,pc,id],()=>{res.json({success:true});if(df)bookSearch.sync();});
     });
 });
 // سرویس‌دهی فایل‌های PDF کتاب‌ها

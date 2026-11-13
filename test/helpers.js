@@ -28,7 +28,7 @@ async function startServer() {
     cwd: ROOT,
     env: {
       ...process.env,
-      PORT: String(port), DB_PATH: dbPath, WP_MIRROR: '0',
+      PORT: String(port), DB_PATH: dbPath, WP_MIRROR: '0', BOOKS_INDEX_PATH: dbPath + '.books-index',
       ADMIN_PASSWORD, JWT_SECRET, NODE_ENV: 'test',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -57,7 +57,7 @@ async function startServer() {
       await Promise.race([new Promise(r => child.once('exit', r)), sleep(5000)]);
       if (!exited) child.kill('SIGKILL');
     }
-    for (const suf of ['', '-wal', '-shm', '-journal']) {
+    for (const suf of ['', '-wal', '-shm', '-journal', '.books-index', '.books-index-wal', '.books-index-shm', '.books-index-journal']) {
       try { fs.rmSync(dbPath + suf, { force: true }); } catch (e) { /* ignore */ }
     }
   }
