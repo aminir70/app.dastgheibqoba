@@ -41,6 +41,28 @@ async function buildJs() {
     }
 }
 
+// شمارهٔ نسخهٔ فایل‌ها (?v=) از روی محتوای خود فایل ساخته می‌شود: هر فایلی که عوض شود
+// نشانی‌اش هم عوض می‌شود و مرورگرها (با کش یک‌ساله) نسخهٔ تازه را می‌گیرند؛ فایل
+// تغییرنکرده همان نشانی را نگه می‌دارد. دیگر نیازی به بالا بردن دستی عدد نیست.
+function stampVersions() {
+    const crypto = require('crypto');
+    for (const page of ['index.html', 'admin.html']) {
+        const file = path.join(PUB, page);
+        if (!fs.existsSync(file)) continue;
+        const html = fs.readFileSync(file, 'utf8');
+        let n = 0;
+        const out = html.replace(/((?:href|src)=")(\/[^"?#]+\.(?:css|js))\?v=[^"]*"/g, (m, pre, url) => {
+            const f = path.join(PUB, url);
+            if (!fs.existsSync(f)) return m;
+            const v = crypto.createHash('sha1').update(fs.readFileSync(f)).digest('hex').slice(0, 8);
+            n++;
+            return `${pre}${url}?v=${v}"`;
+        });
+        if (out !== html) fs.writeFileSync(file, out);
+        console.log(`  → نسخهٔ ${n} فایل در public/${page} ${out !== html ? 'به‌روز شد' : 'بدون تغییر'}`);
+    }
+}
+
 (async () => {
     console.log('🛠  building…');
     if (watch) {
@@ -52,6 +74,7 @@ async function buildJs() {
     } else {
         await buildCss();
         await buildJs();
+        stampVersions();
         console.log('✅ build complete');
     }
 })().catch(e => { console.error(e); process.exit(1); });

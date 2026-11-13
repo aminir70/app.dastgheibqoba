@@ -351,6 +351,10 @@ npm run build          # معادل node build.js
 
 فایل‌های خروجی (`tailwind.dist.css` و `public/js/dist/*.min.js`) در git tracked هستند و باید بعد از هر تغییر JS/HTML دوباره build و commit شوند.
 
+`node build.js` در پایان شمارهٔ `?v=` همهٔ فایل‌های CSS/JS داخل `public/index.html` را از روی محتوای
+همان فایل (هش ۸ حرفی) می‌گذارد — **شمارهٔ نسخه را دستی عوض نکنید**؛ فقط build بگیرید و `index.html`
+را هم commit کنید. فایل‌های `?v=`دار زیر `/js/` و `/css/` یک سال کش می‌شوند (immutable).
+
 ---
 
 ## متغیرهای محیطی (.env)
