@@ -32,7 +32,8 @@
     ├── admin.html         # پنل مدیریت (فقط HTML؛ CSS و JS بیرونی)
     ├── sw.js              # Service Worker (PWA)
     ├── js/
-    │   ├── actions.js     # رویدادهای declarative (data-click/act) به‌جای onclick درون‌خطی — فعلاً فقط پنل ادمین
+    │   ├── actions.js     # رویدادهای declarative (data-click/act) به‌جای onclick درون‌خطی — کل پروژه (اپ: نسخهٔ dist/actions.min.js)
+    │   ├── boot.js        # اسکریپت اولیهٔ اسپلش (قبلاً <script> درون‌خطی index.html)؛ sync، درست بعد از #loading-screen
     │   ├── app.js         # کنترلر اصلی: ناوبری، تاریخچه، splash
     │   ├── books.js       # کتابخانه دیجیتال و PDF viewer
     │   ├── lectures.js    # سخنرانی‌ها (از WordPress API)
@@ -52,7 +53,7 @@
     │   │   ├── gallery.js · audio.js · video.js   # مدیریت گالری تصویر/صوت/ویدیو
     │   │   └── home-shortcuts.js  # تقویم جلالی، لینک‌های خانه، آیکن‌های خانه، نوار پایین
     │   └── dist/          # فایل‌های minified (generated — git tracked)
-    │       └── *.min.js
+    │       └── *.min.js   # شامل actions.min.js (اولین اسکریپت <head> اپ)
     └── css/
         ├── app.css        # استایل‌های اختصاصی
         ├── admin.css      # استایل‌های پنل ادمین (قبلاً <style> درون‌خطی admin.html)
@@ -399,6 +400,9 @@ npm run build          # معادل node build.js
 یا در فایل قبلی تعریف شده باشد. `node build.js` نسخهٔ `?v=` فایل‌های `admin.html` را هم می‌گذارد
 (مثل `index.html`)؛ فایل جدید admin را با `?v=0` به `admin.html` اضافه کنید و build بگیرید.
 
+`actions.js` هم کمینه می‌شود (`dist/actions.min.js`) و خودِ `public/js/actions.js` فقط برای پنل ادمین سرو می‌شود؛
+esbuild نام‌های `window.act`/`window.Actions` را نگه می‌دارد (property نام‌ها rename نمی‌شوند). `boot.js` minify نمی‌شود.
+
 `node build.js` در پایان شمارهٔ `?v=` همهٔ فایل‌های CSS/JS داخل `public/index.html` را از روی محتوای
 همان فایل (هش ۸ حرفی) می‌گذارد — **شمارهٔ نسخه را دستی عوض نکنید**؛ فقط build بگیرید و `index.html`
 را هم commit کنید. فایل‌های `?v=`دار زیر `/js/` و `/css/` یک سال کش می‌شوند (immutable).
@@ -424,7 +428,7 @@ JWT_SECRET=...
 - **RTL:** همه رابط کاربری راست‌به‌چپ (`dir="rtl"`).
 - **toFa():** برای نمایش اعداد فارسی در UI از این تابع استفاده شود.
 - **PDF:** کتاب‌های PDF در تب جدید باز می‌شوند (`openPdfBook`)؛ PDF.js در اپ نیست.
-- **خطای بارگذاری فهرست‌ها:** `loadErrorHtml(retryExpr, message?)` (utils.js) بلوک «دریافت اطلاعات ممکن نشد + تلاش دوباره» می‌سازد؛ `retryExpr` همان loader با همان آرگومان‌هاست (رشته‌ها با `jsArg`). loaderها باید `!res.ok` را خطا حساب کنند.
+- **خطای بارگذاری فهرست‌ها:** `loadErrorHtml(retry, message?, extraCls?)` (utils.js) بلوک «دریافت اطلاعات ممکن نشد + تلاش دوباره» می‌سازد؛ `retry` آرایهٔ `['نام‌loader', ...آرگومان‌ها]` است (رشته‌ها با `act.s(v)`، عددها `Number(v)`). loaderها باید `!res.ok` را خطا حساب کنند.
 - **سرویس‌ورکر:** تصاویر در کش جدای `nashr-img-v1` با سقف ۳۰۰ ورودی‌اند (بین نسخه‌ها می‌ماند)؛ فونت‌ها در کش استاتیک. فونت شبنم فقط با باز شدن تنظیمات نمایش یا انتخاب کاربر بارگذاری می‌شود (`data-pvfont`).
 - **شروع اپ (`init` در app.js):** تنظیمات، نوار پایین و کتاب‌ها هم‌زمان گرفته می‌شوند و اسپلش فقط منتظر همین سه می‌ماند؛ `sharedJson(url)` (books.js) درخواست‌های هم‌زمانِ یک نشانی را یکی می‌کند.
 - **سقف درخواست‌ها (`lib/limits.js`):** API ۶۰۰۰/۱۵دقیقه، جستجو ۹۰/دقیقه، ورود ۳۰/۱۵دقیقه (فقط ناموفق‌ها)، ورود ادمین و «تغییر رمز من» ۱۰ ناموفق/۱۵دقیقه، ثبت‌نام ۱۰/ساعت — چون کاربران موبایل پشت IP مشترک‌اند. بدنهٔ درخواست بیرون از `/api/admin` حداکثر ۱ مگابایت.
@@ -494,31 +498,45 @@ JWT_SECRET=...
 | `san(s)` | **فقط** برای محتوای rich ویرایشگر ادمین (`page_contents.content`). |
 | `failMsg(err)` | پیام خطا برای کلاینت؛ در production جزئیات داخلی را مخفی می‌کند. |
 
-### سمت کلاینت (`utils.js` و `public/js/admin/core.js` برای پنل ادمین)
+### سمت کلاینت (`utils.js` برای اپ و `public/js/admin/core.js` برای پنل ادمین)
 | تابع | کاربرد |
 |------|--------|
 | `escHtml(v)` | هر داده‌ای که با `innerHTML` درج می‌شود. |
 | `safeUrl(v)` | هر URL که در `href`/`src` قرار می‌گیرد. |
-| `jsArg(v)` | **فقط اپ عمومی (تا مرحلهٔ بعد):** آرگومان داخل attribute: `onclick="f(${jsArg(v)})"` — بدون کوتیشن اضافه. در پنل ادمین استفاده نمی‌شود. |
+| `act('click','fn',...args)` / `data-click` | **هر رویداد UI** (اپ و ادمین)؛ هیچ inline handler وجود ندارد (پایین‌تر). `act.s(v)` رشتهٔ امن (جایگزین `jsArg` قدیمی؛ `jsArg` فقط در `admin/core.js` برای نمایش داخلی مانده). |
 
-### رویدادهای پنل ادمین: `data-click` و `act(...)` (بدون inline handler)
-پنل ادمین هیچ `on…=` و هیچ `<script>` درون‌خطی ندارد؛ CSP همان صفحه `script-src 'self'` است
-(بدون `unsafe-inline` و `unsafe-eval`؛ میدلور CSP در `server.js` فقط برای `/admin` و `/admin.html`
-این را می‌فرستد و بقیه سیاست قبلی را دارند). مکانیزم در `public/js/actions.js` (classic، بدون build،
-در `<head>` پنل) است و سربرگ فارسی خودش API را شرح می‌دهد:
-- HTML ثابت: `data-click="نام" data-args='["a",1,{"$":"el"}]'` (همچنین `data-change/input/submit/keypress/…`،
-  `data-args-<رویداد>`، `data-key="Enter"`، `data-stop`، `data-prevent`، `data-self`). توکن‌های آرگومان:
-  `{"$":"el"|"event"|"value"|"checked"|"files"}`؛ تابع با `this` = عنصر صدا زده می‌شود.
-- قالب‌های JS: `` `<button${act('click','deleteBook',b.id,act.s(b.title))}>` `` (به‌جای `onclick="f(${jsArg(v)})"`؛
-  `act.s(v)` همان رشتهٔ امنِ jsArg است؛ `act.el/act.event` توکن‌ها هستند). اگر متغیر محلی‌ای به نام `act`
-  هست از `window.act` استفاده کنید.
+### رویدادها در کل پروژه: `data-click` و `act(...)` (بدون inline handler) و CSP
+هیچ صفحه‌ای (`index.html`، `admin.html`، `public/js/*.js`، `public/js/admin/*.js`) `on…=`، `javascript:` یا
+`<script>` درون‌خطی ندارد؛ **همهٔ پاسخ‌ها** `script-src 'self'` می‌گیرند (بدون `unsafe-inline`، `unsafe-eval`
+و `wasm-unsafe-eval`؛ فقط `style-src` هنوز `'unsafe-inline'` دارد). سیاست در یک میان‌افزار `server.js` است و با
+`CSP_DISABLED=1` موقتاً خاموش می‌شود. `/chatbot` (پروکسی سرویس Python) قبل از آن میان‌افزار سوار می‌شود، پس
+سیاست ما روی آن اعمال نمی‌شود و هدر سرویس بالادست می‌ماند (`test/csp.test.js` همین را می‌سنجد).
+مکانیزم در `public/js/actions.js` است و سربرگ فارسی خودش API را شرح می‌دهد:
+- اپ `/js/dist/actions.min.js` (خروجی `node build.js`) را **اولین اسکریپت `<head>`** می‌گیرد (تا `error`/`load` تصویرها
+  و هر رویدادِ markup بعدی را ببیند)؛ پنل ادمین همان `/js/actions.js` ساده را. اسکریپت اولیهٔ اسپلش `boot.js` است
+  (sync، همان جای قبلی در body).
+- HTML ثابت: `data-click="نام" data-args='["a",1,{"$":"el"}]'` (همچنین `data-change/input/submit/keypress/keydown/
+  error/touchstart/…`، `data-args-<رویداد>`، `data-key="Enter"`، `data-stop`، `data-prevent`، `data-self`). توکن‌های
+  آرگومان: `{"$":"el"|"event"|"value"|"checked"|"files"}`؛ تابع با `this` = عنصر صدا زده می‌شود.
+  رویدادهای بدون حباب (`error load focus blur scroll`) فقط برای خود عنصر هدف اجرا می‌شوند؛ `touchstart` passive است.
+  `data-stop` فقط روی عنصری که `data-click` هم دارد کار می‌کند (برای «فقط stopPropagation» از `data-click="uiNop" data-stop`).
+- قالب‌های JS: `` `<button${act('click','deleteBook',b.id,act.s(b.title))}>` ``؛ `act.el/act.event/act.value` توکن‌ها هستند.
+  اگر متغیر محلی‌ای به نام `act` هست از `window.act` استفاده کنید (در اپ `app.js` نام `actKind` است).
 - نام تابع فقط `/^[A-Za-z_$][\w$]*$/` و فقط از `Actions.register({...})` یا تابع غیر-native که own property از
-  `window` باشد پیدا می‌شود (`fetch/open/eval/…` هرگز). کنش‌های عمومی ثبت‌شده: `uiNop uiClick uiSetValue uiHide
-  uiRemove uiCloseModal uiClearIfText uiClearIfFile uiClearIfFileOrText uiMirrorText uiMirrorValue`؛ بقیه
-  توابع نام‌دار کنار کد همان بخش در `public/js/admin/*.js` هستند.
-- تست دائمی: `test/no-inline-handlers.test.js` (رویداد/اسکریپت/`javascript:` درون‌خطی و نام‌های `data-*` ناشناخته؛
-  فهرست `SCANNED` بالای فایل برای اپ عمومی گسترش می‌یابد) و `test/admin-csp.test.js` (هدر CSP).
-- `tailwind.config.js` فایل `actions.js` را از content کنار می‌گذارد (فقط نام رویداد دارد، نه کلاس).
+  `window` باشد پیدا می‌شود (`fetch/open/eval/…` هرگز): یعنی `function f(){}` یا `var`/`window.f=` در سطح بالا؛
+  `const f = () => …` روی `window` نمی‌نشیند و کار نمی‌کند. کنش‌های عمومی ثبت‌شده: `uiNop uiClick uiHideSelf uiHideParent
+  uiFallbackSrc uiSetValue uiHide uiRemove uiCloseModal uiClearIfText uiClearIfFile uiClearIfFileOrText uiMirrorText
+  uiMirrorValue` (مثلاً `<img data-error="uiHideParent">`)؛ بقیه توابع نام‌دار کنار کد همان بخش‌اند.
+- کد یا CSS نباید به صفت `onclick` تکیه کند (`[onclick]` → `[data-click]`، `getAttribute('onclick')` ممنوع).
+- HTML سروری (محتوای ویرایشگر ادمین، متن مطالب وردپرس) داده است و handler درون‌خطی ندارد/نمی‌تواند داشته باشد؛
+  هیچ قابلیت اپ به آن وابسته نیست.
+- تست دائمی: `test/no-inline-handlers.test.js` (رویداد/اسکریپت/`javascript:` درون‌خطی در همهٔ `SCANNED` و نام‌های
+  `data-*`/`act(...)`/`loadErrorHtml([...])` ناشناخته یا غیرقابل‌resolve) و `test/csp.test.js` (هدر CSP در همهٔ مسیرها،
+  `CSP_DISABLED`، `/chatbot`، اولین بودن actions). فایل منبع جدید JS اپ را به `APP_JS` اضافه کنید.
+- `tailwind.config.js` فایل‌های `actions.js` و `dist/actions.min.js` را از content کنار می‌گذارد (فقط نام رویداد
+  دارند، نه کلاس؛ وگرنه کلاس `.blur` ساخته می‌شود).
+- `public/sw.js`: بسته‌های JS پیش‌کش نمی‌شوند (network-first و بعد کش در اولین بارگذاری)؛ با تغییر پوستهٔ اپ
+  شمارهٔ `nashr-*-vNN` را بالا ببرید (فعلاً v58).
 
 **قاعده:** هیچ داده‌ای از API نباید بدون `escHtml` وارد `innerHTML` شود. sanitizer
 سمت سرور یک blacklist است و به‌تنهایی کافی نیست.

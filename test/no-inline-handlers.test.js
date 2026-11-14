@@ -1,6 +1,6 @@
-// پنل ادمین نباید هیچ رویداد درون‌خطی یا اسکریپت درون‌خطی داشته باشد (CSP: script-src 'self').
-// فهرست SCANNED را مرحلهٔ بعد می‌شود با فایل‌های اپ عمومی (index.html و public/js/*.js) گسترش داد.
+// هیچ صفحه‌ای (پنل ادمین، اپ عمومی) نباید رویداد درون‌خطی یا اسکریپت درون‌خطی داشته باشد (CSP: script-src 'self').
 // رویدادها با data-click="نام" و act(...) (public/js/actions.js) نوشته می‌شوند.
+// کد منبع اپ (نه dist) اسکن می‌شود؛ dist از روی همین‌ها ساخته می‌شود (build.js).
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,9 +9,16 @@ const path = require('node:path');
 
 const PUB = path.resolve(__dirname, '..', 'public');
 const adminJs = fs.readdirSync(path.join(PUB, 'js', 'admin')).filter(f => f.endsWith('.js')).map(f => path.join('js', 'admin', f));
-const SCANNED = ['admin.html', ...adminJs];
-// فایل‌هایی که تابع‌های قابل‌صدازدن را تعریف می‌کنند (برای بررسی نام‌های data-*)
-const DEFINERS = [...adminJs, path.join('js', 'actions.js')];
+// اپ عمومی: index.html + همهٔ اسکریپت‌های منبع آن (boot.js اسپلش، actions.js، و بسته‌های build شده)
+const APP_JS = ['actions', 'boot', 'utils', 'offline', 'books', 'lectures', 'media', 'news', 'aichat', 'app'].map(n => path.join('js', n + '.js'));
+const SCANNED = ['admin.html', ...adminJs, 'index.html', ...APP_JS];
+// فایل‌هایی که تابع‌های قابل‌صدازدن را تعریف می‌کنند، به تفکیک صفحه (برای بررسی نام‌های data-*)
+const PAGES = {
+  'admin.html': [...adminJs, path.join('js', 'actions.js')],
+  'index.html': APP_JS,
+};
+// هر فایل JS به صفحه‌ای که آن را اجرا می‌کند نسبت داده می‌شود
+const PAGE_OF = rel => rel === 'admin.html' || rel.startsWith(path.join('js', 'admin')) ? 'admin.html' : 'index.html';
 
 const read = rel => fs.readFileSync(path.join(PUB, rel), 'utf8');
 const lineOf = (text, idx) => text.slice(0, idx).split('\n').length;
@@ -65,25 +72,47 @@ test('خود regexها: نمونه‌های مثبت و منفی', () => {
   for (const s of neg) assert.ok(!hit(s), 'نباید پیدا شود: ' + s);
 });
 
-test('هر نام data-<event>="…" و act(\'event\',\'…\') به یک تابع تعریف‌شده می‌رسد', () => {
-  const defined = new Set();
-  for (const rel of DEFINERS) {
-    const t = read(rel);
-    for (const m of t.matchAll(/(?:^|[^.\w$])(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/g)) defined.add(m[1]);
-    for (const m of t.matchAll(/^(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function|\([^)]*\)\s*=>|[\w$]+\s*=>)/gm)) defined.add(m[1]);
-    for (const m of t.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) defined.add(m[1]);
-    // Actions.register({ name: function … })
-    const reg = t.match(/^\s*Actions\.register\(\{([\s\S]*?)\n\s*\}\);/m);
-    if (reg) for (const m of reg[1].matchAll(/^\s*([A-Za-z_$][\w$]*)\s*:/gm)) defined.add(m[1]);
-  }
-  const used = [];
-  for (const rel of SCANNED) {
-    const t = read(rel);
-    for (const m of t.matchAll(/\bdata-(?:click|dblclick|change|input|submit|keydown|keyup|keypress|focus|blur|error|load|scroll|paste)="([^"$`{}]+)"/g)) used.push([rel, m[1]]);
-    for (const m of t.matchAll(/\bact\(\s*'[a-z]+'\s*,\s*'([^']+)'/g)) used.push([rel, m[1]]);
-  }
-  assert.ok(used.length > 100, 'باید ده‌ها استفاده پیدا شود، یافت شد: ' + used.length);
-  const missing = used.filter(([, n]) => !defined.has(n)).map(([r, n]) => `${r}: ${n}`);
-  assert.deepEqual([...new Set(missing)], []);
-  for (const [, n] of used) assert.match(n, /^[A-Za-z_$][\w$]*$/, 'نام نامعتبر: ' + n);
-});
+// نام‌هایی که از Actions.register({...}) می‌آیند
+function registered(t) {
+  const out = [];
+  const reg = t.match(/^\s*Actions\.register\(\{([\s\S]*?)\n\s*\}\);/m);
+  if (reg) for (const m of reg[1].matchAll(/^\s*([A-Za-z_$][\w$]*)\s*:/gm)) out.push(m[1]);
+  return out;
+}
+// نام‌هایی که actions.js می‌تواند از window پیدا کند: تابع‌های سطح بالا با function / var؛ const و let
+// (حتی تابع پیکانی) روی window نمی‌نشینند و resolve نمی‌شوند.
+function definedGlobals(t) {
+  const out = [];
+  // فقط ابتدای خط (سطح بالا)؛ تابع‌های تو در تو و متدها شمرده نمی‌شوند
+  for (const m of t.matchAll(/^(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*\(/gm)) out.push(m[1]);
+  for (const m of t.matchAll(/^var\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function|\([^)]*\)\s*=>|[\w$]+\s*=>)/gm)) out.push(m[1]);
+  for (const m of t.matchAll(/(?:^|[^.\w$])window\.([A-Za-z_$][\w$]*)\s*=/g)) out.push(m[1]);
+  // تابع‌های داخل بلوک‌های بالاسطحی که هنوز global‌اند (مثل if/try در مرحلهٔ قدیم) پشتیبانی نمی‌شوند
+  return out;
+}
+
+for (const [page, files] of Object.entries(PAGES)) {
+  test(`هر نام data-<event>="…" و act('event','…') در ${page} به یک تابع global یا کنش ثبت‌شده می‌رسد`, () => {
+    const defined = new Set();
+    for (const rel of files) {
+      const t = read(rel);
+      for (const n of definedGlobals(t)) defined.add(n);
+      for (const n of registered(t)) defined.add(n);
+    }
+    const used = [];
+    // actions.js فقط مثال‌های سرفایل دارد، نه استفادهٔ واقعی
+    for (const rel of SCANNED.filter(r => PAGE_OF(r) === page && r !== path.join('js', 'actions.js'))) {
+      const t = read(rel);
+      for (const m of t.matchAll(/\bdata-(?:click|dblclick|change|input|submit|keydown|keyup|keypress|focus|blur|error|load|scroll|paste|touchstart)="([^"$`{}]+)"/g)) used.push([rel, m[1]]);
+      for (const m of t.matchAll(/\bact\(\s*'[a-z]+'\s*,\s*'([^']+)'/g)) used.push([rel, m[1]]);
+      // act('click', cond ? 'a' : 'b', ...)
+      for (const m of t.matchAll(/\bact\(\s*'[a-z]+'\s*,\s*[^'(),]+\?\s*'([^']+)'\s*:\s*'([^']+)'/g)) { used.push([rel, m[1]]); used.push([rel, m[2]]); }
+      // loadErrorHtml(['fn', ...])
+      for (const m of t.matchAll(/\bloadErrorHtml\(\s*\[\s*'([^']+)'/g)) used.push([rel, m[1]]);
+    }
+    assert.ok(used.length > 50, 'باید ده‌ها استفاده پیدا شود، یافت شد: ' + used.length);
+    const missing = used.filter(([, n]) => !defined.has(n)).map(([r, n]) => `${r}: ${n}`);
+    assert.deepEqual([...new Set(missing)], []);
+    for (const [, n] of used) assert.match(n, /^[A-Za-z_$][\w$]*$/, 'نام نامعتبر: ' + n);
+  });
+}

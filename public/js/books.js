@@ -54,12 +54,12 @@ function renderLibrary() {
         const offline = isBookOffline(book.id);
         const unavailable = isOffline && !offline;
 
-        return `<div onclick="${book.book_type==='pdf'?`openPdfBook(${book.id})`:`openBook(${book.id})`}" class="${widthClass} relative cursor-pointer book-card active:scale-95 transition-transform${unavailable ? ' opacity-40' : ''}">
+        return `<div${act('click', book.book_type==='pdf'?'openPdfBook':'openBook', book.id)} class="${widthClass} relative cursor-pointer book-card active:scale-95 transition-transform${unavailable ? ' opacity-40' : ''}">
             <div class="rounded-2xl overflow-hidden aspect-[2/3] relative book-cover-wrap shadow-md">
-                ${book.cover?`<img src="${safeUrl(book.cover)}" class="w-full h-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+                ${book.cover?`<img src="${safeUrl(book.cover)}" class="w-full h-full object-cover" data-error="bookCoverImgErr" data-args='[{"$":"el"}]'>`:''}
                 <div class="absolute inset-0 bg-gradient-to-br ${colors[i%colors.length]} flex items-end justify-center pb-3 px-2" style="${book.cover?'display:none':''}"><span class="text-white text-center font-black text-[9px] leading-tight drop-shadow">${escHtml(book.title)}</span></div>
                 ${progress>0?`<div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent pt-4 pb-1.5 px-2"><div class="w-full bg-white/30 rounded-full h-1 overflow-hidden"><div class="bg-white h-full rounded-full" style="width:${progress}%"></div></div><span class="text-[8px] text-white/80 block text-center mt-0.5">${toFa(progress)}٪</span></div>`:''}
-                ${!isOffline ? `<button aria-label="دانلود برای مطالعهٔ آفلاین" onclick="event.stopPropagation();toggleOfflineBook(${book.id})" id="dl-btn-${book.id}"
+                ${!isOffline ? `<button aria-label="دانلود برای مطالعهٔ آفلاین"${act('click', 'toggleOfflineBook', book.id)} data-stop id="dl-btn-${book.id}"
                     class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full flex items-center justify-center shadow-md z-20 ${offline ? 'bg-brand-500 text-white' : 'bg-white/90 text-gray-500'}"
                     title="${offline ? 'حذف آفلاین' : 'دانلود'}">
                     <i class="fas ${offline ? 'fa-check' : 'fa-download'} text-[9px]"></i>
@@ -285,14 +285,14 @@ function buildTOC() {
         // همهٔ سرفصل‌ها بسته شروع می‌شوند؛ کاربر خودش باز می‌کند
         const isOpen = false;
         html+=`<div class="mb-2">
-            <button onclick="toggleTocSeason('${sid}')" class="w-full flex items-center gap-2 mb-1 px-2 py-2 rounded-xl hover:bg-gray-100 transition text-right">
+            <button${act('click', 'toggleTocSeason', sid)} class="w-full flex items-center gap-2 mb-1 px-2 py-2 rounded-xl hover:bg-gray-100 transition text-right">
                 <i class="fas fa-chevron-${isOpen?'up':'down'} text-brand-500 text-xs toc-chevron" id="${sid}-chevron"></i>
                 <i class="fas fa-folder text-brand-500 text-xs"></i>
                 <span class="text-xs font-bold text-gray-600 flex-1">${season}</span>
                 <span class="text-[10px] bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">${toFa(pages.length)}</span>
             </button>
             <div id="${sid}" class="${isOpen?'':'hidden'}">`;
-        pages.forEach(p=>{ html+=`<button onclick="goToPage(${p.originalIndex})" class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 truncate shadow-sm"><span class="text-gray-300 text-xs ml-2">${toFa(p.originalIndex+1)}.</span> ${escHtml(toFa(p.name))}</button>`; });
+        pages.forEach(p=>{ html+=`<button${act('click', 'goToPage', p.originalIndex)} class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 truncate shadow-sm"><span class="text-gray-300 text-xs ml-2">${toFa(p.originalIndex+1)}.</span> ${escHtml(toFa(p.name))}</button>`; });
         html+=`</div></div>`;
         seasonIndex++;
     });
@@ -408,7 +408,7 @@ function buildBookmarksTab(){
     }
     c.innerHTML=bookmarks.sort((a,b)=>a-b).map(idx=>{
         const p=bookData[idx];if(!p)return'';
-        return`<button onclick="goToPage(${idx})" class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 flex items-center shadow-sm"><i class="fas fa-bookmark text-brand-500 ml-3 text-xs"></i><span class="truncate">${escHtml(toFa(p.name))}</span><span class="text-xs text-gray-300 mr-auto">صفحه ${toFa(idx+1)}</span></button>`;
+        return`<button${act('click', 'goToPage', idx)} class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 flex items-center shadow-sm"><i class="fas fa-bookmark text-brand-500 ml-3 text-xs"></i><span class="truncate">${escHtml(toFa(p.name))}</span><span class="text-xs text-gray-300 mr-auto">صفحه ${toFa(idx+1)}</span></button>`;
     }).join('');
 }
 
@@ -422,7 +422,7 @@ function buildNotesTab() {
     c.innerHTML = noteKeys.map(idx => {
         const p = bookData[idx]; if(!p) return '';
         const noteText = notes[idx].length > 40 ? notes[idx].substring(0, 40) + '...' : notes[idx];
-        return `<button onclick="goToPage(${idx})" class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 flex flex-col shadow-sm">
+        return `<button${act('click', 'goToPage', idx)} class="w-full text-right px-4 py-3 bg-white hover:bg-brand-50 rounded-xl text-sm text-gray-700 transition mb-1 border border-gray-100 flex flex-col shadow-sm">
                     <div class="flex items-center w-full mb-2">
                         <i class="fas fa-pen-alt text-brand-500 ml-2 text-xs"></i>
                         <span class="font-bold truncate">${escHtml(toFa(p.name))}</span>
@@ -452,9 +452,13 @@ function saveSelectionToNote() {
 // ====================================================
 // جستجوی داخل کتاب
 // ====================================================
+// جاافتادن روی نتیجهٔ جستجوی داخل کتاب: برو به صفحه و جستجو را ببند (دو کار پشت هم)
+function goToPageFromSearch(idx){goToPage(idx);closeSearch();}
+// جلد کتاب نیامد: تصویر پنهان و جلد جایگزین (برادر بعدی) نمایش داده شود
+function bookCoverImgErr(img){img.style.display='none';img.nextElementSibling.style.display='flex';}
 function openSearch(){document.getElementById('search-modal').classList.remove('hidden');document.getElementById('search-modal').classList.add('flex');document.getElementById('search-input').focus();}
 function closeSearch(){document.getElementById('search-modal').classList.add('hidden');document.getElementById('search-modal').classList.remove('flex');}
-function performSearch(){const q=document.getElementById('search-input').value.trim().toLowerCase();if(!q)return;const results=bookData.filter(p=>p.name.toLowerCase().includes(q)||p.text.toLowerCase().includes(q));const c=document.getElementById('search-results');if(!results.length){c.innerHTML='<div class="text-center py-12 text-gray-400"><p>نتیجه‌ای یافت نشد</p></div>';return;}c.innerHTML=results.map(p=>{const s=p.text.replace(/<[^>]*>/g,'').substring(0,100);return`<button onclick="goToPage(${p.index});closeSearch()" class="w-full text-right p-4 bg-white rounded-xl border border-gray-100 hover:bg-brand-50 transition shadow-sm"><h4 class="font-bold text-sm text-gray-800 mb-1">${escHtml(toFa(p.name))}</h4><p class="text-xs text-gray-400 line-clamp-2">${escHtml(toFa(s))}...</p></button>`;}).join('');}
+function performSearch(){const q=document.getElementById('search-input').value.trim().toLowerCase();if(!q)return;const results=bookData.filter(p=>p.name.toLowerCase().includes(q)||p.text.toLowerCase().includes(q));const c=document.getElementById('search-results');if(!results.length){c.innerHTML='<div class="text-center py-12 text-gray-400"><p>نتیجه‌ای یافت نشد</p></div>';return;}c.innerHTML=results.map(p=>{const s=p.text.replace(/<[^>]*>/g,'').substring(0,100);return`<button${act('click', 'goToPageFromSearch', p.index)} class="w-full text-right p-4 bg-white rounded-xl border border-gray-100 hover:bg-brand-50 transition shadow-sm"><h4 class="font-bold text-sm text-gray-800 mb-1">${escHtml(toFa(p.name))}</h4><p class="text-xs text-gray-400 line-clamp-2">${escHtml(toFa(s))}...</p></button>`;}).join('');}
 
 // ====================================================
 // تنظیمات خواندن

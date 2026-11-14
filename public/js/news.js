@@ -66,7 +66,7 @@ async function showNewsAllPosts() {
         cachedNewsPosts = await res.json();
         postsView.innerHTML = renderWPPostsList(cachedNewsPosts, 'news');
     } catch(e) {
-        postsView.innerHTML = loadErrorHtml('showNewsAllPosts()');
+        postsView.innerHTML = loadErrorHtml(['showNewsAllPosts']);
     }
     setNewsLoading(false);
 }
@@ -105,7 +105,7 @@ async function showNewsPosts(catId, catName) {
         cachedNewsPosts = await res.json();
         postsView.innerHTML = renderWPPostsList(cachedNewsPosts, 'news');
     } catch(e) {
-        postsView.innerHTML = loadErrorHtml('showNewsPosts(' + Number(catId) + ', ' + jsArg(catName) + ')');
+        postsView.innerHTML = loadErrorHtml(['showNewsPosts', Number(catId), act.s(catName)]);
     }
     setNewsLoading(false);
 }
@@ -188,7 +188,7 @@ async function showStatementsAllPosts() {
         cachedStatementsPosts = await res.json();
         postsView.innerHTML = renderWPPostsList(cachedStatementsPosts, 'statements');
     } catch(e) {
-        postsView.innerHTML = loadErrorHtml('showStatementsAllPosts()');
+        postsView.innerHTML = loadErrorHtml(['showStatementsAllPosts']);
     }
     setStatementsLoading(false);
 }
@@ -227,7 +227,7 @@ async function showStatementsPosts(catId, catName) {
         cachedStatementsPosts = await res.json();
         postsView.innerHTML = renderWPPostsList(cachedStatementsPosts, 'statements');
     } catch(e) {
-        postsView.innerHTML = loadErrorHtml('showStatementsPosts(' + Number(catId) + ', ' + jsArg(catName) + ')');
+        postsView.innerHTML = loadErrorHtml(['showStatementsPosts', Number(catId), act.s(catName)]);
     }
     setStatementsLoading(false);
 }
@@ -269,8 +269,8 @@ function renderWPCatGrid(cats, screen) {
     const colors = ['text-amber-500 bg-amber-50', 'text-teal-500 bg-teal-50', 'text-blue-500 bg-blue-50', 'text-rose-500 bg-rose-50', 'text-purple-500 bg-purple-50', 'text-green-500 bg-green-50'];
     const onclickFn = screen === 'news' ? 'showNewsPosts' : 'showStatementsPosts';
     return cats.map((c, i) => {
-        const safeName = c.name.replace(/'/g, "\\'");
-        return `<div onclick="${onclickFn}(${c.id},'${safeName}')" class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 cursor-pointer hover:shadow-md transition active:scale-95 text-center">
+        // نام دسته از وردپرس entity-دار می‌آید؛ مرورگر قبلاً هنگام خواندن صفت onclick آن را یک‌بار decode می‌کرد
+        return `<div${act('click', onclickFn, c.id, wpDecodeName(c.name))} class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 cursor-pointer hover:shadow-md transition active:scale-95 text-center">
             <div class="w-14 h-14 ${colors[i % colors.length]} rounded-full flex items-center justify-center text-2xl shadow-sm"><i class="fas fa-folder-open"></i></div>
             <h3 class="font-bold text-xs text-gray-800 text-center line-clamp-2 leading-relaxed">${c.name}</h3>
             <span class="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">${toFa(c.count)} نوشته</span>
@@ -284,7 +284,7 @@ function renderWPPostsList(posts, screen) {
     return posts.map(post => {
         let imgUrl = post._embedded && post._embedded['wp:featuredmedia'] ? post._embedded['wp:featuredmedia'][0].source_url : '';
         const date = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
-        return `<div onclick="${onclickFn}(${post.id})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98]">
+        return `<div${act('click', onclickFn, post.id)} class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98]">
             ${imgUrl ? `<img src="${escHtml(imgUrl)}" class="w-20 h-20 rounded-xl object-contain bg-gray-100 shadow-sm shrink-0">` : `<div class="w-20 h-20 bg-brand-50 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-file-alt text-brand-300 text-2xl"></i></div>`}
             <div class="flex flex-col justify-center min-w-0">
                 <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug mb-2">${post.title.rendered}</h4>
@@ -347,11 +347,11 @@ async function renderWPSingle(post, screen) {
     const featuredUrl = post._embedded && post._embedded['wp:featuredmedia'] ? (post._embedded['wp:featuredmedia'][0] || {}).source_url || '' : '';
     const galleryImgs = (media.images || []).filter(src => src && src !== featuredUrl);
     if (galleryImgs.length === 1) {
-        finalHtml += `<div class="mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100"><img src="${escHtml(galleryImgs[0])}" class="w-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;
+        finalHtml += `<div class="mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100"><img src="${escHtml(galleryImgs[0])}" class="w-full object-cover" loading="lazy" data-error="uiHideParent"></div>`;
     } else if (galleryImgs.length > 1) {
         finalHtml += `<div class="grid grid-cols-2 gap-2 mb-6">` +
             galleryImgs.map(src =>
-                `<a href="${safeUrl(src)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden bg-gray-100 aspect-square"><img src="${escHtml(src)}" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></a>`
+                `<a href="${safeUrl(src)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden bg-gray-100 aspect-square"><img src="${escHtml(src)}" class="w-full h-full object-cover" loading="lazy" data-error="uiHideParent"></a>`
             ).join('') + `</div>`;
     }
     finalHtml += media.cleanHtml;

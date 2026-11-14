@@ -82,7 +82,7 @@ function _renderLecturesList(pairs) {
     postsView.innerHTML = items.map(({p: post}) => {
         let imgUrl = post._embedded && post._embedded['wp:featuredmedia'] ? post._embedded['wp:featuredmedia'][0].source_url : '';
         const date = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
-        return `<div onclick="showWPSingleView(${post.id})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98]">${imgUrl ? `<img src="${escHtml(imgUrl)}" class="w-20 h-20 rounded-xl object-contain bg-gray-100 shadow-sm shrink-0">` : `<div class="w-20 h-20 bg-brand-50 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-file-alt text-brand-300 text-2xl"></i></div>`}<div class="flex flex-col justify-center min-w-0"><h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug mb-2">${post.title.rendered}</h4><span class="text-[10px] text-gray-400 font-medium"><i class="far fa-calendar ml-1"></i>${date}</span></div></div>`;
+        return `<div${act('click', 'showWPSingleView', post.id)} class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98]">${imgUrl ? `<img src="${escHtml(imgUrl)}" class="w-20 h-20 rounded-xl object-contain bg-gray-100 shadow-sm shrink-0">` : `<div class="w-20 h-20 bg-brand-50 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-file-alt text-brand-300 text-2xl"></i></div>`}<div class="flex flex-col justify-center min-w-0"><h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug mb-2">${post.title.rendered}</h4><span class="text-[10px] text-gray-400 font-medium"><i class="far fa-calendar ml-1"></i>${date}</span></div></div>`;
     }).join('');
 }
 
@@ -120,7 +120,7 @@ async function fetchWPCategories() {
         else if (!cached) showWPMainCategories();
     } catch (e) {
         if (allWPCats.length) return;   // نسخهٔ حافظه نمایش داده شده — همان بماند
-        catView.innerHTML = loadErrorHtml('fetchWPCategories()', 'خطا در دریافت اطلاعات', 'col-span-2');
+        catView.innerHTML = loadErrorHtml(['fetchWPCategories'], 'خطا در دریافت اطلاعات', 'col-span-2');
     } finally { setWPLoading(false); }
 }
 
@@ -129,10 +129,11 @@ function renderCategoryGrid(cats, isMainView = false) {
     const colors = ['text-amber-500 bg-amber-50', 'text-teal-500 bg-teal-50', 'text-blue-500 bg-blue-50', 'text-rose-500 bg-rose-50', 'text-purple-500 bg-purple-50'];
     return cats.map((c, i) => {
         const colorCls = colors[i % colors.length];
-        const safeName = c.name ? c.name.replace(/'/g, "\\'") : 'بدون نام';
+        // نام entity-دار وردپرس؛ مرورگر قبلاً هنگام خواندن صفت onclick آن را یک‌بار decode می‌کرد
+        const catArgName = c.name ? wpDecodeName(c.name) : 'بدون نام';
         const isTargetMain = TARGET_MAIN_CATS.includes(c.name.trim());
         const countBadge = (isMainView || isTargetMain || c.count === 0) ? '' : `<span class="text-[10px] text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">${toFa(c.count)} نوشته</span>`;
-        return `<div onclick="handleCategoryClick(${c.id}, '${safeName}')" class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 cursor-pointer hover:shadow-md hover:border-brand-100 transition active:scale-95 text-center"><div class="w-14 h-14 ${colorCls} rounded-full flex items-center justify-center text-2xl shadow-sm"><i class="fas fa-folder-open"></i></div><h3 class="font-bold text-xs text-gray-800 text-center line-clamp-2 leading-relaxed">${c.name}</h3>${countBadge}</div>`;
+        return `<div${act('click', 'handleCategoryClick', c.id, catArgName)} class="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 cursor-pointer hover:shadow-md hover:border-brand-100 transition active:scale-95 text-center"><div class="w-14 h-14 ${colorCls} rounded-full flex items-center justify-center text-2xl shadow-sm"><i class="fas fa-folder-open"></i></div><h3 class="font-bold text-xs text-gray-800 text-center line-clamp-2 leading-relaxed">${c.name}</h3>${countBadge}</div>`;
     }).join('');
 }
 
@@ -239,7 +240,7 @@ async function showWPPostsView(catId, catName) {
             if (stillHere()) show(allPosts);
         }
     } catch (e) {
-        postsView.innerHTML = loadErrorHtml('showWPPostsView(' + catId + ', ' + jsArg(catName) + ')', 'خطا در دریافت نوشته‌ها');
+        postsView.innerHTML = loadErrorHtml(['showWPPostsView', catId, act.s(catName)], 'خطا در دریافت نوشته‌ها');
     }
     setWPLoading(false);
 }
@@ -357,15 +358,15 @@ function _paInitAll(container) {
 function _paCtrl(uid, src, duration) {
     let h = `<div class="p-4" dir="ltr">`;
     h += `<audio id="post-audio-${uid}"${src ? ' src="'+escHtml(src)+'"' : ''} class="hidden"></audio>`;
-    h += `<input type="range" id="post-prog-${uid}" value="0" min="0" max="100" step="0.1" oninput="_paSeek('${uid}',this.value)" class="w-full h-1.5 rounded-full bg-gray-200 appearance-none cursor-pointer accent-brand-600 mb-1" style="-webkit-appearance:none;direction:ltr">`;
+    h += `<input type="range" id="post-prog-${uid}" value="0" min="0" max="100" step="0.1" ${act('input', '_paSeek', uid, act.value)} class="w-full h-1.5 rounded-full bg-gray-200 appearance-none cursor-pointer accent-brand-600 mb-1" style="-webkit-appearance:none;direction:ltr">`;
     h += `<div class="flex justify-between text-[10px] text-gray-400 font-mono mb-3"><span id="post-ct-${uid}">۰:۰۰</span><span id="post-dt-${uid}">${duration ? toFa(duration) : '۰:۰۰'}</span></div>`;
     h += `<div class="flex items-center justify-center gap-3 mb-3">`;
-    h += `<button onclick="_paSkip('${uid}',-15)" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center relative"><i class="fas fa-undo text-sm"></i><span class="text-[9px] absolute" style="bottom:6px;right:6px">۱۵</span></button>`;
-    h += `<button id="post-play-btn-${uid}" onclick="_paToggle('${uid}')" class="w-14 h-14 bg-brand-600 hover:bg-brand-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95"><i id="post-play-icon-${uid}" class="fas fa-play text-xl ml-0.5"></i></button>`;
-    h += `<button onclick="_paSkip('${uid}',15)" class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center relative"><i class="fas fa-redo text-sm"></i><span class="text-[9px] absolute" style="bottom:6px;left:6px">۱۵</span></button>`;
+    h += `<button${act('click', '_paSkip', uid, -15)} class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center relative"><i class="fas fa-undo text-sm"></i><span class="text-[9px] absolute" style="bottom:6px;right:6px">۱۵</span></button>`;
+    h += `<button id="post-play-btn-${uid}"${act('click', '_paToggle', uid)} class="w-14 h-14 bg-brand-600 hover:bg-brand-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95"><i id="post-play-icon-${uid}" class="fas fa-play text-xl ml-0.5"></i></button>`;
+    h += `<button${act('click', '_paSkip', uid, 15)} class="w-10 h-10 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full flex items-center justify-center relative"><i class="fas fa-redo text-sm"></i><span class="text-[9px] absolute" style="bottom:6px;left:6px">۱۵</span></button>`;
     h += `</div><div class="flex items-center justify-center gap-1 flex-wrap"><span class="text-[10px] text-gray-400 font-bold ml-1">سرعت:</span>`;
     for (const [s, lbl] of [[0.75,'۰.۷۵×'],[1,'۱×'],[1.25,'۱.۲۵×'],[1.5,'۱.۵×'],[2,'۲×']]) {
-        h += `<button onclick="_paSpeed('${uid}',${s})" data-pa="${uid}" data-speed="${s}" class="px-2.5 py-1 rounded-lg text-[10px] font-bold ${s===1?'bg-brand-100 text-brand-700':'bg-gray-100 text-gray-500'} hover:bg-brand-50 hover:text-brand-600 transition">${lbl}</button>`;
+        h += `<button${act('click', '_paSpeed', uid, s)} data-pa="${uid}" data-speed="${s}" class="px-2.5 py-1 rounded-lg text-[10px] font-bold ${s===1?'bg-brand-100 text-brand-700':'bg-gray-100 text-gray-500'} hover:bg-brand-50 hover:text-brand-600 transition">${lbl}</button>`;
     }
     h += `</div></div>`;
     return h;
@@ -401,13 +402,13 @@ function _buildAudioHtml(tracks) {
         // Track list
         h += `<div class="flex flex-col gap-2">`;
         tracks.forEach((tr, i) => {
-            h += `<div class="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:border-brand-200 transition-colors" onclick="_paLoad('${uid}',${i})">`;
+            h += `<div class="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:border-brand-200 transition-colors"${act('click', '_paLoad', uid, i)}>`;
             h += `<button id="post-item-btn-${uid}-${i}" class="w-10 h-10 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center shrink-0 transition-colors"><i id="post-item-icon-${uid}-${i}" class="fas fa-play text-sm ml-0.5"></i></button>`;
             h += `<div class="flex-1 min-w-0">`;
             h += `<p class="font-bold text-sm text-gray-800 line-clamp-2">${tr.title || toFa(i + 1)}</p>`;
             if (tr.duration) h += `<p class="text-xs text-gray-400 mt-0.5">${tr.duration}</p>`;
             h += `</div>`;
-            h += `<a href="${safeUrl(tr.src)}" target="_blank" download onclick="event.stopPropagation()" class="shrink-0 w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-brand-50 text-gray-400 hover:text-brand-600 rounded-full border border-gray-100 transition"><i class="fas fa-download text-xs"></i></a>`;
+            h += `<a href="${safeUrl(tr.src)}" target="_blank" download${act('click', 'uiNop')} data-stop class="shrink-0 w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-brand-50 text-gray-400 hover:text-brand-600 rounded-full border border-gray-100 transition"><i class="fas fa-download text-xs"></i></a>`;
             h += `</div>`;
         });
         h += `</div></div>`;
@@ -509,10 +510,10 @@ async function showWPSingleView(postId) {
     const _featuredUrl = post._embedded && post._embedded['wp:featuredmedia'] ? (post._embedded['wp:featuredmedia'][0] || {}).source_url || '' : '';
     const _galleryImgs = (media.images || []).filter(src => src && src !== _featuredUrl);
     if (_galleryImgs.length === 1) {
-        finalHtml += `<div class="mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100"><img src="${escHtml(_galleryImgs[0])}" class="w-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`;
+        finalHtml += `<div class="mb-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100"><img src="${escHtml(_galleryImgs[0])}" class="w-full object-cover" loading="lazy" data-error="uiHideParent"></div>`;
     } else if (_galleryImgs.length > 1) {
         finalHtml += `<div class="grid grid-cols-2 gap-2 mb-6">` +
-            _galleryImgs.map(src => `<a href="${safeUrl(src)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden bg-gray-100 aspect-square"><img src="${escHtml(src)}" class="w-full h-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></a>`).join('') + `</div>`;
+            _galleryImgs.map(src => `<a href="${safeUrl(src)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden bg-gray-100 aspect-square"><img src="${escHtml(src)}" class="w-full h-full object-cover" loading="lazy" data-error="uiHideParent"></a>`).join('') + `</div>`;
     }
     finalHtml += media.cleanHtml;
 
@@ -563,7 +564,7 @@ async function fetchLatestLectures() {
         container.innerHTML = posts.map(post => {
             const imgUrl = post._embedded && post._embedded['wp:featuredmedia'] ? post._embedded['wp:featuredmedia'][0].source_url : '';
             const date = toFa(new Date(post.date).toLocaleDateString('fa-IR'));
-            return `<div onclick="openLatestPost(${post.id})" class="snap-start shrink-0 w-32 cursor-pointer active:scale-95 transition">
+            return `<div${act('click', 'openLatestPost', post.id)} class="snap-start shrink-0 w-32 cursor-pointer active:scale-95 transition">
                 <div class="w-full aspect-square rounded-xl overflow-hidden mb-1.5 bg-amber-50 shadow-sm">
                     ${imgUrl ? `<img src="${escHtml(imgUrl)}" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center"><i class="fas fa-microphone-alt text-amber-300 text-2xl"></i></div>`}
                 </div>

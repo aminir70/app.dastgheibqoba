@@ -10,7 +10,8 @@ const ROOT = __dirname;
 const PUB = path.join(ROOT, 'public');
 const watch = process.argv.includes('--watch');
 
-const JS_ENTRIES = ['app','books','lectures','media','news','utils','offline','aichat'];
+// actions.js هم کمینه می‌شود (اپ /js/dist/actions.min.js را اول از همه در <head> می‌گیرد؛ پنل ادمین همان /js/actions.js ساده را)
+const JS_ENTRIES = ['actions','app','books','lectures','media','news','utils','offline','aichat'];
 
 async function buildCss() {
     const watchFlag = watch ? '--watch' : '';

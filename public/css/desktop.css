@@ -248,11 +248,11 @@ body.global-dark .screen > header button:hover { background-color: rgba(255, 255
    کارت‌ها: سایه و حالت hover یکدست
    --------------------------------------------------------------------- */
 #screens-wrapper .bg-white.border-gray-100 { border-color: var(--d-border) !important; }
-#screens-wrapper [onclick].bg-white:is(.rounded-2xl, .rounded-3xl),
-#screens-wrapper [onclick].bg-white:is(.rounded-2xl, .rounded-3xl) {
+#screens-wrapper [data-click].bg-white:is(.rounded-2xl, .rounded-3xl),
+#screens-wrapper [data-click].bg-white:is(.rounded-2xl, .rounded-3xl) {
     transition: box-shadow .22s var(--d-ease), transform .22s var(--d-ease), border-color .22s;
 }
-#screens-wrapper [onclick].bg-white:is(.rounded-2xl, .rounded-3xl):hover {
+#screens-wrapper [data-click].bg-white:is(.rounded-2xl, .rounded-3xl):hover {
     box-shadow: var(--d-shadow-hover) !important;
     transform: translateY(-2px);
     border-color: transparent !important;

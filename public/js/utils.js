@@ -20,22 +20,26 @@ function safeUrl(v) {
     if (u.charAt(0) === '/' && u.charAt(1) !== '/') return escHtml(u);
     return '';
 }
-// درج امن یک رشته به‌عنوان آرگومان JS داخل attribute (مثل onclick="f(...)")
-// بدون کوتیشن اضافه استفاده شود:  onclick="f(${jsArg(v)})"
-function jsArg(v) {
-    return escHtml(JSON.stringify(v == null ? '' : String(v)));
-}
 window.escHtml = escHtml;
 window.safeUrl = safeUrl;
-window.jsArg = jsArg;
 
-// بلوک خطای دریافت با دکمهٔ «تلاش دوباره». retryExpr عبارت JS داخل onclick است
-// (آرگومان‌های رشته‌ای را با jsArg بسازید)؛ extraCls برای کلاس‌های چیدمان والد.
-function loadErrorHtml(retryExpr, message, extraCls) {
+// نام دسته‌های وردپرس entity-دار می‌آید (&amp; …). وقتی نام داخل صفت رویداد درون‌خطی (onclick) می‌رفت مرورگر
+// یک‌بار decode می‌کرد؛ حالا که با act() می‌رود همین decode را خودمان می‌کنیم تا عنوان‌ها یکسان بماند.
+function wpDecodeName(s) {
+    var t = document.createElement('textarea');
+    t.innerHTML = String(s == null ? '' : s);
+    return t.value;
+}
+window.wpDecodeName = wpDecodeName;
+
+// بلوک خطای دریافت با دکمهٔ «تلاش دوباره». retry آرایهٔ ['نام‌تابع', ...آرگومان‌ها] است
+// (همان loader با همان آرگومان‌ها؛ نوع آرگومان‌ها حفظ می‌شود: رشته → act.s(v)، عدد → Number(v))؛
+// extraCls برای کلاس‌های چیدمان والد.
+function loadErrorHtml(retry, message, extraCls) {
     return '<div class="' + (extraCls ? extraCls + ' ' : '') + 'flex flex-col items-center justify-center py-12 text-gray-400">' +
         '<i class="fas fa-wifi text-4xl mb-3 opacity-50"></i>' +
         '<p class="text-sm font-bold">' + escHtml(message || 'دریافت اطلاعات ممکن نشد') + '</p>' +
-        '<button type="button" onclick="' + retryExpr + '" class="mt-4 bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold shadow-sm">تلاش دوباره</button></div>';
+        '<button type="button"' + window.act.apply(null, ['click'].concat(retry)) + ' class="mt-4 bg-brand-50 text-brand-600 px-5 py-2 rounded-full text-xs font-bold shadow-sm">تلاش دوباره</button></div>';
 }
 window.loadErrorHtml = loadErrorHtml;
 
@@ -207,8 +211,8 @@ document.addEventListener('click', function(e) {
     const anchor = e.target.closest('a[href]');
     if (!anchor) return;
     const href = anchor.getAttribute('href') || '';
-    // لینک‌های خالی، هش، جاوااسکریپت → بذار عادی عمل کنه
-    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+    // لینک‌های خالی و هش → بذار عادی عمل کنه (غیر http(s) هم پایین‌تر همین‌طور)
+    if (!href || href.startsWith('#')) return;
     // لینک‌های دانلود مستقیم فایل → بذار دانلود بشه
     if (anchor.hasAttribute('download')) return;
     if (/\.(mp3|mp4|m4a|wav|ogg|mkv|webm|pdf|zip|rar|apk)(\?|$)/i.test(href)) return;

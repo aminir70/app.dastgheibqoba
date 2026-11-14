@@ -6,6 +6,7 @@ module.exports = {
         './public/admin.html',
         './public/js/**/*.js',
         '!./public/js/actions.js',   // فقط نام رویدادها (blur …) دارد، نه کلاس CSS
+        '!./public/js/dist/actions.min.js',
     ],
     theme: {
         extend: {

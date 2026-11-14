@@ -5,7 +5,7 @@
 // صفات:
 //   data-click="نام" · data-dblclick · data-change · data-input · data-submit ·
 //   data-keydown · data-keyup · data-keypress · data-focus · data-blur ·
-//   data-error · data-load · data-scroll · data-paste
+//   data-error · data-load · data-scroll · data-paste · data-touchstart (passive: preventDefault بی‌اثر)
 //   data-args='[...]'          آرایهٔ JSON آرگومان‌ها (نبودنش = بدون آرگومان)
 //   data-args-<رویداد>='[...]' آرگومان مخصوص همان رویداد (روی data-args غلبه می‌کند)
 //   توکن‌های آرگومان (شیء JSON):  {"$":"el"} خود عنصر · {"$":"event"} · {"$":"value"} ·
@@ -21,14 +21,18 @@
 // برای قالب‌های رشته‌ای:  `<button ${act('click','deleteBook',b.id,b.title)}>`
 // (توکن‌ها: act.el, act.event, act.value, act.checked, act.files؛ act.s(v) مثل jsArg: رشتهٔ امن).
 //
-// رویدادهایی که حباب نمی‌زنند (error، load، focus، blur، scroll) با capture گرفته می‌شوند؛
-// تصویر قبل از اجرای این فایل خراب شود هم باید این فایل در <head> بیاید.
+// رویدادهایی که حباب نمی‌زنند (error، load، focus، blur، scroll) با capture گرفته می‌شوند و
+// (مثل onerror= بومی) فقط برای خود عنصر هدف اجرا می‌شوند، نه والدهایش؛ تصویر قبل از اجرای این
+// فایل خراب شود هم باید این فایل در <head> و قبل از هر markup بیاید.
 // ====================================================
 (function (global) {
   'use strict';
   var NAME_RE = /^[A-Za-z_$][\w$]*$/;
   var BUBBLING = ['click', 'dblclick', 'change', 'input', 'submit', 'keydown', 'keyup', 'keypress', 'paste'];
+  // touchstart: مثل inline قدیمی؛ passive تا اسکرول را معطل نکند (آن هم نمی‌توانست جلوی چیزی را بگیرد)
+  var PASSIVE = ['touchstart'];
   var CAPTURING = ['focus', 'blur', 'error', 'load', 'scroll'];
+  var TARGET_ONLY = { focus: 1, blur: 1, error: 1, load: 1, scroll: 1 };
   var KEY_EVENTS = { keydown: 1, keyup: 1, keypress: 1 };
   var registry = Object.create(null);
   var warned = Object.create(null);
@@ -86,6 +90,7 @@
     var el = ev.target;
     if (!el || el.nodeType !== 1) el = el && el.parentElement; // گره متنی
     for (; el && el.nodeType === 1; el = el.parentElement) {
+      if (TARGET_ONLY[type] && el !== ev.target) return;
       if (!el.hasAttribute(attr)) continue;
       if (type === 'click' && el.disabled) return; // مثل عنصر disabled بومی: حباب هم نمی‌خورد
       if (el.hasAttribute('data-self') && ev.target !== el) continue;
@@ -110,6 +115,7 @@
   }
 
   BUBBLING.forEach(function (t) { document.addEventListener(t, handle, false); });
+  PASSIVE.forEach(function (t) { document.addEventListener(t, handle, { passive: true }); });
   CAPTURING.forEach(function (t) { document.addEventListener(t, handle, true); });
 
   // ---- ساخت صفت برای قالب‌های رشته‌ای ----
@@ -148,6 +154,11 @@
     // بدون کار؛ فقط برای عنصری که فقط data-stop می‌خواهد (مثل event.stopPropagation() قدیمی)
     uiNop: function () {},
     uiClick: function (id) { byId(id).click(); },
+    // onerror های تکراری تصویر: خود تصویر / والدش را پنهان کن (this.style.display='none' …)
+    uiHideSelf: function () { this.style.display = 'none'; },
+    uiHideParent: function () { this.parentElement.style.display = 'none'; },
+    // جایگزینی src خراب با تصویر پیش‌فرض، فقط یک‌بار (اگر خود پیش‌فرض هم خراب بود حلقه نشود)
+    uiFallbackSrc: function (src) { if (this.getAttribute('src') !== src) this.src = src; },
     uiSetValue: function (id, v) { byId(id).value = v; },
     uiHide: function (id) { byId(id).classList.add('hidden'); },
     uiRemove: function (id) { byId(id).remove(); },

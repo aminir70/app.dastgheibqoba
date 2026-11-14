@@ -239,7 +239,7 @@ async function loadHomeShortcuts() {
         if (!Array.isArray(shortcuts)) shortcuts = [];
     } catch(e) { return; }
     container.innerHTML = shortcuts.map(sc => {
-        const onclick = _shortcutOnclick(sc);
+        const clickAttr = _shortcutClickAttr(sc);
         const inner = sc.image
             ? `<img src="${safeUrl(sc.image)}" class="w-full h-full object-cover">`
             : `<i class="${escHtml(sc.icon||'fas fa-star')}"></i>`;
@@ -247,26 +247,27 @@ async function loadHomeShortcuts() {
             ? ''
             : `background:linear-gradient(135deg,${escHtml(sc.color1||'#14b8a6')},${escHtml(sc.color2||'#0f766e')});`;
         const textClass = sc.image ? '' : 'text-white';
-        return `<div class="shortcut-item flex flex-col items-center gap-1.5 cursor-pointer" onclick="${onclick}">
+        return `<div class="shortcut-item flex flex-col items-center gap-1.5 cursor-pointer"${clickAttr}>
             <div class="w-14 h-14 rounded-2xl shadow-md flex items-center justify-center text-xl active:scale-90 overflow-hidden ${textClass}" style="${style}">${inner}</div>
             <span class="shortcut-label text-[10px] font-bold text-gray-600 text-center transition-colors duration-200">${escHtml(sc.label||'')}</span>
         </div>`;
     }).join('');
 }
 
-function _shortcutOnclick(sc) {
+// صفت‌های رویداد آیکن خانه (رشتهٔ خالی = بدون کنش)
+function _shortcutClickAttr(sc) {
     const action = sc.action || '';
     if (action.startsWith('page:')) {
         const page = action.slice(5);
-        return `openContentPage(${jsArg(page)},${jsArg(sc.label||'')})`;
+        return act('click', 'openContentPage', act.s(page), act.s(sc.label||''));
     }
     if (action.startsWith('media-tab:')) {
         const tab = action.slice(10);
-        return `navToScreen('media');setTimeout(function(){switchMediaTab(${jsArg(tab)});},80)`;
+        return act('click', 'navToMediaTab', act.s(tab));
     }
     if (action.startsWith('screen:')) {
         const screen = action.slice(7);
-        return `navToScreen(${jsArg(screen)})`;
+        return act('click', 'navToScreen', act.s(screen));
     }
     return '';
 }
@@ -288,7 +289,7 @@ async function loadHomeLinkShortcuts() {
     if (visible.length === 0) { container.innerHTML = ''; return; }
     container.innerHTML = visible.map(sc => {
         const url = sc.url || '';
-        const onclick = url ? `openLinkShortcut(${jsArg(url)})` : '';
+        const clickAttr = url ? act('click', 'openLinkShortcut', act.s(url)) : '';
         const inner = sc.image
             ? `<img src="${safeUrl(sc.image)}" class="w-full h-full object-cover">`
             : `<i class="${escHtml(sc.icon||'fas fa-link')}"></i>`;
@@ -296,7 +297,7 @@ async function loadHomeLinkShortcuts() {
             ? ''
             : `background:linear-gradient(135deg,${escHtml(sc.color1||'#3b82f6')},${escHtml(sc.color2||'#1d4ed8')});`;
         const textClass = sc.image ? '' : 'text-white';
-        return `<div class="shortcut-item flex flex-col items-center gap-1 cursor-pointer shrink-0" onclick="${onclick}">
+        return `<div class="shortcut-item flex flex-col items-center gap-1 cursor-pointer shrink-0"${clickAttr}>
             <div class="w-11 h-11 rounded-xl flex items-center justify-center text-lg active:scale-90 overflow-hidden ${textClass}" style="${style}">${inner}</div>
             <span class="shortcut-label text-[10px] font-bold text-gray-600 text-center transition-colors duration-200">${escHtml(sc.label||'')}</span>
         </div>`;
@@ -375,20 +376,20 @@ async function loadSliders() {
     track.style.width = (sliderData.length * slideW) + 'px';
     track.style.direction = 'ltr'; // جلوگیری از RTL-flip روی اسلایدر
     track.innerHTML = sliderData.map(sl => {
-        let onclick = '';
+        let clickAttr = '';
         if (sl.isNews && sl.postId) {
-            onclick = `onclick="openNewsPostInApp(${+sl.postId||0},${jsArg(sl.link)});sliderTimer&&clearInterval(sliderTimer);"`;
+            clickAttr = act('click', 'sliderOpenNews', +sl.postId||0, act.s(sl.link));
         } else if (sl.link) {
-            onclick = `onclick="handleBannerLink(${jsArg(sl.link)});sliderTimer&&clearInterval(sliderTimer);"`;
+            clickAttr = act('click', 'sliderOpenLink', act.s(sl.link));
         }
         // عنوان اسلایدهای خبری HTML وردپرس است؛ بقیه escape می‌شوند
         const slTitle = sl.isNews ? (sl.title || '') : escHtml(sl.title || '');
         const showTitle = sl.title && (sl.isNews ? sl.show_title !== false : true);
         const titleOverlay = showTitle ? `<div style="position:absolute;bottom:0;left:0;right:0;padding:60px 16px 14px;background:linear-gradient(to bottom,transparent,rgba(0,0,0,0.5) 45%,rgba(0,0,0,0.88));color:#fff;font-size:15px;font-weight:800;line-height:1.5;direction:rtl;text-align:right;text-shadow:0 2px 8px rgba(0,0,0,0.9),0 1px 2px rgba(0,0,0,0.8);">${slTitle}</div>` : '';
-        return `<div style="flex-shrink:0;width:${slideW}px;height:100%;cursor:pointer;overflow:hidden;border-radius:${radius}px;position:relative;" ${onclick}><img src="${safeUrl(sl.image)}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${slTitle}">${titleOverlay}</div>`;
+        return `<div style="flex-shrink:0;width:${slideW}px;height:100%;cursor:pointer;overflow:hidden;border-radius:${radius}px;position:relative;"${clickAttr}><img src="${safeUrl(sl.image)}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${slTitle}">${titleOverlay}</div>`;
     }).join('');
     dots.innerHTML = sliderData.map((_,i) =>
-        `<button onclick="goToSlide(${i})" class="w-2 h-2 rounded-full transition-all ${i===0?'bg-white w-4':'bg-white/50'}"></button>`
+        `<button${act('click', 'goToSlide', i)} class="w-2 h-2 rounded-full transition-all ${i===0?'bg-white w-4':'bg-white/50'}"></button>`
     ).join('');
     sliderIndex = 0;
     startSliderAuto();
@@ -484,12 +485,12 @@ async function loadHomeStories() {
         _homeStoryCat = cat; _homeStoryItems = items;
         strip.innerHTML = items.slice(0, 10).map(v => {
             const thumb = safeUrl(v.thumbnail || v._catCover || '');
-            const t = thumb ? `<img src="${thumb}" loading="lazy" class="w-full h-full object-cover" onerror="this.style.display='none'">` : '';
+            const t = thumb ? `<img src="${thumb}" loading="lazy" class="w-full h-full object-cover" data-error="uiHideSelf">` : '';
             // شکل کارت = شکل خود ویدیو (همان فلگ «عمودی» ادمین): عمودی ۹:۱۶، افقی ۱۶:۹.
             // قبلاً همه ۹:۱۶ بودند و کاور افقی از دو طرف بریده و زوم می‌شد.
             const vert = (v.vertical == 1 || v.vertical === '1' || v.vertical === true);
             const w = vert ? '6rem' : '12rem';
-            return `<div onclick="openHomeStory(${v.id})" class="${vert ? '' : 'story-land '}snap-start shrink-0 cursor-pointer active:scale-95 transition" style="width:${w}">
+            return `<div${act('click', 'openHomeStory', v.id)} class="${vert ? '' : 'story-land '}snap-start shrink-0 cursor-pointer active:scale-95 transition" style="width:${w}">
                 <div class="rounded-2xl overflow-hidden bg-white relative shadow-sm ring-2 ring-rose-500" style="width:${w};aspect-ratio:${vert ? '9/16' : '16/9'}">
                     ${t}
                     <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
@@ -574,7 +575,7 @@ async function loadHomeLatestMedia() {
         if (imgEl && _homeLatestImages.length > 0) {
             imgEl.innerHTML = _homeLatestImages.slice(0, 10).map((ph, i) => {
                 const src = safeUrl(ph.image);
-                return `<div onclick="openHomeImage(${i})" class="snap-start shrink-0 w-24 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm active:scale-95 transition-transform flex items-center justify-center" style="aspect-ratio:9/16"><img src="${src}" loading="lazy" referrerpolicy="no-referrer" class="w-full h-full object-cover block" onerror="this.parentElement.style.display='none'"></div>`;
+                return `<div${act('click', 'openHomeImage', i)} class="snap-start shrink-0 w-24 rounded-2xl overflow-hidden bg-gray-200 cursor-pointer shadow-sm active:scale-95 transition-transform flex items-center justify-center" style="aspect-ratio:9/16"><img src="${src}" loading="lazy" referrerpolicy="no-referrer" class="w-full h-full object-cover block" data-error="uiHideParent"></div>`;
             }).join('');
             if (imgSec) imgSec.classList.remove('hidden');
         }
@@ -586,9 +587,9 @@ async function loadHomeLatestMedia() {
             vidEl.innerHTML = _homeLatestVideos.map((v, i) => {
                 const thumb = safeUrl(v.thumbnail || v._catCover || '');
                 const thumbHtml = thumb
-                    ? `<img src="${thumb}" onerror="_videoImgErr(this,${jsArg(v._catCover || '')})" class="w-full h-full object-cover">`
+                    ? `<img src="${thumb}" ${act('error', '_videoImgErr', act.el, act.s(v._catCover || ''))} class="w-full h-full object-cover">`
                     : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-xl"></i></div>`;
-                return `<div onclick="openHomeVideo(${i})" class="snap-start shrink-0 w-36 cursor-pointer active:scale-95 transition">
+                return `<div${act('click', 'openHomeVideo', i)} class="snap-start shrink-0 w-36 cursor-pointer active:scale-95 transition">
                     <div class="w-full rounded-xl overflow-hidden bg-white relative mb-1.5" style="aspect-ratio:16/9">
                         ${thumbHtml}
                         <div class="absolute inset-0 bg-black/25 flex items-center justify-center"><div class="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center border border-white/40"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div>
@@ -605,9 +606,9 @@ async function loadHomeLatestMedia() {
         if (audEl && _homeLatestAudios.length > 0) {
             audEl.innerHTML = _homeLatestAudios.map((tr, i) => {
                 const coverHtml = tr.cover
-                    ? `<img src="${safeUrl(tr.cover)}" class="w-full h-full object-cover" onerror="this.src='/img/default-audio.svg'">`
+                    ? `<img src="${safeUrl(tr.cover)}" class="w-full h-full object-cover" data-error="uiFallbackSrc" data-args='["/img/default-audio.svg"]'>`
                     : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
-                return `<div onclick="openHomeAudio(${i})" class="snap-start shrink-0 w-28 cursor-pointer active:scale-95 transition">
+                return `<div${act('click', 'openHomeAudio', i)} class="snap-start shrink-0 w-28 cursor-pointer active:scale-95 transition">
                     <div class="w-full aspect-square rounded-xl overflow-hidden mb-1.5 shadow-sm">${coverHtml}</div>
                     <h4 class="font-bold text-[10px] text-gray-800 line-clamp-2 leading-snug px-0.5">${escHtml(tr.title)}</h4>
                     ${tr.artist ? `<p class="text-[9px] text-gray-400 px-0.5 mt-0.5">${escHtml(tr.artist)}</p>` : ''}
@@ -631,19 +632,19 @@ async function loadNavItems() {
         if (!flex) return;
         flex.innerHTML = items.map(item => {
             const action = item.action || 'screen:home';
-            let screen = 'home', onclick = '';
+            let screen = 'home', clickAttr = '';
             if (action.startsWith('screen:')) {
                 screen = action.slice(7);
-                onclick = `navToScreen('${screen}')`;
+                clickAttr = act('click', 'navToScreen', screen);
             } else if (action.startsWith('media-tab:')) {
                 const tab = action.slice(10);
                 screen = 'media';
-                onclick = `navToScreen('media');setTimeout(function(){switchMediaTab(${jsArg(tab)});},80)`;
+                clickAttr = act('click', 'navToMediaTab', tab);
             }
             const iconHtml = item.image
                 ? `<img src="${safeUrl(item.image)}" class="w-6 h-6 object-contain nav-icon-img">`
                 : `<i class="${escHtml(item.icon||'fas fa-circle')} text-lg"></i>`;
-            return `<button class="nav-item flex flex-col items-center justify-center gap-0.5 flex-1" data-nav="${screen}" onclick="${onclick}">
+            return `<button class="nav-item flex flex-col items-center justify-center gap-0.5 flex-1" data-nav="${screen}"${clickAttr}>
                 ${iconHtml}
                 <span class="text-[9px] font-bold">${escHtml(item.label||'')}</span>
             </button>`;
@@ -652,13 +653,13 @@ async function loadNavItems() {
         const sd = document.getElementById('sd-nav');
         if (sd) sd.innerHTML = items.map(item => {
             const action = item.action || 'screen:home';
-            let screen = 'home', go = "navToScreen('home')";
-            if (action.startsWith('screen:')) { screen = action.slice(7); go = `navToScreen('${screen}')`; }
-            else if (action.startsWith('media-tab:')) { screen = 'media'; go = `navToScreen('media');setTimeout(function(){switchMediaTab('${action.slice(10)}');},80)`; }
+            let screen = 'home', goAttr = act('click', 'sdGoNav', 'home');
+            if (action.startsWith('screen:')) { screen = action.slice(7); goAttr = act('click', 'sdGoNav', screen); }
+            else if (action.startsWith('media-tab:')) { screen = 'media'; goAttr = act('click', 'sdGoMediaTab', action.slice(10)); }
             const iconHtml = item.image
                 ? `<img src="${safeUrl(item.image)}" class="nav-icon-img object-contain">`
                 : `<i class="${escHtml(item.icon || 'fas fa-circle')}"></i>`;
-            return `<button class="nav-item sdi" data-nav="${escHtml(screen)}" onclick="_sdGo(function(){${go}})">${iconHtml}<span>${escHtml(item.label || '')}</span></button>`;
+            return `<button class="nav-item sdi" data-nav="${escHtml(screen)}"${goAttr}>${iconHtml}<span>${escHtml(item.label || '')}</span></button>`;
         }).join('');
         // re-apply active state for current screen
         const activeScreen = document.querySelector('.screen.active')?.id?.replace('screen-', '') || 'home';
@@ -693,8 +694,8 @@ async function loadBanners() {
         const bRadius = radius + 'px';
         for (const [sec, items] of Object.entries(groups)) {
             const html = items.map(b => {
-                const onclick = b.link ? `onclick="handleBannerLink(${jsArg(b.link)});"` : '';
-                return `<div class="overflow-hidden cursor-pointer active:scale-[0.98] transition-transform" style="border-radius:${bRadius};" ${onclick}>
+                const clickAttr = b.link ? act('click', 'handleBannerLink', act.s(b.link)) : '';
+                return `<div class="overflow-hidden cursor-pointer active:scale-[0.98] transition-transform" style="border-radius:${bRadius};"${clickAttr}>
                     <img src="${safeUrl(b.image)}" class="w-full object-cover" style="max-height:${height}px;" alt="${escHtml(b.title||'')}">
                 </div>`;
             }).join('');
@@ -743,8 +744,8 @@ async function loadSectionContent(page, domKey) {
                 if (active.length) {
                     bannerEl.style.padding = '0 ' + padding + 'px';
                     bannerEl.innerHTML = active.map(b => {
-                        const onclick = b.link ? `onclick="handleBannerLink(${jsArg(b.link)});"` : '';
-                        return `<div class="overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform mb-2" style="border-radius:${radius}px;" ${onclick}>
+                        const clickAttr = b.link ? act('click', 'handleBannerLink', act.s(b.link)) : '';
+                        return `<div class="overflow-hidden shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform mb-2" style="border-radius:${radius}px;"${clickAttr}>
                             <img src="${safeUrl(b.image)}" class="w-full object-cover" style="max-height:${height}px;" alt="${escHtml(b.title||'')}">
                         </div>`;
                     }).join('');
@@ -785,13 +786,13 @@ async function loadSectionContent(page, domKey) {
         const slW = wrap.clientWidth || wrap.offsetWidth || window.innerWidth;
         track.style.width = (data.length * slW) + 'px';
         track.innerHTML = data.map(sl => {
-            const onclick = sl.link ? `onclick="handleBannerLink(${jsArg(sl.link)});"` : '';
-            return `<div style="flex-shrink:0;width:${slW}px;height:${slH}px;cursor:pointer;overflow:hidden;border-radius:${slR}px;position:relative;" ${onclick}>
+            const clickAttr = sl.link ? act('click', 'handleBannerLink', act.s(sl.link)) : '';
+            return `<div style="flex-shrink:0;width:${slW}px;height:${slH}px;cursor:pointer;overflow:hidden;border-radius:${slR}px;position:relative;"${clickAttr}>
                 <img src="${safeUrl(sl.image)}" style="width:100%;height:100%;object-fit:cover;display:block;" alt="${escHtml(sl.title||'')}">
             </div>`;
         }).join('');
         dots.innerHTML = data.map((_,i) =>
-            `<button onclick="_secSliderGo('${domKey}',${i})" style="pointer-events:auto;" class="w-2 h-2 rounded-full transition-all ${i===0?'bg-white w-4':'bg-white/50'}"></button>`
+            `<button${act('click', '_secSliderGo', act.s(domKey), i)} style="pointer-events:auto;" class="w-2 h-2 rounded-full transition-all ${i===0?'bg-white w-4':'bg-white/50'}"></button>`
         ).join('');
         _secSlider[domKey] = { data, index: 0, timer: null, w: slW };
         _secSliderStart(domKey);
@@ -1317,9 +1318,9 @@ async function renderQATickets() {
             const s = statusMap[t.status] || statusMap.open;
             const date = toFa(new Date(t.updated_at).toLocaleDateString('fa-IR'));
             const canEdit = t.status === 'open';
-            const subjArg = jsArg(t.subject);
-            const firstMsgArg = jsArg(t.first_message || '');
-            return `<div onclick="openQAConversation(${t.id},${subjArg})" class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition">
+            const subjArg = act.s(t.subject);
+            const firstMsgArg = act.s(t.first_message || '');
+            return `<div${act('click', 'openQAConversation', t.id, subjArg)} class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition">
                 <div class="flex items-start justify-between mb-2">
                     <h4 class="font-bold text-sm text-gray-800 flex-1 ml-2">${escHtml(t.subject)}</h4>
                     <span class="text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${s.cls}">${s.text}</span>
@@ -1330,15 +1331,15 @@ async function renderQATickets() {
                     <span><i class="far fa-calendar ml-1"></i>${date}</span>
                     <div class="flex items-center gap-2">
                         ${t.tracking_code ? `<span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">${escHtml(t.tracking_code)}</span>` : ''}
-                        <button onclick="copyQATicket(${subjArg},${firstMsgArg},event)" class="text-gray-400 hover:text-gray-600 px-1" title="کپی سوال"><i class="fas fa-copy text-[10px]"></i></button>
-                        ${canEdit ? `<button onclick="editQATicket(${t.id},${subjArg},${firstMsgArg},event)" class="text-blue-400 hover:text-blue-600 px-1"><i class="fas fa-pen text-[10px]"></i></button>` : ''}
-                        ${canEdit ? `<button onclick="deleteQATicket(${t.id},event)" class="text-red-400 hover:text-red-600 px-1"><i class="fas fa-trash text-[10px]"></i></button>` : ''}
+                        <button${act('click', 'copyQATicket', subjArg, firstMsgArg, act.event)} class="text-gray-400 hover:text-gray-600 px-1" title="کپی سوال"><i class="fas fa-copy text-[10px]"></i></button>
+                        ${canEdit ? `<button${act('click', 'editQATicket', t.id, subjArg, firstMsgArg, act.event)} class="text-blue-400 hover:text-blue-600 px-1"><i class="fas fa-pen text-[10px]"></i></button>` : ''}
+                        ${canEdit ? `<button${act('click', 'deleteQATicket', t.id, act.event)} class="text-red-400 hover:text-red-600 px-1"><i class="fas fa-trash text-[10px]"></i></button>` : ''}
                     </div>
                 </div>
             </div>`;
         }).join('');
     } catch(e) {
-        c.innerHTML = loadErrorHtml('renderQATickets()', 'خطا در بارگذاری سوالات');
+        c.innerHTML = loadErrorHtml(['renderQATickets'], 'خطا در بارگذاری سوالات');
     }
 }
 
@@ -1501,8 +1502,8 @@ function renderMsgBubble(msg) {
         }
     }
     // دکمه پاسخ روی همه پیام‌ها؛ دکمه ویرایش فقط روی پیام‌های متنیِ خودِ کاربر
-    const replyBtn = msg.id ? `<button onclick="qaReplyToMsg(${msg.id})" class="text-[11px] text-gray-400 hover:text-brand-600 px-1" title="پاسخ"><i class="fas fa-reply"></i></button>` : '';
-    const editBtn = (!isAdmin && msg.id && msg.text) ? `<button onclick="editQAConvMsg(${msg.id}, this)" class="text-[11px] text-gray-400 hover:text-brand-600 px-1" title="ویرایش"><i class="fas fa-pen"></i></button>` : '';
+    const replyBtn = msg.id ? `<button${act('click', 'qaReplyToMsg', msg.id)} class="text-[11px] text-gray-400 hover:text-brand-600 px-1" title="پاسخ"><i class="fas fa-reply"></i></button>` : '';
+    const editBtn = (!isAdmin && msg.id && msg.text) ? `<button${act('click', 'editQAConvMsg', msg.id, act.el)} class="text-[11px] text-gray-400 hover:text-brand-600 px-1" title="ویرایش"><i class="fas fa-pen"></i></button>` : '';
     return `<div class="flex ${isAdmin ? 'justify-start' : 'justify-end'}" style="width:100%">
         <div style="max-width:82%;word-break:break-word;overflow-wrap:break-word;" class="${isAdmin ? 'bg-brand-50 border border-brand-100 text-brand-900' : 'bg-white border border-gray-200 text-gray-800'} px-4 py-3 rounded-2xl shadow-sm">
             ${isAdmin ? `<div class="text-[10px] font-black text-brand-600 mb-1.5"><i class="fas fa-user-shield ml-1"></i>پاسخ ادمین</div>` : ''}
@@ -1616,7 +1617,7 @@ async function loadQAConversationMessages(ticketId) {
         const replyDiv = document.getElementById('qa-conv-reply');
         if (replyDiv && ticket && ticket.status !== 'closed') replyDiv.classList.remove('hidden');
     } catch(e) {
-        c.innerHTML = loadErrorHtml('loadQAConversationMessages(' + jsArg(ticketId) + ')', 'خطا در دریافت پیام‌ها');
+        c.innerHTML = loadErrorHtml(['loadQAConversationMessages', act.s(ticketId)], 'خطا در دریافت پیام‌ها');
     }
 }
 
@@ -1769,7 +1770,7 @@ function _notifBanner() {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return '';
     if (!qaUser) {
         return box('gray', 'bell', 'اعلان روی گوشی', 'برای دریافت پاسخ سوال‌ها و پیام‌های همگانی وارد حساب خود شوید',
-            '<button onclick="closeNotifications();navToScreen(\'auth\')" class="text-xs bg-gray-600 text-white font-bold px-3 py-2 rounded-full shrink-0">ورود</button>');
+            '<button data-click="notifGoLogin" class="text-xs bg-gray-600 text-white font-bold px-3 py-2 rounded-full shrink-0">ورود</button>');
     }
     // iOS فقط در حالت نصب‌شده روی صفحهٔ اصلی از web push پشتیبانی می‌کند
     if (_isIos && !_isStandalone) {
@@ -1782,12 +1783,12 @@ function _notifBanner() {
     }
     if (Notification.permission !== 'granted') {
         return box('amber', 'bell', 'دریافت اعلان روی گوشی', 'برای دیدن پاسخ سوال‌ها و پیام‌های همگانی فعال کنید',
-            '<button onclick="enableNotifications()" class="text-xs bg-amber-500 text-white font-bold px-3 py-2 rounded-full shrink-0">فعال‌سازی</button>');
+            '<button data-click="enableNotifications" class="text-xs bg-amber-500 text-white font-bold px-3 py-2 rounded-full shrink-0">فعال‌سازی</button>');
     }
     if (_pushActive === false) {
         return box('amber', 'triangle-exclamation', 'اعلان کامل فعال نشد',
             'اجازه داده شده ولی ثبت این دستگاه انجام نشد. یک بار دیگر تلاش کنید',
-            '<button onclick="enableNotifications()" class="text-xs bg-amber-500 text-white font-bold px-3 py-2 rounded-full shrink-0">تلاش دوباره</button>');
+            '<button data-click="enableNotifications" class="text-xs bg-amber-500 text-white font-bold px-3 py-2 rounded-full shrink-0">تلاش دوباره</button>');
     }
     return '';
 }
@@ -1808,7 +1809,7 @@ function renderNotifications() {
             ? '<span class="text-[9px] font-bold bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded-full mr-1">همگانی</span>'
             : '<span class="text-[9px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full mr-1">تیکت</span>';
         return `
-        <div class="bg-${n.is_read?'gray-50 border-gray-100':'brand-50 border-brand-100'} border rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform" onclick="openNotifDetail(${n.id})">
+        <div class="bg-${n.is_read?'gray-50 border-gray-100':'brand-50 border-brand-100'} border rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform"${act('click', 'openNotifDetail', n.id)}>
             <div class="flex items-start justify-between gap-2">
                 <div class="flex items-center gap-2 flex-1 min-w-0">
                     <div class="w-8 h-8 ${isBroadcast?'bg-teal-100':'bg-orange-100'} rounded-full flex items-center justify-center shrink-0"><i class="fas fa-${icon} ${isBroadcast?'text-teal-600':'text-orange-500'} text-xs"></i></div>
@@ -2001,7 +2002,7 @@ async function performGlobalSearch() {
             html = `<div class="text-center py-12 text-gray-400"><i class="fas fa-search text-4xl mb-3 opacity-30"></i><p class="text-sm font-bold">نتیجه‌ای برای «${escHtml(q)}» یافت نشد</p></div>`;
         } else {
             html = sections.map(sec => `<div class="gs-sec mb-3 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden${sec.n ? '' : ' opacity-50'}" data-sec="${sec.key}">
-                <button type="button" class="gs-sec-head w-full flex items-center gap-3 p-3.5 text-right"${sec.n ? ' onclick="_gsToggleSection(this)" aria-expanded="false"' : ' disabled'}>
+                <button type="button" class="gs-sec-head w-full flex items-center gap-3 p-3.5 text-right"${sec.n ? act('click', '_gsToggleSection', act.el) + ' aria-expanded="false"' : ' disabled'}>
                     <span class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${sec.cls}"><i class="fas ${sec.icon}"></i></span>
                     <span class="flex-1 font-black text-sm text-gray-800">${sec.title}</span>
                     <span class="text-xs font-bold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">${toFa(sec.n)}${sec.more ? '+' : ''}</span>
@@ -2037,19 +2038,19 @@ function _initGlobalSearchDelegation() {
     c.addEventListener('click', function(e) {
         const btn = e.target.closest('.gs-result');
         if (!btn) return;
-        const act = btn.getAttribute('data-act');
+        const actKind = btn.getAttribute('data-act');
         closeGlobalSearch();
-        if (act === 'book') {
+        if (actKind === 'book') {
             // عنوان کتاب مطابقت داشته — کلمه را در متن هم جستجو کن
             const id = parseInt(btn.getAttribute('data-book'), 10);
             _openFromSearch(function() { return openBook(id, undefined, window._gsQ); });
-        } else if (act === 'page') {
+        } else if (actKind === 'page') {
             const i = parseInt(btn.getAttribute('data-idx'), 10);
             _openFromSearch(function() { return _openSearchItem(i); });
-        } else if (act === 'media') {
+        } else if (actKind === 'media') {
             const i = parseInt(btn.getAttribute('data-idx'), 10);
             _openFromSearch(function() { return _openSearchMedia(i); });
-        } else if (act === 'lecture') {
+        } else if (actKind === 'lecture') {
             const l = window._gsLectures && window._gsLectures[parseInt(btn.getAttribute('data-idx'), 10)];
             _openFromSearch(function() { return openLectureFromSearch(l); });
         }
@@ -2888,6 +2889,24 @@ function _sdGo(fn) {
     for (let i = 0; i < 10 && _closeAnyTransientModal(); i++) {}
     if (typeof fn === 'function') fn();
 }
+// نسخه‌های نام‌دار برای data-click نوار کناری (یک تابع نام‌دار برای هر کنش)
+function sdGoNav(screen) { _sdGo(function() { navToScreen(screen); }); }
+function sdGoMediaTab(tab) { _sdGo(function() { navToMediaTab(tab); }); }
+function sdGoNotifications() { _sdGo(openNotifications); }
+function sdGoSearch() { _sdGo(openGlobalSearch); }
+
+// رفتن به صفحهٔ رسانه و باز کردن یک تب آن (نوار پایین، آیکن‌های خانه، کنش‌های دکمه‌ها)
+function navToMediaTab(tab) {
+    navToScreen('media');
+    setTimeout(function() { switchMediaTab(tab); }, 80);
+}
+// نتیجهٔ جستجوی صوت → بستن جستجو و باز کردن تقویم
+function gsOpenCalendar(tab) { closeGlobalSearch(); openCalendarScreen(tab); }
+// پیام «برای اعلان‌ها وارد شوید»
+function notifGoLogin() { closeNotifications(); navToScreen('auth'); }
+// اسلایدر خانه: کلیک روی اسلاید، لینک را باز می‌کند و چرخش خودکار را متوقف می‌کند
+function sliderOpenNews(postId, link) { openNewsPostInApp(postId, link); sliderTimer && clearInterval(sliderTimer); }
+function sliderOpenLink(link) { handleBannerLink(link); sliderTimer && clearInterval(sliderTimer); }
 
 applyGlobalTheme(globalTheme);
 

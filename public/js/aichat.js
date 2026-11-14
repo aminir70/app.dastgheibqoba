@@ -94,7 +94,7 @@ function _aicSetBotHtml(wrap, text) {
     if (!body) return;
     body.innerHTML = _aicEsc(text).replace(
         /\((مسأله|مساله)\s*([0-9۰-۹٠-٩]{1,5})\)/g,
-        (m, kind, num) => `<button type="button" onclick="aicOpenRuling('${_aicToLatinDigits(num)}')" class="text-violet-600 font-bold underline decoration-dotted underline-offset-2">(${kind} ${num})</button>`
+        (m, kind, num) => `<button type="button"${act('click', 'aicOpenRuling', _aicToLatinDigits(num))} class="text-violet-600 font-bold underline decoration-dotted underline-offset-2">(${kind} ${num})</button>`
     );
     const box = document.getElementById('aic-messages');
     if (box) box.scrollTop = box.scrollHeight;
@@ -172,7 +172,7 @@ function _aicAddSources(wrap, sources) {
         labels.map(l => {
             const n = _aicToLatinDigits((String(l).match(/[0-9۰-۹٠-٩]{1,5}/) || [''])[0]);
             const cls = 'bg-violet-50 text-violet-500 rounded-full px-2 py-0.5';
-            return n ? `<button type="button" onclick="aicOpenRuling('${n}')" class="${cls} hover:bg-violet-100">${_aicEsc(l)}</button>`
+            return n ? `<button type="button"${act('click', 'aicOpenRuling', n)} class="${cls} hover:bg-violet-100">${_aicEsc(l)}</button>`
                      : `<span class="${cls}">${_aicEsc(l)}</span>`;
         }).join('');
     wrap.appendChild(el);
@@ -190,6 +190,15 @@ function _aicError(wrap, msg) {
 }
 
 // ---------------- ارسال سوال (استریم SSE) ----------------
+// جعبهٔ ورودی: رشد خودکار تا ۱۲۰px (قبلاً oninput درون‌خطی)
+function aicAutoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+// Enter بدون Shift = ارسال (قبلاً onkeydown درون‌خطی)
+function aicKeydown(event) {
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); aicSend(); }
+}
 async function aicSend() {
     if (_aicBusy) return;
     const input = document.getElementById('aic-input');
@@ -278,10 +287,10 @@ async function aicToggleHistory() {
             return;
         }
         list.innerHTML = convs.map(c => `
-            <div class="flex items-center gap-2 bg-gray-50 hover:bg-violet-50 border border-gray-100 rounded-xl p-3 cursor-pointer transition ${c.id === _aicConvId ? 'ring-2 ring-violet-300' : ''}" onclick="aicOpenConversation(${c.id})">
+            <div class="flex items-center gap-2 bg-gray-50 hover:bg-violet-50 border border-gray-100 rounded-xl p-3 cursor-pointer transition ${c.id === _aicConvId ? 'ring-2 ring-violet-300' : ''}"${act('click', 'aicOpenConversation', c.id)}>
                 <i class="fas fa-comment-dots text-violet-400 text-sm shrink-0"></i>
                 <span class="flex-1 text-xs font-bold text-gray-700 truncate">${_aicEsc(c.title || 'گفتگو')}</span>
-                <button onclick="event.stopPropagation();aicDeleteConversation(${c.id})" class="w-7 h-7 bg-white rounded-full text-rose-400 hover:bg-rose-50 flex items-center justify-center shrink-0 border border-gray-100"><i class="fas fa-trash text-[10px]"></i></button>
+                <button${act('click', 'aicDeleteConversation', c.id)} data-stop class="w-7 h-7 bg-white rounded-full text-rose-400 hover:bg-rose-50 flex items-center justify-center shrink-0 border border-gray-100"><i class="fas fa-trash text-[10px]"></i></button>
             </div>`).join('');
     } catch(e) {
         list.innerHTML = '<div class="text-center py-8 text-gray-400 text-xs">خطا در بارگذاری</div>';

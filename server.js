@@ -78,10 +78,13 @@ if (helmet) {
     }));
 }
 // Content-Security-Policy
-// helmet CSP خاموش است چون اپ پر از onclick/onchange درون‌خطی است و
-// script-src سخت‌گیرانه آن را می‌شکند. ولی حتی همین سیاست نسبتاً باز هم
-// چند راه واقعی سوءاستفاده را می‌بندد: بارگذاری اسکریپت از دامنه بیگانه،
-// تزریق <base>، و پلاگین‌های <object>/<embed>.
+// helmet CSP خاموش است و سیاست زیر را همین‌جا می‌گذاریم. هیچ صفحه‌ای (اپ و پنل ادمین) رویداد یا
+// اسکریپت درون‌خطی ندارد (رویدادها با data-click و public/js/actions.js)، پس script-src فقط 'self' است:
+// بدون 'unsafe-inline' (XSS تزریقی اجرا نمی‌شود) و بدون 'unsafe-eval' / 'wasm-unsafe-eval'
+// (هیچ بخشی از اپ به eval/new Function/wasm نیاز ندارد؛ PDF.js در اپ نیست).
+// style-src هنوز 'unsafe-inline' دارد (صفت style="" درون‌خطی در اپ زیاد است).
+// پروکسی چت‌بات (/chatbot) قبل از این میان‌افزار سوار می‌شود (lib/chatbot-proxy.js) و پاسخش را
+// بدون عبور از اینجا می‌فرستد؛ پس این سیاست روی آن اعمال نمی‌شود و هدرهای سرویس بالادست می‌ماند.
 // برای عیب‌یابی می‌توان با CSP_DISABLED=1 موقتاً خاموشش کرد.
 const CSP_VALUE = [
     "default-src 'self'",
@@ -89,7 +92,7 @@ const CSP_VALUE = [
     "object-src 'none'",
     "frame-ancestors 'self'",
     "form-action 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
+    "script-src 'self'",
     "worker-src 'self' blob:",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
@@ -98,15 +101,9 @@ const CSP_VALUE = [
     "connect-src 'self' https:",
     "frame-src 'self' https:"
 ].join('; ');
-// صفحهٔ پنل ادمین هیچ رویداد/اسکریپت درون‌خطی ندارد (data-click و actions.js)؛
-// پس برایش script-src سخت‌گیرانه: فقط 'self' (بدون unsafe-inline/unsafe-eval).
-const CSP_ADMIN_VALUE = CSP_VALUE.replace(/script-src [^;]*/, "script-src 'self'");
-const ADMIN_PAGE_RE = /^\/admin(\.html)?\/?$/i;
 if (process.env.CSP_DISABLED !== '1') {
     app.use((req, res, next) => {
-        if (!res.getHeader('Content-Security-Policy')) {
-            res.setHeader('Content-Security-Policy', ADMIN_PAGE_RE.test(req.path) ? CSP_ADMIN_VALUE : CSP_VALUE);
-        }
+        if (!res.getHeader('Content-Security-Policy')) res.setHeader('Content-Security-Policy', CSP_VALUE);
         next();
     });
 }

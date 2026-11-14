@@ -21,7 +21,7 @@ function freePort() {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // سرور را بالا می‌آورد؛ خروجی: { baseUrl, stop(), api(), ... }
-async function startServer() {
+async function startServer({ env = {} } = {}) {
   const port = await freePort();
   const dbPath = path.join(os.tmpdir(), `dq-test-${process.pid}-${Date.now()}-${port}.sqlite`);
   const child = spawn(process.execPath, ['server.js'], {
@@ -29,7 +29,7 @@ async function startServer() {
     env: {
       ...process.env,
       PORT: String(port), DB_PATH: dbPath, WP_MIRROR: '0', BOOKS_INDEX_PATH: dbPath + '.books-index',
-      ADMIN_PASSWORD, JWT_SECRET, NODE_ENV: 'test',
+      ADMIN_PASSWORD, JWT_SECRET, NODE_ENV: 'test', ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

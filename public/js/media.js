@@ -14,7 +14,7 @@ async function _apiJson(url) {
     return r.json();
 }
 // آرگومان parentId برای عبارت retry (null یا عدد)
-const _pidArg = (v) => v == null ? 'null' : Number(v);
+const _pidArg = (v) => v == null ? null : Number(v);
 
 function _getFavs() {
     try { return JSON.parse(localStorage.getItem('_mediaFavs') || '{"audio":[],"video":[]}'); }
@@ -83,16 +83,16 @@ function renderFavoritesTab() {
                     : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-xl"></i></div>`;
                 return `
                 <div class="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100">
-                    <div class="w-20 h-[45px] bg-white rounded-lg overflow-hidden relative shrink-0 cursor-pointer" onclick="playFavVideo(${v.id})">
+                    <div class="w-20 h-[45px] bg-white rounded-lg overflow-hidden relative shrink-0 cursor-pointer"${act('click', 'playFavVideo', v.id)}>
                         ${thumbHtml}
                         <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
                             <i class="fas fa-play text-white text-xs"></i>
                         </div>
                     </div>
-                    <div class="flex-1 min-w-0 cursor-pointer" onclick="playFavVideo(${v.id})">
+                    <div class="flex-1 min-w-0 cursor-pointer"${act('click', 'playFavVideo', v.id)}>
                         <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>
                     </div>
-                    <button onclick="toggleMediaFav('video',${jsArg(v.id)})" class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition" data-ftype="video" data-fid="${v.id}">
+                    <button${act('click', 'toggleMediaFav', 'video', act.s(v.id))} class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition" data-ftype="video" data-fid="${v.id}">
                         <i class="fas fa-heart text-red-500 text-xs"></i>
                     </button>
                 </div>`;
@@ -109,14 +109,14 @@ function renderFavoritesTab() {
                 const coverHtml = `<img src="${safeUrl(cover) || '/img/default-audio.svg'}" class="w-full h-full object-cover">`;
                 return `
                 <div class="flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100">
-                    <div class="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-gray-100 cursor-pointer" onclick="playFavAudio(${tr.id})">
+                    <div class="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-gray-100 cursor-pointer"${act('click', 'playFavAudio', tr.id)}>
                         ${coverHtml}
                     </div>
-                    <div class="flex-1 min-w-0 cursor-pointer" onclick="playFavAudio(${tr.id})">
+                    <div class="flex-1 min-w-0 cursor-pointer"${act('click', 'playFavAudio', tr.id)}>
                         <h4 class="font-bold text-xs text-gray-800 line-clamp-1">${escHtml(tr.title)}</h4>
                         ${tr.artist ? `<p class="text-[10px] text-gray-400 mt-0.5">${escHtml(tr.artist)}</p>` : ''}
                     </div>
-                    <button onclick="toggleMediaFav('audio',${jsArg(tr.id)})" class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition" data-ftype="audio" data-fid="${tr.id}">
+                    <button${act('click', 'toggleMediaFav', 'audio', act.s(tr.id))} class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition" data-ftype="audio" data-fid="${tr.id}">
                         <i class="fas fa-heart text-red-500 text-xs"></i>
                     </button>
                 </div>`;
@@ -146,7 +146,7 @@ function playFavAudio(id) {
 
 // هنگام خطای بارگذاری تصویر: سعی می‌کند از catCover استفاده کند، سپس gradient
 function _videoImgErr(img, catCover) {
-    img.onerror = null;
+    img.removeAttribute('data-error'); // قبلاً img.onerror = null: این کنش فقط یک‌بار اجرا شود
     if (catCover && img.src !== catCover && !img.src.endsWith(catCover)) {
         img.src = catCover;
         img.onerror = function() {
@@ -254,7 +254,7 @@ function _reRenderGalleryPhotos() {
     if (!grid || !galleryCurrentPhotos.length) return;
     grid.className = _viewClasses('photos') + ' w-full';
     grid.innerHTML = galleryCurrentPhotos.map((ph, idx) => {
-        return `<div onclick="openGalleryImage(${idx})" class="aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer relative group shadow-sm"><img src="${safeUrl(ph.image)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200"></div></div>`;
+        return `<div${act('click', 'openGalleryImage', idx)} class="aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer relative group shadow-sm"><img src="${safeUrl(ph.image)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"><div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200"></div></div>`;
     }).join('');
 }
 
@@ -394,7 +394,7 @@ async function performMediaSearch(q) {
             fetch('/api/videos/search?q=' + encodeURIComponent(q)).then(safeJson).catch(e => { console.warn('video search failed', e); return null; })
         ]);
         if (audioRes === null && videoRes === null) {
-            results.innerHTML = loadErrorHtml('performMediaSearch(' + jsArg(q) + ')', 'جستجو ممکن نشد', 'w-full');
+            results.innerHTML = loadErrorHtml(['performMediaSearch', act.s(q)], 'جستجو ممکن نشد', 'w-full');
             return;
         }
         const aItems = Array.isArray(audioRes) ? audioRes : [];
@@ -418,7 +418,7 @@ async function performMediaSearch(q) {
                     ? `<img src="${safeUrl(thumb)}" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,#1e293b,#0f172a)"><i class="fas fa-video text-white/50 text-base"></i></div>`;
                 window._mfTmp['video_' + v.id] = {id:v.id,title:v.title,description:v.description||'',thumbnail:thumb,_catCover:v._catCover||'',embed_url:v.embed_url||''};
-                return `<div onclick="playVideoItem(${v.id})" class="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-3 p-3">
+                return `<div${act('click', 'playVideoItem', v.id)} class="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-3 p-3">
                     <div class="w-24 h-[54px] bg-white rounded-xl overflow-hidden relative shrink-0">
                         ${thumbHtml}
                         <div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center border border-white/40"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div>
@@ -442,7 +442,7 @@ async function performMediaSearch(q) {
                 const coverSrc = tr.cover || tr._catCover || '';
                 const coverInner = coverSrc ? `<img src="${safeUrl(coverSrc)}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
                 window._mfTmp['audio_' + tr.id] = {id:tr.id,title:tr.title,artist:tr.artist||'',cover:coverSrc,url:tr.url||''};
-                return `<div onclick="openAudioTrackById(${tr.id})" class="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-3 p-3">
+                return `<div${act('click', 'openAudioTrackById', tr.id)} class="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-all flex items-center gap-3 p-3">
                     <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${coverInner}</div>
                     <div class="flex-1 min-w-0">
                         <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${escHtml(tr.title)}</h4>
@@ -456,7 +456,7 @@ async function performMediaSearch(q) {
         }
         results.innerHTML = html;
     } catch(e) {
-        results.innerHTML = loadErrorHtml('performMediaSearch(' + jsArg(q) + ')', 'خطا در جستجو', 'w-full');
+        results.innerHTML = loadErrorHtml(['performMediaSearch', act.s(q)], 'خطا در جستجو', 'w-full');
     }
 }
 
@@ -572,16 +572,16 @@ async function loadVideoCategories(parentId, parentName) {
                     ? `<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full flex items-center justify-center" style="background:${grad}"><i class="fas fa-video text-white text-2xl" style="opacity:0.85"></i></div>`;
                 const badge = cat.sub_count > 0 ? `${cat.sub_count} زیردسته` : `${cat.video_count} ویدیو`;
-                const clickFn = cat.sub_count > 0 ? `videoNavToSub(${cat.id},${jsArg(cat.name)})` : `loadVideoList(${cat.id},${jsArg(cat.name)},${cat.video_count})`;
+                const clickAttr = cat.sub_count > 0 ? act('click', 'videoNavToSub', cat.id, act.s(cat.name)) : act('click', 'loadVideoList', cat.id, act.s(cat.name), cat.video_count);
                 if (_mediaViewMode === 'list') return `
-                <div onclick="${clickFn}" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
+                <div${clickAttr} class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
                     <div class="w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-white relative">${coverHtml}</div>
                     <div class="flex-1 min-w-0"><h3 class="font-black text-xs text-gray-800 line-clamp-1">${escHtml(cat.name)}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
                     <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
                 </div>`;
                 const hasFolder = cat.sub_count > 0 ? `<div class="absolute top-2 right-2 bg-white/20 backdrop-blur-sm rounded-lg px-1.5 py-0.5"><i class="fas fa-folder text-white text-[10px] ml-1"></i><span class="text-white text-[9px] font-bold">${cat.sub_count}</span></div>` : '';
                 return `
-                <div onclick="${clickFn}" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
+                <div${clickAttr} class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
                     <div class="w-full aspect-video overflow-hidden relative">
                         ${coverHtml}${hasFolder}
                         <div class="absolute inset-0 flex items-center justify-center"><div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30 shadow-lg"><i class="fas fa-${cat.sub_count>0?'folder-open':'play'} text-white text-lg ${cat.sub_count>0?'':'mr-[-2px]'}"></i></div></div>
@@ -593,7 +593,7 @@ async function loadVideoCategories(parentId, parentName) {
             view.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 gap-4"><i class="fas fa-film text-5xl opacity-20"></i><p class="text-sm font-bold opacity-50">دسته‌بندی‌ای وجود ندارد</p></div>`;
         }
     } catch(e) {
-        if(view) view.innerHTML = loadErrorHtml('loadVideoCategories(' + _pidArg(parentId) + ', ' + jsArg(parentName) + ')', 'خطا در بارگذاری', 'col-span-full');
+        if(view) view.innerHTML = loadErrorHtml(['loadVideoCategories', _pidArg(parentId), act.s(parentName)], 'خطا در بارگذاری', 'col-span-full');
     } finally { setMediaLoading(false); }
 }
 
@@ -640,7 +640,7 @@ async function loadVideoList(categoryId, title, count) {
             </div>`;
         }
     } catch(e) {
-        if(list) list.innerHTML = loadErrorHtml('loadVideoList(' + Number(categoryId) + ', ' + jsArg(title) + ', ' + (Number(count) || 0) + ')', 'خطا در بارگذاری');
+        if(list) list.innerHTML = loadErrorHtml(['loadVideoList', Number(categoryId), act.s(title), Number(count) || 0], 'خطا در بارگذاری');
     } finally { setMediaLoading(false); }
 }
 
@@ -682,18 +682,18 @@ function _renderVideoItems(pairs) {
     list.innerHTML = items.map(({v}) => {
         const catCover = v._catCover || '';
         const thumb = v.thumbnail || v._catCover || '';
-        const errHandler = `_videoImgErr(this,${jsArg(catCover)})`;
-        const thumbHtml = thumb ? `<img src="${safeUrl(thumb)}" onerror="${errHandler}" class="w-full h-full object-cover opacity-90">` : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-2xl"></i></div>`;
+        const errAttr = act('error', '_videoImgErr', act.el, act.s(catCover));
+        const thumbHtml = thumb ? `<img src="${safeUrl(thumb)}"${errAttr} class="w-full h-full object-cover opacity-90">` : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-2xl"></i></div>`;
         window._mfTmp['video_' + v.id] = {id: v.id, title: v.title, description: v.description||'', thumbnail: thumb, _catCover: v._catCover||'', embed_url: v.embed_url||''};
         const isFav = _isFav('video', v.id);
-        const favBtn = `<button class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="video" data-fid="${v.id}" onclick="event.stopPropagation();toggleMediaFav('video',${jsArg(v.id)})">${isFav ? '<i class="fas fa-heart text-red-500 text-sm"></i>' : '<i class="far fa-heart text-gray-300 text-sm"></i>'}</button>`;
+        const favBtn = `<button class="mf-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="video" data-fid="${v.id}"${act('click', 'toggleMediaFav', 'video', act.s(v.id))} data-stop>${isFav ? '<i class="fas fa-heart text-red-500 text-sm"></i>' : '<i class="far fa-heart text-gray-300 text-sm"></i>'}</button>`;
         const dateStr = v.publish_date ? `<p class="text-[10px] text-gray-400 mt-0.5">${escHtml(toFa(v.publish_date))}</p>` : '';
         if (_mediaViewMode === 'grid') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
-            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-white overflow-hidden relative">${thumbHtml}${playBtn}</div>
+            <div${act('click', 'playVideoItem', v.id)} class="w-full aspect-video bg-white overflow-hidden relative">${thumbHtml}${playBtn}</div>
             <div class="px-2 py-2 flex flex-col gap-0.5">
                 <div class="flex items-start gap-1">
-                    <h4 onclick="playVideoItem(${v.id})" class="font-bold text-[11px] text-gray-800 line-clamp-2 leading-snug flex-1">${escHtml(v.title)}</h4>
+                    <h4${act('click', 'playVideoItem', v.id)} class="font-bold text-[11px] text-gray-800 line-clamp-2 leading-snug flex-1">${escHtml(v.title)}</h4>
                     ${favBtn}
                 </div>
                 ${dateStr}
@@ -701,9 +701,9 @@ function _renderVideoItems(pairs) {
         </div>`;
         if (_mediaViewMode === 'large') return `
         <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all active:scale-[0.98] flex flex-col">
-            <div onclick="playVideoItem(${v.id})" class="w-full aspect-video bg-white overflow-hidden relative">${thumbHtml}${playBtn}</div>
+            <div${act('click', 'playVideoItem', v.id)} class="w-full aspect-video bg-white overflow-hidden relative">${thumbHtml}${playBtn}</div>
             <div class="p-3 flex items-start gap-2">
-                <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
+                <div${act('click', 'playVideoItem', v.id)} class="flex-1 min-w-0">
                     <h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>
                     ${v.description ? `<p class="text-[11px] text-gray-400 mt-1 line-clamp-2">${escHtml(v.description)}</p>` : ''}
                     ${dateStr}
@@ -713,8 +713,8 @@ function _renderVideoItems(pairs) {
         </div>`;
         return `
         <div class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
-            <div onclick="playVideoItem(${v.id})" class="w-28 h-[63px] bg-white rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
-            <div onclick="playVideoItem(${v.id})" class="flex-1 min-w-0">
+            <div${act('click', 'playVideoItem', v.id)} class="w-28 h-[63px] bg-white rounded-xl overflow-hidden relative shadow-sm shrink-0">${thumbHtml}${playBtn}</div>
+            <div${act('click', 'playVideoItem', v.id)} class="flex-1 min-w-0">
                 <h4 class="font-bold text-xs text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>
                 ${v.description ? `<p class="text-[10px] text-gray-400 mt-0.5 line-clamp-1">${escHtml(v.description)}</p>` : ''}
                 ${dateStr}
@@ -922,7 +922,7 @@ function _renderGalleryCatGrid(cats, view, onClickFn) {
         const coverHtml = cat.cover ? `<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-gradient-to-br ${grad} flex items-center justify-center"><i class="fas fa-images text-white text-3xl opacity-80"></i></div>`;
         const badgeText = cat.sub_count > 0 ? `${cat.sub_count} زیردسته` : `${cat.photo_count} تصویر`;
         if (_mediaViewMode === 'list') return `
-        <div onclick="${onClickFn(cat)}" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
+        <div${onClickFn(cat)} class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
             <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${coverHtml}</div>
             <div class="flex-1 min-w-0"><h3 class="font-bold text-xs text-gray-800 line-clamp-1">${escHtml(cat.name)}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badgeText}</p></div>
             <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
@@ -930,7 +930,7 @@ function _renderGalleryCatGrid(cats, view, onClickFn) {
         const hasFolder = cat.sub_count > 0 ? `<div class="absolute top-2 right-2 bg-white/20 backdrop-blur-sm rounded-lg px-1.5 py-0.5"><i class="fas fa-folder text-white text-[10px] ml-1"></i><span class="text-white text-[9px] font-bold">${cat.sub_count}</span></div>` : '';
         const aspectClass = _mediaViewMode === 'large' ? 'aspect-video' : 'aspect-square';
         return `
-        <div onclick="${onClickFn(cat)}" class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
+        <div${onClickFn(cat)} class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
             <div class="w-full ${aspectClass} overflow-hidden relative">
                 ${coverHtml}${hasFolder}
                 <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-3">
@@ -969,8 +969,8 @@ async function loadGalleryCategories(parentId, parentName) {
 
         if(cats && cats.length > 0) {
             _renderGalleryCatGrid(cats, view, (cat) => {
-                if(cat.sub_count > 0) return `galleryNavToSub(${cat.id},${jsArg(cat.name)})`;
-                return `loadGalleryPhotos(${cat.id},${jsArg(cat.name)},${cat.photo_count})`;
+                if(cat.sub_count > 0) return act('click', 'galleryNavToSub', cat.id, act.s(cat.name));
+                return act('click', 'loadGalleryPhotos', cat.id, act.s(cat.name), cat.photo_count);
             });
         } else if(parentId == null) {
             view.innerHTML = `<div class="col-span-2 flex flex-col items-center justify-center py-20 text-gray-400 gap-4">
@@ -1002,7 +1002,7 @@ async function loadGalleryCategories(parentId, parentName) {
                     grid.className = _viewClasses('photos') + ' w-full';
                     galleryCurrentPhotos = parentPhotos;
                     grid.innerHTML = parentPhotos.map((ph, idx) =>
-                        `<div onclick="openGalleryImage(${idx})" class="aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer relative group shadow-sm">
+                        `<div${act('click', 'openGalleryImage', idx)} class="aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer relative group shadow-sm">
                             <img src="${safeUrl(ph.image)}" loading="lazy" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200"></div>
                         </div>`
@@ -1013,7 +1013,7 @@ async function loadGalleryCategories(parentId, parentName) {
             } catch(_e) {}
         }
     } catch(e) {
-        if(view) view.innerHTML = loadErrorHtml('loadGalleryCategories(' + _pidArg(parentId) + ', ' + jsArg(parentName) + ')', 'خطا در بارگذاری', 'col-span-full');
+        if(view) view.innerHTML = loadErrorHtml(['loadGalleryCategories', _pidArg(parentId), act.s(parentName)], 'خطا در بارگذاری', 'col-span-full');
     } finally { setMediaLoading(false); }
 }
 
@@ -1048,7 +1048,7 @@ async function loadGalleryPhotos(categoryId, title, count) {
             grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-16 text-gray-400 gap-3"><i class="fas fa-image text-4xl opacity-20"></i><p class="text-xs font-bold opacity-50">هیچ تصویری در این دسته وجود ندارد</p></div>`;
         }
     } catch(e) {
-        if(grid) { grid.className = _viewClasses('photos') + ' w-full'; grid.innerHTML = loadErrorHtml('loadGalleryPhotos(' + Number(categoryId) + ', ' + jsArg(title) + ', ' + (Number(count) || 0) + ')', 'خطا در بارگذاری', 'col-span-full'); }
+        if(grid) { grid.className = _viewClasses('photos') + ' w-full'; grid.innerHTML = loadErrorHtml(['loadGalleryPhotos', Number(categoryId), act.s(title), Number(count) || 0], 'خطا در بارگذاری', 'col-span-full'); }
     } finally { setMediaLoading(false); }
 }
 
@@ -1303,9 +1303,9 @@ async function loadAudioCategories(parentId, parentName) {
                 const grad = colors[i % colors.length];
                 const coverHtml = cat.cover ? `<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
                 const badge = cat.sub_count > 0 ? `${cat.sub_count} زیردسته` : `${cat.track_count} صوت`;
-                const clickFn = cat.sub_count > 0 ? `audioNavToSub(${cat.id},${jsArg(cat.name)})` : `loadAudioPlaylist(${cat.id},${jsArg(cat.name)},${cat.track_count})`;
+                const clickAttr = cat.sub_count > 0 ? act('click', 'audioNavToSub', cat.id, act.s(cat.name)) : act('click', 'loadAudioPlaylist', cat.id, act.s(cat.name), cat.track_count);
                 if (_mediaViewMode === 'list') return `
-                <div onclick="${clickFn}" class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
+                <div${clickAttr} class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
                     <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${coverHtml}</div>
                     <div class="flex-1 min-w-0"><h3 class="font-bold text-xs text-gray-800 line-clamp-1">${escHtml(cat.name)}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
                     <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
@@ -1313,7 +1313,7 @@ async function loadAudioCategories(parentId, parentName) {
                 const hasFolder = cat.sub_count > 0 ? `<div class="absolute top-2 right-2 bg-white/20 backdrop-blur-sm rounded-lg px-1.5 py-0.5"><i class="fas fa-folder text-white text-[10px] ml-1"></i><span class="text-white text-[9px] font-bold">${cat.sub_count}</span></div>` : '';
                 const aspectClass = _mediaViewMode === 'large' ? 'aspect-video' : 'aspect-square';
                 return `
-                <div onclick="${clickFn}" class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
+                <div${clickAttr} class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg transition-all active:scale-95 flex flex-col">
                     <div class="w-full ${aspectClass} overflow-hidden relative">
                         ${coverHtml}${hasFolder}
                         <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-3">
@@ -1327,7 +1327,7 @@ async function loadAudioCategories(parentId, parentName) {
             view.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 gap-4"><i class="fas fa-headphones text-5xl opacity-20"></i><p class="text-sm font-bold opacity-50">دسته‌بندی صوتی وجود ندارد</p></div>`;
         }
     } catch(e) {
-        if(view) view.innerHTML = loadErrorHtml('loadAudioCategories(' + _pidArg(parentId) + ', ' + jsArg(parentName) + ')', 'خطا در بارگذاری', 'col-span-full');
+        if(view) view.innerHTML = loadErrorHtml(['loadAudioCategories', _pidArg(parentId), act.s(parentName)], 'خطا در بارگذاری', 'col-span-full');
     } finally { setMediaLoading(false); }
 }
 
@@ -1535,21 +1535,21 @@ function _renderCalScreen() {
     const years = [...yearSet].sort((a,b) => b-a);
 
     const hdr = `<div class="flex items-center mb-4">
-        ${_csPicker ? '' : `<button onclick="csNavMonth(-1)" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 shrink-0"><i class="fas fa-chevron-right text-sm"></i></button>`}
-        <button onclick="csTogglePicker()" class="flex-1 text-center text-sm font-bold text-gray-700 hover:text-teal-600 transition py-1">
+        ${_csPicker ? '' : `<button${act('click', 'csNavMonth', -1)} class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 shrink-0"><i class="fas fa-chevron-right text-sm"></i></button>`}
+        <button${act('click', 'csTogglePicker')} class="flex-1 text-center text-sm font-bold text-gray-700 hover:text-teal-600 transition py-1">
             ${_csPicker ? `انتخاب ماه &nbsp;<i class="fas fa-times text-xs text-gray-400"></i>` : `${_jalMonthNames[_csMonth-1]} ${toFa(_csYear)} &nbsp;<i class="fas fa-chevron-down text-xs text-gray-400"></i>`}
         </button>
-        ${_csPicker ? '' : `<button onclick="csNavMonth(1)" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 shrink-0"><i class="fas fa-chevron-left text-sm"></i></button>`}
+        ${_csPicker ? '' : `<button${act('click', 'csNavMonth', 1)} class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 shrink-0"><i class="fas fa-chevron-left text-sm"></i></button>`}
     </div>`;
 
     if (_csPicker) {
         const yBtns = years.map(y => {
             const s = y === _csPickerYear;
-            return `<button onclick="csPickerSelYear(${y})" class="py-2 rounded-xl text-xs font-bold transition ${s ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'}">${toFa(y)}</button>`;
+            return `<button${act('click', 'csPickerSelYear', y)} class="py-2 rounded-xl text-xs font-bold transition ${s ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'}">${toFa(y)}</button>`;
         }).join('');
         const mBtns = _jalMonthNames.map((mn,i) => {
             const s = (i+1) === _csMonth && _csPickerYear === _csYear;
-            return `<button onclick="csSetYM(${i+1})" class="py-2.5 rounded-xl text-xs font-bold transition ${s ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'}">${mn}</button>`;
+            return `<button${act('click', 'csSetYM', i+1)} class="py-2.5 rounded-xl text-xs font-bold transition ${s ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-teal-50 hover:text-teal-700'}">${mn}</button>`;
         }).join('');
         calWrap.innerHTML = hdr + `<div class="grid grid-cols-4 gap-2 mb-3">${yBtns}</div><hr class="border-gray-100 my-3"><div class="grid grid-cols-4 gap-2">${mBtns}</div>`;
         return;
@@ -1566,13 +1566,13 @@ function _renderCalScreen() {
         let cls = 'w-9 h-9 flex items-center justify-center rounded-full text-xs font-bold mx-auto transition-all ';
         if (sel) cls += 'text-white'; else if (has) cls += 'text-teal-700 cursor-pointer'; else if (today) cls += 'text-teal-500 border border-teal-300'; else cls += 'text-gray-300';
         const bg = sel ? 'style="background:#0d9488"' : has ? 'style="background:#ccfbf1"' : '';
-        const click = has ? `onclick="csSelectDay(${d})"` : '';
+        const click = has ? act('click', 'csSelectDay', d) : '';
         cells += `<div class="text-center"><div class="${cls}" ${bg} ${click}>${toFa(d)}</div></div>`;
     }
     calWrap.innerHTML = hdr + `<div class="grid grid-cols-7 gap-y-2">
         ${_jalDayHdrs.map(h=>`<div class="text-center text-xs font-bold text-gray-300 pb-1">${h}</div>`).join('')}
         ${cells}
-    </div>${_csSelDay ? `<div class="mt-4 text-center"><button onclick="csSelectDay(${_csSelDay})" class="text-xs text-teal-600 font-bold">نمایش همه</button></div>` : ''}`;
+    </div>${_csSelDay ? `<div class="mt-4 text-center"><button${act('click', 'csSelectDay', _csSelDay)} class="text-xs text-teal-600 font-bold">نمایش همه</button></div>` : ''}`;
 }
 
 function _renderCalResults() {
@@ -1587,7 +1587,7 @@ function _renderCalResults() {
         res.innerHTML = filtered.map((tr, idx) => {
             const cover = tr.cover || '';
             const ci = `<img src="${safeUrl(cover) || '/img/default-audio.svg'}" class="w-full h-full object-cover">`;
-            return `<div onclick="_csPlayAudio(${idx})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
+            return `<div${act('click', '_csPlayAudio', idx)} class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
                 <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${ci}</div>
                 <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${escHtml(tr.title)}</h4>${tr.artist?`<p class="text-xs text-gray-400 mt-0.5">${escHtml(tr.artist)}</p>`:''}${tr.publish_date?`<p class="text-xs text-teal-500 mt-0.5">${escHtml(toFa(tr.publish_date))}</p>`:''}</div>
                 <div class="w-9 h-9 bg-teal-50 rounded-full flex items-center justify-center shrink-0"><i class="fas fa-play text-teal-600 text-xs mr-[-1px]"></i></div>
@@ -1597,7 +1597,7 @@ function _renderCalResults() {
         res.innerHTML = filtered.map(v => {
             const thumb = v.thumbnail || '';
             const th = thumb ? `<img src="${safeUrl(thumb)}" class="w-full h-full object-cover opacity-90">` : `<div class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center"><i class="fas fa-video text-white/50 text-2xl"></i></div>`;
-            return `<div onclick="_csPlayVideo(${jsArg(v.id)})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
+            return `<div${act('click', '_csPlayVideo', act.s(v.id))} class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
                 <div class="w-28 h-16 bg-white rounded-xl overflow-hidden relative shadow-sm shrink-0">${th}<div class="absolute inset-0 bg-black/30 flex items-center justify-center"><div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center border border-white/30"><i class="fas fa-play text-white text-xs mr-[-1px]"></i></div></div></div>
                 <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${escHtml(v.title)}</h4>${v.publish_date?`<p class="text-xs text-teal-500 mt-1">${escHtml(toFa(v.publish_date))}</p>`:''}</div>
             </div>`;
@@ -1608,7 +1608,7 @@ function _renderCalResults() {
             const d = new Date(post.date);
             const [jy,jm,jd] = _gregToJal(d.getFullYear(), d.getMonth()+1, d.getDate());
             const dt = `${toFa(jd)} ${_jalMonthNames[jm-1]} ${toFa(jy)}`;
-            return `<div onclick="_csOpenLecture(${post.id})" class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
+            return `<div${act('click', '_csOpenLecture', post.id)} class="bg-white rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-3 cursor-pointer hover:bg-gray-50 transition active:scale-[0.98] items-center">
                 <div class="w-14 h-14 bg-teal-50 rounded-xl flex items-center justify-center shrink-0"><i class="fas fa-microphone text-teal-400 text-xl"></i></div>
                 <div class="flex-1 min-w-0"><h4 class="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">${title}</h4><p class="text-xs text-teal-500 mt-1"><i class="far fa-calendar ml-1"></i>${dt}</p></div>
                 <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
@@ -1744,7 +1744,7 @@ async function loadAudioPlaylist(categoryId, title, count) {
             </div>`;
         }
     } catch(e) {
-        if(list) list.innerHTML = loadErrorHtml('loadAudioPlaylist(' + Number(categoryId) + ', ' + jsArg(title) + ', ' + (Number(count) || 0) + ')', 'خطا در بارگذاری');
+        if(list) list.innerHTML = loadErrorHtml(['loadAudioPlaylist', Number(categoryId), act.s(title), Number(count) || 0], 'خطا در بارگذاری');
     } finally { setMediaLoading(false); }
 }
 
@@ -1765,10 +1765,10 @@ function renderAudioTrackList(pairs) {
         const activeOverlay = isActive ? `<div class="absolute inset-0 bg-brand-600/40 flex items-center justify-center"><i class="fas fa-volume-up text-white text-xs animate-pulse"></i></div>` : '';
         window._mfTmp['audio_' + tr.id] = {id: tr.id, title: tr.title, artist: tr.artist||'', cover: coverSrc, url: tr.url||''};
         const isFav = _isFav('audio', tr.id);
-        const favBtn = `<button class="mf-btn shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="audio" data-fid="${tr.id}" onclick="event.stopPropagation();toggleMediaFav('audio',${jsArg(tr.id)})">${isFav ? '<i class="fas fa-heart text-red-500 text-xs"></i>' : '<i class="far fa-heart text-gray-300 text-xs"></i>'}</button>`;
+        const favBtn = `<button class="mf-btn shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="audio" data-fid="${tr.id}"${act('click', 'toggleMediaFav', 'audio', act.s(tr.id))} data-stop>${isFav ? '<i class="fas fa-heart text-red-500 text-xs"></i>' : '<i class="far fa-heart text-gray-300 text-xs"></i>'}</button>`;
         const dateStr = tr.publish_date ? escHtml(toFa(tr.publish_date)) : '';
         if (_mediaViewMode === 'grid') return `
-        <div id="audio-track-item-${idx}" onclick="selectAudioTrack(${idx}, true)" class="${activeCls} rounded-2xl cursor-pointer transition-all active:scale-95 overflow-hidden shadow-sm flex flex-col relative">
+        <div id="audio-track-item-${idx}"${act('click', 'selectAudioTrack', idx, true)} class="${activeCls} rounded-2xl cursor-pointer transition-all active:scale-95 overflow-hidden shadow-sm flex flex-col relative">
             <div class="w-full aspect-square overflow-hidden relative bg-gray-100 flex items-center justify-center">${coverInner}${activeOverlay}</div>
             <div class="p-2 flex flex-col gap-1">
                 <div class="flex items-start gap-1">
@@ -1780,7 +1780,7 @@ function renderAudioTrackList(pairs) {
         </div>`;
         const coverSize = _mediaViewMode === 'large' ? 'w-16 h-16' : 'w-11 h-11';
         return `
-        <div id="audio-track-item-${idx}" onclick="selectAudioTrack(${idx}, true)"
+        <div id="audio-track-item-${idx}"${act('click', 'selectAudioTrack', idx, true)}
             class="flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all active:scale-[0.98] ${activeCls} shadow-sm">
             <div class="${coverSize} rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center relative">${coverInner}${activeOverlay}</div>
             <div class="flex-1 min-w-0">
