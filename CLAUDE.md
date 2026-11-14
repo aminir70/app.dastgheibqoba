@@ -15,7 +15,9 @@
 
 ```
 /
-├── server.js              # سرور اصلی Express (~1900 خط)
+├── server.js              # نقطهٔ ورود: پیکربندی، میدلورهای سراسری، ثبت ماژول‌های مسیر، listen/shutdown (~300 خط)
+├── routes/*.js            # مسیرهای API به تفکیک حوزه (books، audio، tickets، settings، ...)
+├── lib/*.js               # زیرساخت مشترک: db، schema، auth، sanitize، uploads، limits، push، ...
 ├── lib/wp-mirror.js       # نسخهٔ محلی مطالب وردپرس (سخنرانی‌ها) + جستجو
 ├── lib/book-search.js     # فهرست تمام‌متن FTS5 برای جستجو در متن کتاب‌ها
 ├── package.json
@@ -45,6 +47,32 @@
         ├── style.css      # فونت‌ها (Vazir/Shabnam)، layout پایه
         └── tailwind.dist.css  # Tailwind compiled (generated — git tracked)
 ```
+
+---
+
+## ساختار سرور
+
+`server.js` فقط نقطهٔ ورود است (pm2 و تست‌ها همین را اجرا می‌کنند): dotenv، میدلورهای سراسری (CSP، CORS،
+body parser، ...)، فایل‌های استاتیک، فراخوانی ماژول‌های مسیر، SPA fallback، error handler، listen و خاموشی تمیز.
+
+- **`lib/`** (زیرساخت مشترک؛ حالت مشترک مثل کش‌ها، `mainDb`، JWT_SECRET و وضعیت VAPID فقط در یک ماژول زندگی می‌کند):
+  `config` (رمز ادمین)، `db` (اتصال و `_dbGetP/_dbAllP/_dbRunP`)، `schema` (جدول‌ها و مهاجرت‌ها)،
+  `startup` (کارهای بعد از باز شدن دیتابیس)، `auth` (JWT، `adminAuth`/`userAuth`/`ownerOnly`، کپچا، امضای پیوست تیکت)،
+  `sanitize`، `uploads` (multer، `unlinkPublicFile`، `_discardUploads`)، `limits`، `push`، `settings`، `icons`،
+  `analytics`، `tickets`، `media-util`، `services` (نمونهٔ wp-mirror و book-search)، `proxy-fetch`، `wp-site`،
+  `normalize`، `book-db`، `client-ip`، `chatbot-proxy`.
+- **`routes/`** (یک فایل برای هر حوزه): هر فایل یک تابع یا چند «فاز» صادر می‌کند که `app` می‌گیرد و مسیرها را ثبت
+  می‌کند (مثلاً `books.mountPublic`، `books.mountAdmin`، `books.mountPdf`). فازها جدا هستند چون ترتیب ثبت در
+  Express معنا دارد و در اصل فایل، مسیرهای عمومی/ادمین هر حوزه لابه‌لای هم بودند.
+- **ترتیب** فراخوانی فازها در `server.js` همان ترتیب ثبتِ قبلی است؛ چیزی را جابه‌جا نکنید مگر عمداً.
+- مسیر تازه: داخل فاز مناسبِ همان حوزه (`routes/<حوزه>.js`) اضافه کنید؛ زیرساخت را با `require('../lib/...')` بگیرید،
+  `__dirname` را با `ROOT` (ریشهٔ پروژه) جایگزین کنید. اگر مسیر کاملاً تازه است، بعد از آن
+  `node scripts/dump-routes.js > test/routes.runtime.snapshot.json` و در صورت نیاز
+  `UPDATE_ROUTES_SNAPSHOT=1 node --test test/routes-inventory.test.js` را عمداً اجرا و diff را بررسی کنید.
+- **دو تست snapshot:** `test/routes-runtime.test.js` جدول واقعی `app.router.stack` را (با
+  `scripts/dump-routes.js`، دیتابیس موقت و بدون listen) با `test/routes.runtime.snapshot.json` مقایسه می‌کند: مسیر،
+  ترتیب لایه‌ها، میدلورهای سراسری و نام هندلرها. `test/routes-inventory.test.js` فقط با regex روی `server.js` و
+  `routes/**` و `lib/**` مجموعهٔ (method, path) را با `test/routes.snapshot.json` می‌سنجد (حذف/اضافه؛ بدون ترتیب).
 
 ---
 
@@ -94,7 +122,7 @@ document.querySelector('[data-nav="X"]').classList.add('active');
 
 ---
 
-## APIهای Backend (server.js)
+## APIهای Backend (`routes/*.js`)
 
 ### عمومی (بدون احراز هویت)
 | Route | توضیح |
@@ -379,7 +407,7 @@ JWT_SECRET=...
 - **خطای بارگذاری فهرست‌ها:** `loadErrorHtml(retryExpr, message?)` (utils.js) بلوک «دریافت اطلاعات ممکن نشد + تلاش دوباره» می‌سازد؛ `retryExpr` همان loader با همان آرگومان‌هاست (رشته‌ها با `jsArg`). loaderها باید `!res.ok` را خطا حساب کنند.
 - **سرویس‌ورکر:** تصاویر در کش جدای `nashr-img-v1` با سقف ۳۰۰ ورودی‌اند (بین نسخه‌ها می‌ماند)؛ فونت‌ها در کش استاتیک. فونت شبنم فقط با باز شدن تنظیمات نمایش یا انتخاب کاربر بارگذاری می‌شود (`data-pvfont`).
 - **شروع اپ (`init` در app.js):** تنظیمات، نوار پایین و کتاب‌ها هم‌زمان گرفته می‌شوند و اسپلش فقط منتظر همین سه می‌ماند؛ `sharedJson(url)` (books.js) درخواست‌های هم‌زمانِ یک نشانی را یکی می‌کند.
-- **سقف درخواست‌ها (server.js):** API ۶۰۰۰/۱۵دقیقه، جستجو ۹۰/دقیقه، ورود ۳۰/۱۵دقیقه (فقط ناموفق‌ها)، ورود ادمین و «تغییر رمز من» ۱۰ ناموفق/۱۵دقیقه، ثبت‌نام ۱۰/ساعت — چون کاربران موبایل پشت IP مشترک‌اند. بدنهٔ درخواست بیرون از `/api/admin` حداکثر ۱ مگابایت.
+- **سقف درخواست‌ها (`lib/limits.js`):** API ۶۰۰۰/۱۵دقیقه، جستجو ۹۰/دقیقه، ورود ۳۰/۱۵دقیقه (فقط ناموفق‌ها)، ورود ادمین و «تغییر رمز من» ۱۰ ناموفق/۱۵دقیقه، ثبت‌نام ۱۰/ساعت — چون کاربران موبایل پشت IP مشترک‌اند. بدنهٔ درخواست بیرون از `/api/admin` حداکثر ۱ مگابایت.
 - **WordPress proxy:** هیچ‌گاه مستقیم به `dastgheibqoba.info` درخواست نزنید؛ همیشه از `/api/wp?path=...` استفاده شود.
 - **ادمین:** احراز هویت با httpOnly cookie `admin_token` (JWT) — نه header. هر مدیر حساب جدا دارد (جدول `admins`).
 - **کاربر:** احراز هویت با `Authorization: Bearer <token>` header (JWT) — نه `x-user-id`. ثبت‌نام کپچا می‌خواهد.
@@ -427,7 +455,7 @@ JWT_SECRET=...
 
 ## بهینه‌سازی تصاویر آپلودی
 
-- `lib/image-optimize.js`: بعد از multer (`withOptimize` در server.js) هر تصویر JPEG/PNG/WebP
+- `lib/image-optimize.js`: بعد از multer (`withOptimize` در `lib/uploads.js`) هر تصویر JPEG/PNG/WebP
   بر اساس نام فیلد در محل کوچک می‌شود (`FIELD_MAX`: جلد/کاور ۹۰۰، بنر/اسلایدر/محتوا ۱۶۰۰،
   گالری/پیوست تیکت ۲۰۰۰، آیکن ۲۵۶، لوگو ۵۱۲)؛ هم‌فرمت و هم‌نام (URL ذخیره‌شده معتبر می‌ماند).
   SVG/GIF/متحرک/خطا → فایل دست‌نخورده. `uploadIconMemory` جدا و دست‌نخورده است.
@@ -438,7 +466,7 @@ JWT_SECRET=...
 
 ## امنیت — قواعدی که باید رعایت شود
 
-### سمت سرور (`server.js`)
+### سمت سرور (`lib/sanitize.js`)
 | تابع | کاربرد |
 |------|--------|
 | `sanText(s)` | **پیش‌فرض** برای هر فیلد متنی (عنوان، نام، متن تیکت، توضیحات). همه تگ‌ها را حذف می‌کند. |

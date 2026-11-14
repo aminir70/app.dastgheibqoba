@@ -10,7 +10,9 @@
 // app.route() اسکن نمی‌شوند. اگر مسیرها بعداً به فایل‌های دیگر منتقل شوند، همین اسکن آن‌ها را می‌گیرد
 // (به شرط اینکه با نام app یا router ثبت شوند).
 //
-// مقایسه برای هر method جداگانه است: حذف، اضافه و تغییر ترتیب نسبت به مسیرهای هم‌method خطا می‌دهد.
+// مقایسه برای هر method جداگانه و به‌صورت «مجموعهٔ مرتب‌شده» است: حذف و اضافه خطا می‌دهد، ولی ترتیب
+// نه — چون مسیرها در چند فایل (routes/*.js) پخش‌اند و ترتیب فایل‌ها معیار ترتیب ثبت نیست. ترتیب واقعی
+// ثبت (و نام هندلرها) را test/routes-runtime.test.js با test/routes.runtime.snapshot.json می‌سنجد.
 // به‌روزرسانی عمدی snapshot:   UPDATE_ROUTES_SNAPSHOT=1 node --test test/routes-inventory.test.js
 'use strict';
 const { test } = require('node:test');
@@ -142,7 +144,7 @@ test('استخراج‌کننده: همهٔ ثبت‌های مسیر در سور
   assert.ok(has('use', '/ticket-files'));
 });
 
-test('مسیرهای ثبت‌شده با snapshot برابرند (حذف / اضافه / تغییر ترتیب)', () => {
+test('مسیرهای ثبت‌شده با snapshot برابرند (حذف / اضافه؛ ترتیب در test/routes-runtime.test.js)', () => {
   const { routes } = collect();
   const current = toMap(routes);
   if (process.env.UPDATE_ROUTES_SNAPSHOT === '1') {   // به‌روزرسانی عمدی
@@ -153,7 +155,7 @@ test('مسیرهای ثبت‌شده با snapshot برابرند (حذف / اض
   const snap = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
   const report = [];
   for (const m of new Set([...Object.keys(snap), ...Object.keys(current)])) {
-    const a = snap[m] || [], b = current[m] || [];
+    const a = [...(snap[m] || [])].sort(), b = [...(current[m] || [])].sort();
     if (JSON.stringify(a) !== JSON.stringify(b)) report.push(...diffSeq(m, a, b));
   }
   assert.equal(report.length, 0,

@@ -6,7 +6,7 @@ const map={};
 for(const m of css.matchAll(/((?:\.fa-[a-z0-9-]+:before,?)+)\{content:"\\([0-9a-fA-F]+)"\}/g)){
   for(const n of m[1].matchAll(/\.fa-([a-z0-9-]+):before/g)) map[n[1]]=m[2].toLowerCase();
 }
-const files=['public/index.html','public/admin.html','server.js',...fs.readdirSync(R+'public/js').filter(f=>f.endsWith('.js')).map(f=>'public/js/'+f),...fs.readdirSync(R+'public/css').filter(f=>f.endsWith('.css')&&!/tailwind\.dist/.test(f)).map(f=>'public/css/'+f)];
+const files=['public/index.html','public/admin.html','server.js',...['lib','routes'].flatMap(d=>fs.readdirSync(R+d).filter(f=>f.endsWith('.js')).map(f=>d+'/'+f)),...fs.readdirSync(R+'public/js').filter(f=>f.endsWith('.js')).map(f=>'public/js/'+f),...fs.readdirSync(R+'public/css').filter(f=>f.endsWith('.css')&&!/tailwind\.dist/.test(f)).map(f=>'public/css/'+f)];
 const sources={};
 let text='';
 for(const f of files){const t=fs.readFileSync(R+f,'utf8');text+='\n'+t;}
