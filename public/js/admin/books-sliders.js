@@ -58,7 +58,7 @@ async function uploadBook(e){
 }
 async function loadBooks(){
   try{
-    const r=await fetch('/api/books');const bs=await r.json();
+    const r=await fetch('/api/books',{cache:'no-store'});const bs=await r.json();
     const c=document.getElementById('books-list');
     if(!bs||!bs.length){c.innerHTML='<div class="text-center py-10 text-gray-400">هیچ کتابی یافت نشد.</div>';return;}
     c.innerHTML=bs.map(b=>`
@@ -104,7 +104,7 @@ async function deleteBook(id){
   }catch(e){}
 }
 async function openEditBook(id){
-  const r=await fetch('/api/books');const bs=await r.json();
+  const r=await fetch('/api/books',{cache:'no-store'});const bs=await r.json();
   const b=bs.find(x=>x.id==id);if(!b) return showToast('کتاب یافت نشد',false);
   document.getElementById('edit-book-id').value=b.id;
   document.getElementById('edit-book-type').value=b.book_type||'db';

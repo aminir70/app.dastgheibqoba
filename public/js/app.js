@@ -214,7 +214,8 @@ async function init() {
         try { fetchLatestLectures(); } catch(e) { console.warn('Lectures err:', e); }
         try { loadHomeLatestMedia(); } catch(e) {}
         try { loadHomeStories(); } catch(e) {}
-        if (qaUser) { try { startNotifPolling(); } catch(e) {} }
+        // مهمان هم اعلان‌های عمومی را می‌گیرد (نقطهٔ قرمز زنگوله)؛ loadNotifications خودش مسیر را بر اساس qaUser انتخاب می‌کند
+        try { startNotifPolling(); } catch(e) {}
     } catch(e) {
         console.error("Critical Init Error:", e);
     } finally {
@@ -993,6 +994,7 @@ function authLogout() {
     unsubscribeFromPush(headers);
     localStorage.removeItem('qa_user');
     _notifications = []; _updateNotifBadge();
+    startNotifPolling();
     updateAuthScreenUI(); updateQAUserUI();
     showToast('از حساب خارج شدید');
 }
@@ -1013,6 +1015,7 @@ function _onAuthFailure() {
     stopNotifPolling();
     _notifications = []; try { _updateNotifBadge(); } catch(e) {}
     try { localStorage.removeItem('qa_user'); } catch(e) {}
+    try { startNotifPolling(); } catch(e) {}   // به‌عنوان مهمان ادامه بده
     try { updateAuthScreenUI(); updateQAUserUI(); } catch(e) {}
 }
 let _notifPollingInterval = null;
@@ -1021,8 +1024,8 @@ let _notifPollingInterval = null;
 // تب در پس‌زمینه است اصلاً درخواستی فرستاده نمی‌شود.
 const NOTIF_POLL_MS = 60000;
 function startNotifPolling() {
+    loadNotifications();   // بعد از ورود/خروج هم فوری (مسیر کاربر یا مهمان)
     if (_notifPollingInterval) return;
-    loadNotifications();
     _notifPollingInterval = setInterval(() => {
         if (document.visibilityState === 'hidden') return;
         loadNotifications();
@@ -1098,6 +1101,7 @@ function qaLogout() {
     unsubscribeFromPush(headers);
     localStorage.removeItem('qa_user');
     _notifications = []; _updateNotifBadge();
+    startNotifPolling();
     updateQAUserUI(); showQAAuth();
     showToast('از حساب کاربری خارج شدید');
 }
@@ -1652,19 +1656,26 @@ function _updateNotifBadge() {
 }
 
 async function loadNotifications() {
+    const who = qaUser;   // اگر وسط درخواست ورود/خروج شد، پاسخ مسیر قبلی دور ریخته شود
     try {
-        if (qaUser) {
+        let list = null;
+        if (who) {
             const r = await fetch('/api/notifications', { headers: userAuthHeaders() });
-            if (r.ok) _notifications = await r.json();
+            if (r.ok) list = await r.json();
         } else {
             const r = await fetch('/api/notifications/public');
             if (r.ok) {
                 const pub = await r.json();
                 const read = _guestReadIds();
-                _notifications = pub.map(n => ({ ...n, is_read: read.includes(n.id) ? 1 : 0 }));
+                list = pub.map(n => ({ ...n, is_read: read.includes(n.id) ? 1 : 0 }));
             }
         }
+        if (qaUser !== who || list === null) return;
+        _notifications = list;
         _updateNotifBadge();
+        // پنل باز است: فهرست تازه را نشان بده (قبلاً اولین باز شدن «اعلانی وجود ندارد» می‌ماند)
+        const panel = document.getElementById('notif-panel');
+        if (panel && !panel.classList.contains('hidden')) renderNotifications();
     } catch(e) {}
 }
 

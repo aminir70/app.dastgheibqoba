@@ -268,7 +268,7 @@ async function openEditAudioTrack(id,catId){
   document.getElementById('edit-atrack-cover-file').value='';
   // fetch track data
   try{
-    const r=await fetch(`/api/audio/categories/${catId}/tracks`);
+    const r=await fetch(`/api/audio/categories/${catId}/tracks`,{cache:'no-store'});
     const tracks=await r.json();
     const tr=tracks.find(x=>x.id==id);
     if(tr){

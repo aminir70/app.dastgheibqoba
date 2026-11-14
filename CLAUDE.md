@@ -536,7 +536,7 @@ JWT_SECRET=...
 - `tailwind.config.js` فایل‌های `actions.js` و `dist/actions.min.js` را از content کنار می‌گذارد (فقط نام رویداد
   دارند، نه کلاس؛ وگرنه کلاس `.blur` ساخته می‌شود).
 - `public/sw.js`: بسته‌های JS پیش‌کش نمی‌شوند (network-first و بعد کش در اولین بارگذاری)؛ با تغییر پوستهٔ اپ
-  شمارهٔ `nashr-*-vNN` را بالا ببرید (فعلاً v58).
+  شمارهٔ `nashr-*-vNN` را بالا ببرید (فعلاً v59).
 
 **قاعده:** هیچ داده‌ای از API نباید بدون `escHtml` وارد `innerHTML` شود. sanitizer
 سمت سرور یک blacklist است و به‌تنهایی کافی نیست.

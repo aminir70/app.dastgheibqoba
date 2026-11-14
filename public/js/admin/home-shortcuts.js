@@ -90,7 +90,7 @@ function clearJalaliDate(){
 // ====== لینک‌های پایین صفحه اصلی ======
 async function loadLinkShortcuts() {
   try {
-    const res = await fetch('/api/link-shortcuts');
+    const res = await fetch('/api/link-shortcuts',{cache:'no-store'});
     const shortcuts = await res.json();
     const container = document.getElementById('link-shortcuts-editor');
     if (!container) return;
@@ -254,7 +254,7 @@ let _iconPickerIdx = -1;
 
 async function loadShortcuts() {
   try {
-    const res = await fetch('/api/shortcuts');
+    const res = await fetch('/api/shortcuts',{cache:'no-store'});
     const shortcuts = await res.json();
     const container = document.getElementById('shortcuts-editor');
     if (!container) return;

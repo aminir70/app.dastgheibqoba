@@ -27,6 +27,8 @@ function jsArg(v){ return escHtml(JSON.stringify(v==null?'':String(v))); }
 
 async function adminFetch(url, options={}) {
   options.credentials = 'same-origin';
+  // پنل ادمین هرگز از کش HTTP نمی‌خواند (نقطه‌های عمومی مثل /api/books تا ۱۲۰–۳۰۰ ثانیه کش می‌شوند)
+  if(!options.cache) options.cache = 'no-store';
   options.headers = Object.assign({}, options.headers||{});
   const r = await fetch(url, options);
   if(r.status === 401) {
