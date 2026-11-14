@@ -21,9 +21,9 @@
     <link rel="stylesheet" href="/vendor/fa/all.app.min.css?v=6b01eab3">
 
     <link rel="stylesheet" href="/css/tailwind.dist.css?v=02bee57f">
-    <link rel="stylesheet" href="/css/app.css?v=3d252778">
+    <link rel="stylesheet" href="/css/app.css?v=e10c2ffd">
     <!-- چیدمان دسکتاپ: فقط از ۶۴۰px به بالا بارگذاری/اعمال می‌شود؛ موبایل از آن اثر نمی‌گیرد -->
-    <link rel="stylesheet" href="/css/desktop.css?v=7303bc53" media="(min-width: 640px)">
+    <link rel="stylesheet" href="/css/desktop.css?v=e53b4f09" media="(min-width: 640px)">
 </head>
 <body class="font-vazir antialiased text-gray-800">
 
@@ -37,6 +37,21 @@
     </p>
 </div>
 <script src="/js/boot.js?v=77e017dd"></script>
+
+<!-- نوار «در حال پخش» سراسری: فقط وقتی صوتی بارگذاری شده و پلیر کاملش دیده نمی‌شود (nowplaying.js) -->
+<div id="np-bar" class="hidden" role="region" aria-label="پخش‌کنندهٔ صوت" dir="rtl">
+    <button type="button" id="np-open" class="np-info" data-click="npOpen" aria-label="بازگشت به پخش‌کنندهٔ صوت">
+        <span class="np-cover"><img id="np-cover-img" alt="" data-error="uiHideSelf"><i id="np-cover-icon" class="fas fa-headphones np-cover-icon"></i></span>
+        <span class="np-text"><span id="np-title" class="np-title"></span><span id="np-time" class="np-time"></span></span>
+    </button>
+    <span class="np-ctrl" dir="ltr">
+        <button type="button" id="np-prev" class="np-btn hidden" data-click="npPrev" aria-label="قطعهٔ قبلی"><i class="fas fa-step-backward"></i></button>
+        <button type="button" id="np-play" class="np-btn np-play" data-click="npToggle" aria-label="پخش"><i id="np-play-icon" class="fas fa-play np-play-i"></i></button>
+        <button type="button" id="np-next" class="np-btn hidden" data-click="npNext" aria-label="قطعهٔ بعدی"><i class="fas fa-step-forward"></i></button>
+    </span>
+    <button type="button" id="np-close" class="np-btn" data-click="npClose" aria-label="بستن و توقف پخش"><i class="fas fa-times"></i></button>
+    <input type="range" id="np-seek" min="0" max="100" step="0.1" value="0" data-input="npSeek" data-args='[{"$":"value"}]' aria-label="جلو و عقب بردن صوت" dir="ltr">
+</div>
 
 <!-- APP WRAPPER -->
 <div id="app-wrapper" class="absolute inset-0 flex flex-col w-full bg-gray-50 overflow-hidden hidden">
@@ -1363,11 +1378,12 @@
 <script src="/js/dist/utils.min.js?v=3c8e73c1"></script>
 <script src="/js/dist/offline.min.js?v=0ea6c6e0"></script>
 <script src="/js/dist/books.min.js?v=b3ea3091"></script>
-<script src="/js/dist/lectures.min.js?v=79e23e38"></script>
-<script src="/js/dist/media.min.js?v=85691173"></script>
-<script src="/js/dist/news.min.js?v=10ec1209"></script>
+<script src="/js/dist/lectures.min.js?v=edaa7129"></script>
+<script src="/js/dist/media.min.js?v=9906abf7"></script>
+<script src="/js/dist/news.min.js?v=16f2f1bf"></script>
+<script src="/js/dist/nowplaying.min.js?v=9720268d"></script>
 <script src="/js/dist/aichat.min.js?v=4665e37b"></script>
-<script src="/js/dist/app.min.js?v=01c5e418"></script>
+<script src="/js/dist/app.min.js?v=e24bf4f7"></script>
 
 <!-- PWA Install Modal -->
 <div id="pwa-install-modal" class="hidden fixed inset-0 z-[9999] flex items-end justify-center p-4" style="background:rgba(0,0,0,0.5)" data-click="closePwaModal">

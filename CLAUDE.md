@@ -39,6 +39,7 @@
     │   ├── lectures.js    # سخنرانی‌ها (از WordPress API)
     │   ├── media.js       # گالری، صوت، ویدیو + تقویم یکپارچه
     │   ├── news.js        # اخبار و news slider
+    │   ├── nowplaying.js  # نوار «در حال پخش» سراسری (بالای اپ): کنترل صوتِ در حال پخش از هر صفحه
     │   ├── utils.js       # توابع مشترک: toFa، تقویم جلالی، API helper
     │   ├── offline.js     # Service Worker registration
     │   ├── admin/         # اسکریپت‌های پنل ادمین (classic، بدون minify، بدون ماژول — به ترتیب بارگذاری)
@@ -370,6 +371,42 @@ showWPSingleView(postId)   // نمایش پست منفرد
 
 ---
 
+## نوار «در حال پخش» (`public/js/nowplaying.js`، `#np-bar` در `index.html`)
+
+نوار باریک (۵۴px) بالای اپ که وقتی صوتی بارگذاری شده (پخش یا مکث) و پلیر کامل همان صوت روی صفحه **نیست**،
+کنترلش را نشان می‌دهد: کاور، عنوان، زمان، قبلی/پخش/بعدی (فقط اگر صف دارد)، نوار پیشرفت (قابل‌کشیدن)، ✕.
+پخش با رفتن به صفحه‌های دیگر (تب‌ها، کتابخانه، کتاب‌خوان، جستجو، …) ادامه دارد. نوار history entry نیست و back آن را نمی‌بندد.
+
+- **طراحی:** موتور جدا نیست؛ نوار مستقیم روی همان `<audio>` ی کار می‌کند که پخش می‌شود (`_np.cur.el`). رویدادهای
+  `play/pause/ended/timeupdate/…` عنصرهای داخل DOM با capture روی `document` گرفته می‌شوند و `new Audio()` رسانه
+  (`audioEl` در media.js) با `npAttach(el)`. فقط یک صوت: `play` روی هر عنصر بقیه را می‌ایستاند؛ شروع ویدیو
+  (`_openVideoPlayer`، `_renderReels`، `<video>` مطلب) صوت را می‌ایستاند (`npPauseForVideo`).
+- **منبع‌ها** (`_np.cur.kind`): `playlist` (تب صوت رسانه: دسته/تقویم/علاقه‌مندی/جستجو)، `single` (صفحهٔ پخش تکی از «آخرین
+  صوت‌ها»)، `lecture` (`post-audio-<uid>` در lectures.js)، `news` (`<audio controls>` خبر/بیانیه)، `other` (پیوست پشتیبانی).
+  منبع تازه: عنصر `<audio>` خودش شناخته می‌شود؛ برای عنوان/برگشت شاخه‌ای در `_npDescribe`، `_npMeta`، `_npProbe`، `npOpen` بیفزایید.
+- **برگشت به پلیر کامل** (`npOpen`، با توابع ناوبری موجود): `playlist` → `npOpenAudioPlaylist()` (media.js)، `single` →
+  `openAudioSingleScreen(tracks, idx, true)` (resume: قطعه از اول شروع نمی‌شود)، `lecture` → `npOpenLecturePost(id)`، خبر →
+  `openNewsPostInApp`، بیانیه → `npOpenStatementPost`. شناسهٔ مطلب را `window._wpSingleCtx` می‌دهد (در `showWPSingleView` و `renderWPSingle`).
+- **عنصر مطلب از DOM حذف شد** (مثلاً مطلب دوباره ساخته شد): پخش به `Audio`ی «یتیم» با همان موقعیت منتقل می‌شود (`_npHandover`)
+  و وقتی همان مطلب دوباره باز شد به عنصر تازه برمی‌گردد (`_npTryReattach`). `_paSyncUi` آیکن‌های پلیر سخنرانی را با وضعیت واقعی یکی می‌کند.
+- **صف پخش جدا از فهرست دیده‌شده:** `audioCurrentTracks/Index` = صف در حال پخش؛ `audioBrowseTracks` = فهرست صفحهٔ پلی‌لیست.
+  باز کردن دستهٔ دیگر صوتِ در حال پخش را قطع نمی‌کند (`_audioBusy()`)؛ کلیک روی قطعه با `selectAudioBrowseTrack(idx)` آن فهرست را صف می‌کند.
+  `backToAudioCategories` دیگر pause نمی‌زند. ✕ نوار: `_audioUnload()`.
+- **دیده‌شدن پلیر کامل** (`_npFullVisible`): عنصر نمونه (`#audio-player-title`، `#post-prog-<uid>`، خود `<audio controls>`) نمایان باشد و
+  صفحهٔ تمام‌صفحهٔ دیگری (`_NP_COVERS`) روی آن نباشد. با تایمر ۳۰۰ms (فقط وقتی `_np.cur` هست) و بعد از کلیک/popstate بررسی می‌شود؛ به اسکرول وابسته نیست.
+- **ارتفاع:** متغیر CSS `--np-h` (۰ وقتی نوار نیست؛ ۵۴px + `env(safe-area-inset-top)`) و کلاس `body.np-on`. `#screens-wrapper` با
+  `padding-top: var(--np-h)` زیر نوار می‌رود؛ صفحه‌های تمام‌صفحه‌ای که نوار روی آن‌ها هم دیده می‌شود (کتاب‌خوان/فهرست، جستجو، تقویم،
+  پخش تکی، اعلان‌ها، صفحهٔ محتوا، webview، تصویر) در `app.css` با `top: var(--np-h) !important` پایین‌تر می‌نشینند. نوار `z-index: 310` دارد؛
+  ریلز (320)، چت هوشمند (330) و اشتراک تصویر (350) آن را می‌پوشانند. دسکتاپ: `#np-bar { right: var(--sb-w) }` در `desktop.css`.
+  لایهٔ `absolute inset-0` تازه داخل یک صفحه بگذارید، آن صفحه باید `position: relative` باشد (مثل `#screen-qa`) تا زیر نوار بماند.
+- **Media Session:** عنوان/هنرمند/کاور و دکمه‌های play/pause/prev/next/seek روی قفل صفحه (با `typeof MediaMetadata` محافظت شده).
+- آیکن‌های FontAwesome فقط از زیرمجموعهٔ فونت (`scripts/fa-subset`) می‌آیند؛ نوار فقط آیکن‌های موجود را به کار می‌برد.
+- **race مرتبط (ویدیو/صوت):** `loadVideoCategories`/`loadAudioCategories` بعد از `await`، `className` را عوض می‌کردند و `hidden` را می‌انداختند
+  (دسته‌ها دوباره بالای پخش‌کننده می‌آمدند)؛ حالا وضعیت پنهان حفظ می‌شود. هر نمایش مستقیم پخش‌کنندهٔ ویدیو از `_openVideoPlayer(item)` می‌گذرد
+  (خانه، علاقه‌مندی، تقویم، لیست): دسته‌ها/لیست/بنر ریلز/بنر رسانه/چرخان را مخفی و اسکرول را بالا می‌برد.
+
+---
+
 ## فناوری‌های Frontend
 
 ```
@@ -536,7 +573,7 @@ JWT_SECRET=...
 - `tailwind.config.js` فایل‌های `actions.js` و `dist/actions.min.js` را از content کنار می‌گذارد (فقط نام رویداد
   دارند، نه کلاس؛ وگرنه کلاس `.blur` ساخته می‌شود).
 - `public/sw.js`: بسته‌های JS پیش‌کش نمی‌شوند (network-first و بعد کش در اولین بارگذاری)؛ با تغییر پوستهٔ اپ
-  شمارهٔ `nashr-*-vNN` را بالا ببرید (فعلاً v59).
+  شمارهٔ `nashr-*-vNN` را بالا ببرید (فعلاً v60).
 
 **قاعده:** هیچ داده‌ای از API نباید بدون `escHtml` وارد `innerHTML` شود. sanitizer
 سمت سرور یک blacklist است و به‌تنهایی کافی نیست.

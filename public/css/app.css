@@ -177,3 +177,71 @@ mark.pending-sel {
 @supports (-webkit-touch-callout: none) {
   input, textarea, select { font-size: 16px; }
 }
+
+/* ====================================================
+   نوار «در حال پخش» سراسری (nowplaying.js)
+   ‎--np-h = ارتفاع نوار (۰ وقتی نیست)؛ body.np-on فقط وقتی نوار دیده می‌شود.
+   صفحه‌های معمولی با padding-top زیر نوار می‌روند و صفحه‌های تمام‌صفحه‌ای که
+   نوار روی آن‌ها هم دیده می‌شود (ردیف پایین) با top: var(--np-h). صفحه‌هایی که
+   بالاتر از نوار می‌نشینند (ریلز، چت هوشمند، اشتراک‌گذاری تصویر) آن را می‌پوشانند.
+   ==================================================== */
+:root { --np-base: 54px; --np-h: 0px; }
+body.np-on { --np-h: calc(var(--np-base) + env(safe-area-inset-top, 0px)); }
+#screens-wrapper { transition: padding-top .2s ease; }
+body.np-on #screens-wrapper { padding-top: var(--np-h); }
+body.np-on :is(#reader-overlay, #toc-overlay, #reader-header, #search-modal, #global-search-modal, #notif-panel,
+               #notif-detail-modal, #content-page-overlay, #calendar-screen, #audio-single-screen, #webview-modal,
+               #image-modal, #pdf-viewer-overlay) { top: var(--np-h) !important; }
+
+#np-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 310; box-sizing: border-box;
+    height: var(--np-h); padding: env(safe-area-inset-top, 0px) 8px 0;
+    display: flex; align-items: center; gap: 2px; color: #fff;
+    background: linear-gradient(135deg, #0d9488, #115e59);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .2);
+    animation: npIn .22s ease-out;
+}
+@keyframes npIn { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: translateY(0); } }
+#np-bar .np-info {
+    flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 10px;
+    padding: 0 4px; background: none; border: 0; color: inherit; font: inherit; text-align: right; cursor: pointer;
+}
+#np-bar .np-info:disabled { cursor: default; opacity: 1; }
+.np-cover {
+    width: 38px; height: 38px; flex: none; border-radius: 10px; overflow: hidden;
+    background: rgba(255, 255, 255, .2); display: flex; align-items: center; justify-content: center;
+}
+.np-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.np-cover-icon { font-size: 16px; opacity: .85; }
+.np-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.45; }
+.np-title { font-weight: 800; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.np-time { font-size: 10px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#np-bar .np-btn {
+    width: 40px; height: 40px; flex: none; border: 0; border-radius: 50%; padding: 0;
+    background: transparent; color: #fff; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+}
+#np-bar .np-btn:active { background: rgba(255, 255, 255, .18); }
+#np-bar .np-btn:disabled { opacity: .35; cursor: default; }
+#np-bar .np-play { background: rgba(255, 255, 255, .22); font-size: 15px; }
+.np-ctrl { display: flex; align-items: center; gap: 2px; flex: none; }
+.np-play-i { margin-left: 1px; }
+#np-bar button:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+#np-seek {
+    position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 12px; margin: 0; padding: 0;
+    background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; direction: ltr;
+}
+#np-seek::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: linear-gradient(to right, #fff var(--np-pct, 0%), rgba(255, 255, 255, .28) var(--np-pct, 0%)); }
+#np-seek::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4.5px; border-radius: 50%; background: #fff; opacity: 0; transition: opacity .15s; }
+#np-seek:active::-webkit-slider-thumb, #np-seek:focus-visible::-webkit-slider-thumb { opacity: 1; }
+#np-seek::-moz-range-track { height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .28); }
+#np-seek::-moz-range-progress { height: 3px; border-radius: 2px; background: #fff; }
+#np-seek::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: #fff; opacity: 0; }
+body.global-dark #np-bar { background: linear-gradient(135deg, #0f766e, #134e4a); box-shadow: 0 2px 12px rgba(0, 0, 0, .5); }
+body.global-dark #np-bar .np-btn { background: transparent !important; color: #fff !important; }
+body.global-dark #np-bar .np-play { background: rgba(255, 255, 255, .2) !important; }
+@media (prefers-reduced-motion: reduce) { #np-bar { animation: none; } #screens-wrapper { transition: none; } }
+body.global-dark #np-seek { background: transparent !important; border: 0 !important; }
+
+/* نوار «در حال پخش»: لایه‌های absolute inset-0 داخل صفحهٔ پرسش و پاسخ باید به خود صفحه (که زیر نوار می‌نشیند) نسبت داده شوند نه به ظرف */
+#screen-qa { position: relative; }

@@ -10,7 +10,7 @@ const path = require('node:path');
 const PUB = path.resolve(__dirname, '..', 'public');
 const adminJs = fs.readdirSync(path.join(PUB, 'js', 'admin')).filter(f => f.endsWith('.js')).map(f => path.join('js', 'admin', f));
 // اپ عمومی: index.html + همهٔ اسکریپت‌های منبع آن (boot.js اسپلش، actions.js، و بسته‌های build شده)
-const APP_JS = ['actions', 'boot', 'utils', 'offline', 'books', 'lectures', 'media', 'news', 'aichat', 'app'].map(n => path.join('js', n + '.js'));
+const APP_JS = ['actions', 'boot', 'utils', 'offline', 'books', 'lectures', 'media', 'news', 'nowplaying', 'aichat', 'app'].map(n => path.join('js', n + '.js'));
 const SCANNED = ['admin.html', ...adminJs, 'index.html', ...APP_JS];
 // فایل‌هایی که تابع‌های قابل‌صدازدن را تعریف می‌کنند، به تفکیک صفحه (برای بررسی نام‌های data-*)
 const PAGES = {

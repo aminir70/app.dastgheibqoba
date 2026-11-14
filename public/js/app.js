@@ -538,20 +538,7 @@ function openHomeVideo(idx) {
     navToScreen('media', { onBack: function() { if (typeof backToVideoCategories === 'function') backToVideoCategories(); } });
     noBackPush(function() { switchMediaTab('video'); });
     videoCachedItems = _homeLatestVideos;
-    setTimeout(() => {
-        const catsView = document.getElementById('video-categories-view');
-        const listView = document.getElementById('video-list-view');
-        const playerView = document.getElementById('video-player-view');
-        if (catsView) catsView.classList.add('hidden');
-        if (listView) { listView.classList.add('hidden'); listView.classList.remove('flex'); }
-        if (playerView) { playerView.classList.remove('hidden'); playerView.classList.add('flex'); }
-        document.getElementById('video-player-title').textContent = v.title;
-        document.getElementById('video-aparat-iframe').src = v.embed_url;
-        trackView('media', 'video', v.id, v.title);
-        const descEl = document.getElementById('video-player-desc');
-        if (v.description && v.description.trim()) { descEl.textContent = v.description; descEl.classList.remove('hidden'); }
-        else descEl.classList.add('hidden');
-    }, 80);
+    _openVideoPlayer(v);
 }
 
 function openHomeAudio(idx) {
@@ -732,6 +719,8 @@ async function loadSectionContent(page, domKey) {
     const padding = parseInt(s.banner_padding ?? '4');
     const radius = parseInt(s.banner_radius ?? '16');
     const height = parseInt(s.banner_height ?? '120');
+    // بنر/اسلایدر تب ویدیو فقط روی صفحهٔ دسته‌ها است؛ اگر تا رسیدن پاسخ کاربر به لیست/پخش‌کننده رفته، چیزی بالای آن نگذار
+    const _stale = () => page === 'media_video' && typeof _isShown === 'function' && (_isShown('video-player-view') || _isShown('video-list-view'));
 
     // --- banners ---
     const bannerEl = document.getElementById(domKey + '-banner-top');
@@ -742,7 +731,7 @@ async function loadSectionContent(page, domKey) {
             if (res.ok) {
                 const banners = await res.json();
                 const active = Array.isArray(banners) ? banners.filter(b => +b.active === 1 && b.image && b.image.trim().length > 2) : [];
-                if (active.length) {
+                if (active.length && !_stale()) {
                     bannerEl.style.padding = '0 ' + padding + 'px';
                     bannerEl.innerHTML = active.map(b => {
                         const clickAttr = b.link ? act('click', 'handleBannerLink', act.s(b.link)) : '';
@@ -773,7 +762,7 @@ async function loadSectionContent(page, domKey) {
             img.src = sl.image;
         })));
         const data = valid.filter(Boolean);
-        if (!data.length) return;
+        if (!data.length || _stale()) return;
         const vw = window.innerWidth;
         const mH = parseInt(s.slider_height_mobile || s.slider_height || '160');
         const tH = parseInt(s.slider_height_tablet || s.slider_height || '280');
@@ -910,6 +899,10 @@ async function loadCaptcha(kind) {
         q.textContent = d.question;
     } catch(e) { q.textContent = 'خطا'; showToast('سؤال امنیتی دریافت نشد؛ دکمهٔ سؤال جدید را بزنید'); }
 }
+// جلوگیری از ارسال دوباره: Enter پشت‌سرهم یا Enter + دکمه، یک توکن کپچا را دو بار می‌فرستاد
+const _authBusy = {};
+function _authGuard(key) { if (_authBusy[key]) return false; _authBusy[key] = true; return true; }
+function _authDone(key) { _authBusy[key] = false; }
 function _captchaFields(kind) {
     const a = document.getElementById(kind + '-reg-cap-a');
     return { captcha_token: _captchaTok[kind] || '', captcha_answer: a ? a.value.trim() : '' };
@@ -944,6 +937,7 @@ async function mainLogin() {
     const u = (document.getElementById('main-login-username').value || '').trim();
     const p = document.getElementById('main-login-password').value || '';
     if (!u || !p) { showToast('نام کاربری و رمز عبور را وارد کنید'); return; }
+    if (!_authGuard('mainLogin')) return;
     const btn = document.getElementById('main-login-btn');
     btn.disabled = true; btn.textContent = 'در حال ورود...';
     try {
@@ -959,6 +953,7 @@ async function mainLogin() {
         } else { showToast(d.error || 'نام کاربری یا رمز عبور اشتباه است'); }
     } catch(e) { showToast('خطا در اتصال به سرور'); }
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt ml-2"></i>ورود به حساب';
+    _authDone('mainLogin');
 }
 
 async function mainRegister() {
@@ -970,6 +965,7 @@ async function mainRegister() {
     if (p.length < 6) { showToast('رمز عبور حداقل ۶ کاراکتر باشد'); return; }
     if (p !== p2) { showToast('رمز عبور و تکرار آن یکسان نیستند'); return; }
     if (!_captchaFields('main').captcha_answer) { showToast('به سؤال امنیتی پاسخ دهید'); return; }
+    if (!_authGuard('mainReg')) return;
     const btn = document.getElementById('main-reg-btn');
     btn.disabled = true; btn.textContent = 'در حال ثبت‌نام...';
     try {
@@ -985,6 +981,7 @@ async function mainRegister() {
         } else { showToast(d.error || 'خطا در ثبت‌نام'); loadCaptcha('main'); }   // هر توکن یک‌بارمصرف است
     } catch(e) { showToast('خطا در اتصال به سرور'); loadCaptcha('main'); }
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-user-plus ml-2"></i>ایجاد حساب کاربری';
+    _authDone('mainReg');
 }
 
 function authLogout() {
@@ -1062,6 +1059,9 @@ async function qaLogin() {
     const u = document.getElementById('qa-login-username').value.trim();
     const p = document.getElementById('qa-login-password').value;
     if (!u || !p) { showToast('نام کاربری و رمز عبور را وارد کنید'); return; }
+    if (!_authGuard('qaLogin')) return;
+    const btn = document.querySelector('[data-click="qaLogin"]');
+    if (btn) btn.disabled = true;
     try {
         const r = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p}) });
         const d = await r.json();
@@ -1074,6 +1074,8 @@ async function qaLogin() {
             afterLoginPush();
         } else { showToast(d.error || 'نام کاربری یا رمز عبور اشتباه است'); }
     } catch(e) { showToast('خطا در اتصال به سرور'); }
+    if (btn) btn.disabled = false;
+    _authDone('qaLogin');
 }
 async function qaRegister() {
     const u = document.getElementById('qa-reg-username').value.trim();
@@ -1082,6 +1084,9 @@ async function qaRegister() {
     if (!u || !p) { showToast('نام کاربری و رمز عبور را وارد کنید'); return; }
     if (p !== p2) { showToast('رمز عبور و تکرار آن یکسان نیستند'); return; }
     if (!_captchaFields('qa').captcha_answer) { showToast('به سؤال امنیتی پاسخ دهید'); return; }
+    if (!_authGuard('qaReg')) return;
+    const btn = document.querySelector('[data-click="qaRegister"]');
+    if (btn) btn.disabled = true;
     try {
         const r = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:u, password:p, ..._captchaFields('qa')}) });
         const d = await r.json();
@@ -1092,6 +1097,8 @@ async function qaRegister() {
             await qaLogin();
         } else { showToast(d.error || 'خطا در ثبت‌نام'); loadCaptcha('qa'); }
     } catch(e) { showToast('خطا در اتصال به سرور'); loadCaptcha('qa'); }
+    if (btn) btn.disabled = false;
+    _authDone('qaReg');
 }
 function qaLogout() {
     const headers = userAuthHeaders();
@@ -2088,9 +2095,9 @@ async function _openSearchMedia(i) {
         if (m.type === 'audio') {
             // مستقیم همان دسته‌ی track را بارگذاری کن (categoryId از سرور)
             await noBackPush(() => loadAudioPlaylist(m.categoryId, m.categoryName || '', 0));
-            const list = (typeof audioCurrentTracks !== 'undefined' && audioCurrentTracks) || [];
+            const list = (typeof audioBrowseTracks !== 'undefined' && audioBrowseTracks) || [];
             const idx = list.findIndex(t => String(t.id) === String(m.id));
-            selectAudioTrack(idx >= 0 ? idx : 0, true);
+            selectAudioBrowseTrack(idx >= 0 ? idx : 0);
         } else {
             await noBackPush(() => loadVideoList(m.categoryId, m.categoryName || '', 0));
             setTimeout(function() { noBackPush(function() { playVideoItem(m.id); }); }, 200);

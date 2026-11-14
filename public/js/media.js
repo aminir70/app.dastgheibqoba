@@ -171,6 +171,10 @@ let galleryCurrentIndex = 0;
 // گالری صوت
 let audioCurrentTracks = [];
 let audioCurrentIndex = -1;
+// audioCurrentTracks/Index = صفِ در حال پخش (نوار «در حال پخش» و دکمه‌های قبلی/بعدی)؛
+// audioBrowseTracks = فهرستی که در صفحهٔ پلی‌لیست دیده می‌شود. با باز کردن دستهٔ دیگر، صوتِ در حال پخش قطع نمی‌شود.
+let audioBrowseTracks = [];
+window._audioOrigin = 'playlist';   // 'single' (صفحهٔ پخش تکی) | 'playlist' (تب صوت): نوار پخش برای برگشتن
 let audioEl = null;
 let _audioCatsLoaded = false;
 
@@ -227,7 +231,7 @@ function setMediaViewMode(mode) {
         const acv = document.getElementById('audio-categories-view');
         const apv = document.getElementById('audio-playlist-view');
         if (acv && !acv.classList.contains('hidden')) { _audioCatsLoaded=false; const top=_audioNavStack[_audioNavStack.length-1]; withoutHistory(()=>loadAudioCategories(top?top.id:null,top?top.name:'')); }
-        else if (apv && !apv.classList.contains('hidden') && audioCurrentTracks.length) {
+        else if (apv && !apv.classList.contains('hidden') && audioBrowseTracks.length) {
             renderAudioTrackList();
         }
     } else if (photoContent && photoContent.style.display !== 'none') {
@@ -290,9 +294,11 @@ function switchMediaTab(tab) {
     if(tab !== 'video' && vc) vc.innerHTML = '';
 
     // مخفی کردن نوار پلی‌لیست صوت وقتی از تب صوت خارج می‌شیم
+    const _hb = document.getElementById('audio-playlist-header-bar');
     if (tab !== 'audio') {
-        const _hb = document.getElementById('audio-playlist-header-bar');
         if (_hb) _hb.classList.add('hidden');
+    } else if (_hb && _isShown('audio-playlist-view')) {
+        _hb.classList.remove('hidden');   // برگشت به تب صوت وقتی پلی‌لیست باز بوده: نوار عنوانش هم برگردد
     }
     if (!_skipHistoryPush) {
         // عوض کردن تب هم یک صفحه است: back به تب قبلی برمی‌گردد
@@ -554,7 +560,10 @@ async function loadVideoCategories(parentId, parentName) {
         const cats = await sharedJson(url);
         _videoCatsLoaded = true;
 
+        // اگر هنگام انتظار برای پاسخ، کاربر مستقیم به لیست/پخش‌کننده رفته (مثلاً ویدیو از صفحهٔ خانه)، دسته‌ها دوباره نمایان نشوند
+        const _catsWereHidden = view.classList.contains('hidden');
         view.className = _viewClasses('cats') + ' w-full';
+        if (_catsWereHidden) view.classList.add('hidden');
         if(cats && cats.length > 0) {
             const _catGrads = [
                 'linear-gradient(135deg,#e11d48,#9f1239)',
@@ -650,10 +659,18 @@ function playVideoItem(itemId) {
 
     // back از پخش: به لیستی که از آن آمدیم (پخش ویدیوی دیگر از همین‌جا entry نمی‌سازد)
     if (!_isShown('video-player-view')) pushBack(_isShown('video-list-view') ? backToVideoList : backToVideoCategories, 'media');
+    _openVideoPlayer(item);
+}
 
-    const listView = document.getElementById('video-list-view');
+// فقط پخش‌کنندهٔ این ویدیو دیده شود و بالای صفحه باشد: هر چیز دیگر تب ویدیو (دسته‌ها، لیست،
+// بنر ریلز، بنر/اسلایدر رسانه) مخفی می‌شود. از لیست، خانه، علاقه‌مندی، جستجو و تقویم صدا زده می‌شود.
+function _openVideoPlayer(item) {
+    if (typeof npPauseForVideo === 'function') npPauseForVideo();
+    if (typeof _clearMediaBanner === 'function') _clearMediaBanner();
+    setMediaLoading(false);   // چرخانِ «در حال دریافت» دسته‌ها (هنوز در راه است) بالای پخش‌کننده نماند
+    const hide = id => { const e = document.getElementById(id); if (e) { e.classList.add('hidden'); e.classList.remove('flex'); } };
+    ['video-categories-view', 'video-list-view', 'video-cats-header', 'video-reels-banner'].forEach(hide);
     const playerView = document.getElementById('video-player-view');
-    if(listView) { listView.classList.add('hidden'); listView.classList.remove('flex'); }
     if(playerView) { playerView.classList.remove('hidden'); playerView.classList.add('flex'); }
 
     document.getElementById('video-player-title').textContent = item.title;
@@ -667,6 +684,9 @@ function playVideoItem(itemId) {
     } else {
         descEl.classList.add('hidden');
     }
+    // اسکرول لیست/دسته‌های قبلی نباید پخش‌کننده را پایین نگه دارد
+    const sc = playerView && playerView.closest('.overflow-y-auto');
+    if (sc) sc.scrollTop = 0;
 }
 
 function _renderVideoItems(pairs) {
@@ -808,6 +828,7 @@ function openVideoReels() {
 }
 
 function _renderReels(items, title, startId) {
+    if (typeof npPauseForVideo === 'function') npPauseForVideo();
     const screen = document.getElementById('video-reels-screen');
     const container = document.getElementById('reels-container');
     if (!screen || !container) return;
@@ -1082,10 +1103,10 @@ function setGalleryAndOpen(photos, idx) {
     openGalleryImage(idx);
 }
 
-function setAudioTracksAndPlay(tracks, idx) {
+// صفحهٔ پلی‌لیست (نمای صوت) را نشان بده، بدون دست زدن به فهرست‌ها
+function _showAudioPlaylistUi(title) {
     window._audioDirectPlay = true; // جلوگیری از loadAudioCategories race condition
-    audioCurrentTracks = tracks;
-    audioCurrentIndex = -1;
+    setTimeout(() => { window._audioDirectPlay = false; }, 1000);
     const catsView = document.getElementById('audio-categories-view');
     const plView = document.getElementById('audio-playlist-view');
     if (catsView) catsView.classList.add('hidden');
@@ -1094,23 +1115,73 @@ function setAudioTracksAndPlay(tracks, idx) {
     if(_catsHdr3) { _catsHdr3.classList.add('hidden'); _catsHdr3.classList.remove('flex'); }
     const _hb3 = document.getElementById('audio-playlist-header-bar');
     if(_hb3) _hb3.classList.remove('hidden');
-    document.getElementById('audio-cat-title').textContent = 'آخرین صوت‌ها';
+    if (title != null) document.getElementById('audio-cat-title').textContent = title;
+}
+
+function setAudioTracksAndPlay(tracks, idx) {
+    audioCurrentTracks = tracks;
+    audioBrowseTracks = tracks;
+    audioCurrentIndex = -1;
+    window._audioOrigin = 'playlist';
+    _showAudioPlaylistUi('آخرین صوت‌ها');
     document.getElementById('audio-track-count').textContent = toFa(tracks.length) + ' صوت';
     renderAudioTrackList();
     selectAudioTrack(idx, true);
+}
+
+// از نوار «در حال پخش»: برگشت به پلیر صوت تب رسانه (بدون شروع دوبارهٔ قطعه)
+function npOpenAudioPlaylist() {
+    if (!audioBrowseTracks.length) audioBrowseTracks = audioCurrentTracks;
+    window._audioDirectPlay = true;
     setTimeout(() => { window._audioDirectPlay = false; }, 1000);
+    if (_activeScreenName() !== 'media') {
+        navToScreen('media', { init: false });                       // یک entry: back به صفحهٔ قبل
+        noBackPush(() => switchMediaTab('audio'));
+    } else {
+        switchMediaTab('audio');                                      // اگر تب عوض شود خودش entry می‌گذارد
+        if (!_isShown('audio-playlist-view')) pushBack(backToAudioCategories, 'media');
+    }
+    const t = document.getElementById('audio-cat-title');
+    _showAudioPlaylistUi(t && t.textContent.trim() ? null : 'آخرین صوت‌ها');
+    renderAudioTrackList();
+    const sc = document.getElementById('audio-playlist-view');
+    const scroller = sc && sc.closest('.overflow-y-auto');
+    if (scroller) scroller.scrollTop = 0;
+}
+
+// ✕ نوار «در حال پخش»: صوت متوقف و از پلیر برداشته شود
+function _audioUnload() {
+    if (audioEl) { audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); }
+    audioCurrentIndex = -1;
+    updatePlayBtn(false);
+    const card = document.getElementById('audio-player-card');
+    if (card) card.classList.add('hidden');
+    renderAudioTrackList();
+}
+
+// آیا موتور صوت رسانه چیزی بارگذاری‌شده (در حال پخش یا مکث) دارد که نباید با دیدن فهرست دیگری عوض شود؟
+function _audioBusy() {
+    return !!(audioEl && audioEl.getAttribute('src') && typeof _np !== 'undefined' && _np.cur && _np.cur.el === audioEl);
+}
+
+// کلیک روی یک قطعه در فهرست دیده‌شده: همین فهرست صف پخش می‌شود
+function selectAudioBrowseTrack(idx) {
+    if (idx < 0 || idx >= audioBrowseTracks.length) return;
+    audioCurrentTracks = audioBrowseTracks;
+    window._audioOrigin = 'playlist';
+    selectAudioTrack(idx, true);
 }
 
 // باز کردن یک صوت در صفحهٔ جدا (بدون رفتن به بخش دسته‌بندی‌های صوت) — از «آخرین صوت‌ها» در صفحه اصلی
-function openAudioSingleScreen(tracks, idx) {
-    audioCurrentTracks = tracks;
-    audioCurrentIndex = -1;
+function openAudioSingleScreen(tracks, idx, resume) {
+    window._audioOrigin = 'single';
+    if (!resume) { audioCurrentTracks = tracks; audioBrowseTracks = tracks; audioCurrentIndex = -1; }
     const card = document.getElementById('audio-player-card');
     const slot = document.getElementById('audio-single-slot');
     if (card && slot) slot.appendChild(card);
     const screen = document.getElementById('audio-single-screen');
     if (screen) { screen.classList.remove('hidden'); screen.classList.add('flex'); }
-    selectAudioTrack(idx, true);
+    if (!resume) selectAudioTrack(idx, true);   // resume: از نوار «در حال پخش»؛ قطعهٔ جاری دست‌نخورده می‌ماند
 }
 
 function closeAudioSingleScreen() {
@@ -1254,6 +1325,7 @@ function getAudioEl() {
         audioEl.addEventListener('ended', onAudioEnded);
         audioEl.addEventListener('play', ()=>updatePlayBtn(true));
         audioEl.addEventListener('pause', ()=>updatePlayBtn(false));
+        if (typeof npAttach === 'function') npAttach(audioEl);
     }
     return audioEl;
 }
@@ -1296,7 +1368,9 @@ async function loadAudioCategories(parentId, parentName) {
         const cats = await sharedJson(url);
         _audioCatsLoaded = true;
 
+        const _acatsHidden = view.classList.contains('hidden');   // کاربر مستقیم به پلی‌لیست رفته؟ دسته‌ها نمایان نشوند
         view.className = _viewClasses('cats') + ' w-full';
+        if (_acatsHidden) view.classList.add('hidden');
         if(cats && cats.length > 0) {
             const colors = ['from-brand-500 to-brand-700','from-violet-500 to-violet-700','from-rose-500 to-rose-700','from-amber-500 to-amber-700','from-emerald-500 to-emerald-700','from-blue-500 to-blue-700','from-pink-500 to-pink-700','from-teal-500 to-teal-700'];
             view.innerHTML = cats.map((cat, i) => {
@@ -1632,7 +1706,7 @@ function _csLeaveTo(screenName) {
 function _csPlayAudio(idx) {
     const filtered = (_csCache.audio||[]).filter(it=>{ try{const[y,m,d]=_csItemDate(it);return y===_csYear&&m===_csMonth&&d===_csSelDay;}catch(e){return false;} });
     const sy=_csYear, sm=_csMonth, sd=_csSelDay;
-    audioCurrentTracks = filtered; audioCurrentIndex = -1; _currentAudioCatId = null;
+    audioCurrentTracks = filtered; audioBrowseTracks = filtered; audioCurrentIndex = -1; _currentAudioCatId = null; window._audioOrigin = 'playlist';
     _csLeaveTo('media');
     noBackPush(() => switchMediaTab('audio'));
     const catsView = document.getElementById('audio-categories-view');
@@ -1731,12 +1805,12 @@ async function loadAudioPlaylist(categoryId, title, count) {
     try {
         const sortParam = _audioSort === 'date' ? '?sort=date' : '';
         const tracks = await _apiJson(`/api/audio/categories/${categoryId}/tracks${sortParam}`);
-        audioCurrentTracks = tracks;
+        audioBrowseTracks = tracks;
 
         if(tracks && tracks.length > 0) {
             renderAudioTrackList();
-            // Auto-select first track
-            selectAudioTrack(0, false);
+            // اگر صوتی در حال پخش (یا مکث) است همان بماند؛ وگرنه اولین قطعه بارگذاری می‌شود (بدون پخش)
+            if (!_audioBusy()) { audioCurrentTracks = tracks; selectAudioTrack(0, false); }
         } else {
             list.innerHTML = `<div class="flex flex-col items-center justify-center py-16 text-gray-400 gap-3">
                 <i class="fas fa-music text-4xl opacity-20"></i>
@@ -1750,15 +1824,16 @@ async function loadAudioPlaylist(categoryId, title, count) {
 
 function renderAudioTrackList(pairs) {
     const list = document.getElementById('audio-tracks-list');
-    if(!list || !audioCurrentTracks.length) return;
-    const items = pairs || audioCurrentTracks.map((tr, i) => ({tr, i}));
+    if(!list || !audioBrowseTracks.length) return;
+    const items = pairs || audioBrowseTracks.map((tr, i) => ({tr, i}));
+    const _sameQueue = audioBrowseTracks === audioCurrentTracks;
     if (!items.length) {
         list.innerHTML = `<div class="flex flex-col items-center justify-center py-10 text-gray-400 gap-2"><i class="fas fa-calendar-times text-3xl opacity-20"></i><p class="text-xs font-bold opacity-50">صوتی در این تاریخ وجود ندارد</p></div>`;
         return;
     }
     list.className = _viewClasses('items') + ' w-full';
     list.innerHTML = items.map(({tr, i: idx}) => {
-        const isActive = idx === audioCurrentIndex;
+        const isActive = _sameQueue && idx === audioCurrentIndex;
         const activeCls = isActive ? 'bg-brand-50 border border-brand-100' : 'bg-white border border-gray-100 hover:bg-gray-50';
         const coverSrc = tr.cover || tr._catCover || '';
         const coverInner = coverSrc ? `<img src="${safeUrl(coverSrc)}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
@@ -1768,7 +1843,7 @@ function renderAudioTrackList(pairs) {
         const favBtn = `<button class="mf-btn shrink-0 w-7 h-7 flex items-center justify-center rounded-full hover:bg-red-50 transition-colors" data-ftype="audio" data-fid="${tr.id}"${act('click', 'toggleMediaFav', 'audio', act.s(tr.id))} data-stop>${isFav ? '<i class="fas fa-heart text-red-500 text-xs"></i>' : '<i class="far fa-heart text-gray-300 text-xs"></i>'}</button>`;
         const dateStr = tr.publish_date ? escHtml(toFa(tr.publish_date)) : '';
         if (_mediaViewMode === 'grid') return `
-        <div id="audio-track-item-${idx}"${act('click', 'selectAudioTrack', idx, true)} class="${activeCls} rounded-2xl cursor-pointer transition-all active:scale-95 overflow-hidden shadow-sm flex flex-col relative">
+        <div id="audio-track-item-${idx}"${act('click', 'selectAudioBrowseTrack', idx)} class="${activeCls} rounded-2xl cursor-pointer transition-all active:scale-95 overflow-hidden shadow-sm flex flex-col relative">
             <div class="w-full aspect-square overflow-hidden relative bg-gray-100 flex items-center justify-center">${coverInner}${activeOverlay}</div>
             <div class="p-2 flex flex-col gap-1">
                 <div class="flex items-start gap-1">
@@ -1780,7 +1855,7 @@ function renderAudioTrackList(pairs) {
         </div>`;
         const coverSize = _mediaViewMode === 'large' ? 'w-16 h-16' : 'w-11 h-11';
         return `
-        <div id="audio-track-item-${idx}"${act('click', 'selectAudioTrack', idx, true)}
+        <div id="audio-track-item-${idx}"${act('click', 'selectAudioBrowseTrack', idx)}
             class="flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all active:scale-[0.98] ${activeCls} shadow-sm">
             <div class="${coverSize} rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center relative">${coverInner}${activeOverlay}</div>
             <div class="flex-1 min-w-0">
@@ -1825,6 +1900,7 @@ function selectAudioTrack(idx, autoPlay) {
     if(autoPlay) el.play().catch(()=>{});
 
     renderAudioTrackList();
+    if (typeof npRefresh === 'function') npRefresh();
 
     // Scroll track into view
     setTimeout(()=>{
@@ -1901,8 +1977,7 @@ function backToAudioCategories() {
     const plView = document.getElementById('audio-playlist-view');
     const plVisible = plView && !plView.classList.contains('hidden');
 
-    _audioCatsLoaded = false;
-    if(audioEl) { audioEl.pause(); }
+    _audioCatsLoaded = false;   // صوت در حال پخش ادامه می‌یابد؛ نوار «در حال پخش» کنترلش را نشان می‌دهد
     const catsView = document.getElementById('audio-categories-view');
     if(plView) { plView.classList.add('hidden'); plView.classList.remove('flex'); }
     const _hdrBar2 = document.getElementById('audio-playlist-header-bar');
@@ -1983,7 +2058,7 @@ async function openAudioTrackById(trackId) {
                 _audioNavStack = [];
                 await initAudioGallery();
                 loadAudioPlaylist(cat.id, cat.name, tracks.length);
-                setTimeout(() => selectAudioTrack(idx, true), 500);
+                setTimeout(() => selectAudioBrowseTrack(idx), 500);
                 return;
             }
         }

@@ -757,3 +757,6 @@ body.global-dark #home-desktop-header { background: rgba(15, 23, 42, .92) !impor
 #settings-modal:not([style*="translateY(0"]) { transform: translateY(calc(100% + 40px)) !important; }
 /* پخش ویدیو (مثلاً از صفحهٔ اصلی): بنر ریلز بالای پلیر لازم نیست */
 #media-content-video:has(#video-player-view:not(.hidden)) #video-reels-banner { display: none !important; }
+
+/* نوار «در حال پخش»: فقط روی ناحیهٔ محتوا (کنار نوار کناری) */
+#np-bar { right: var(--sb-w); padding-inline: max(16px, calc((100% - 900px) / 2)); }

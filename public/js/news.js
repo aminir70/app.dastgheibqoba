@@ -262,6 +262,13 @@ function showStatementsSingle(postId) {
 
 function statementsNavBack() { handleBackButton(); }
 
+// از نوار «در حال پخش»: برگشت به بیانیهٔ در حال پخش (اگر هنوز در حافظه باشد) — یک entry
+function npOpenStatementPost(postId) {
+    if (!cachedStatementsPosts.find(p => p.id === postId)) { navToScreen('statements'); return; }
+    navToScreen('statements', { init: false });
+    noBackPush(function() { showStatementsSingle(postId); });
+}
+
 // ====================================================
 // توابع مشترک WP برای اخبار و بیانیه‌ها
 // ====================================================
@@ -310,6 +317,7 @@ async function renderWPSingle(post, screen) {
     if (featuredUrl0) { imgC0.classList.remove('hidden'); imgC0.querySelector('img').src = featuredUrl0; }
     else { imgC0.classList.add('hidden'); }
 
+    window._wpSingleCtx = { screen: screen, id: post.id };   // نوار «در حال پخش» می‌داند صوت مال کدام مطلب است
     const pageMediaP = fetchPageMedia(post.id);
     const media = extractMediaFromPost(post);
 

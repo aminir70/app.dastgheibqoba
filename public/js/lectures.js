@@ -339,6 +339,34 @@ function _paLoad(uid, idx) {
     a.src = tr.src; a.play().catch(() => {});
     const pi = document.getElementById('post-play-icon-' + uid); if (pi) pi.className = 'fas fa-pause text-xl';
 }
+// آیکن‌های پلیر مطلب را با وضعیت واقعی عنصر یکی کن (نوار «در حال پخش» هم می‌تواند پخش/توقف کند)
+function _paSyncUi(a) {
+    if (!a || !a.id) return;
+    const uid = a.id.replace('post-audio-', '');
+    const playing = !a.paused && !a.ended;
+    const pi = document.getElementById('post-play-icon-' + uid);
+    if (pi) pi.className = playing ? 'fas fa-pause text-xl' : 'fas fa-play text-xl ml-0.5';
+    const cur = (window._paCur || {})[uid];
+    if (cur >= 0) {
+        const ii = document.getElementById('post-item-icon-' + uid + '-' + cur);
+        if (ii) ii.className = playing ? 'fas fa-pause text-sm' : 'fas fa-play text-sm ml-0.5';
+    }
+}
+// از نوار «در حال پخش»: برگشت به مطلب سخنرانیِ در حال پخش — یک entry، back به صفحهٔ قبل
+async function npOpenLecturePost(postId) {
+    let post = cachedPosts.find(p => p.id === postId);
+    if (!post) {
+        try {
+            const r = await wpFetch(`posts/${postId}?_embed=1`);
+            if (r.ok) { post = await r.json(); cachedPosts = [post, ...cachedPosts]; }
+        } catch (e) {}
+    }
+    if (!post) return;
+    if (allWPCats.length === 0) getWPCategories().then(c => { if (Array.isArray(c)) allWPCats = c; }).catch(() => {});
+    _lecStandalone = true;
+    navToScreen('lectures', { init: false });
+    withoutHistory(function() { wpState.currentCat = { id: null, name: '' }; showWPSingleView(postId); });
+}
 function _paInitAll(container) {
     (container || document).querySelectorAll('[data-pa-uid]').forEach(el => {
         const uid = el.dataset.paUid;
@@ -440,6 +468,7 @@ async function showWPSingleView(postId) {
     });
 
     wpState.view = 'single';
+    window._wpSingleCtx = { screen: 'lectures', id: postId };   // نوار «در حال پخش» می‌داند صوت مال کدام مطلب است
     const screen = document.getElementById('screen-lectures');
     if (screen) screen.classList.add('reading-mode');
     const btnSet = document.getElementById('btn-lectures-settings');
