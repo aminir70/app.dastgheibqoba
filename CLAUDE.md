@@ -32,6 +32,7 @@
     ├── admin.html         # پنل مدیریت (فقط HTML؛ CSS و JS بیرونی)
     ├── sw.js              # Service Worker (PWA)
     ├── js/
+    │   ├── actions.js     # رویدادهای declarative (data-click/act) به‌جای onclick درون‌خطی — فعلاً فقط پنل ادمین
     │   ├── app.js         # کنترلر اصلی: ناوبری، تاریخچه، splash
     │   ├── books.js       # کتابخانه دیجیتال و PDF viewer
     │   ├── lectures.js    # سخنرانی‌ها (از WordPress API)
@@ -498,7 +499,26 @@ JWT_SECRET=...
 |------|--------|
 | `escHtml(v)` | هر داده‌ای که با `innerHTML` درج می‌شود. |
 | `safeUrl(v)` | هر URL که در `href`/`src` قرار می‌گیرد. |
-| `jsArg(v)` | آرگومان داخل attribute: `onclick="f(${jsArg(v)})"` — بدون کوتیشن اضافه. |
+| `jsArg(v)` | **فقط اپ عمومی (تا مرحلهٔ بعد):** آرگومان داخل attribute: `onclick="f(${jsArg(v)})"` — بدون کوتیشن اضافه. در پنل ادمین استفاده نمی‌شود. |
+
+### رویدادهای پنل ادمین: `data-click` و `act(...)` (بدون inline handler)
+پنل ادمین هیچ `on…=` و هیچ `<script>` درون‌خطی ندارد؛ CSP همان صفحه `script-src 'self'` است
+(بدون `unsafe-inline` و `unsafe-eval`؛ میدلور CSP در `server.js` فقط برای `/admin` و `/admin.html`
+این را می‌فرستد و بقیه سیاست قبلی را دارند). مکانیزم در `public/js/actions.js` (classic، بدون build،
+در `<head>` پنل) است و سربرگ فارسی خودش API را شرح می‌دهد:
+- HTML ثابت: `data-click="نام" data-args='["a",1,{"$":"el"}]'` (همچنین `data-change/input/submit/keypress/…`،
+  `data-args-<رویداد>`، `data-key="Enter"`، `data-stop`، `data-prevent`، `data-self`). توکن‌های آرگومان:
+  `{"$":"el"|"event"|"value"|"checked"|"files"}`؛ تابع با `this` = عنصر صدا زده می‌شود.
+- قالب‌های JS: `` `<button${act('click','deleteBook',b.id,act.s(b.title))}>` `` (به‌جای `onclick="f(${jsArg(v)})"`؛
+  `act.s(v)` همان رشتهٔ امنِ jsArg است؛ `act.el/act.event` توکن‌ها هستند). اگر متغیر محلی‌ای به نام `act`
+  هست از `window.act` استفاده کنید.
+- نام تابع فقط `/^[A-Za-z_$][\w$]*$/` و فقط از `Actions.register({...})` یا تابع غیر-native که own property از
+  `window` باشد پیدا می‌شود (`fetch/open/eval/…` هرگز). کنش‌های عمومی ثبت‌شده: `uiNop uiClick uiSetValue uiHide
+  uiRemove uiCloseModal uiClearIfText uiClearIfFile uiClearIfFileOrText uiMirrorText uiMirrorValue`؛ بقیه
+  توابع نام‌دار کنار کد همان بخش در `public/js/admin/*.js` هستند.
+- تست دائمی: `test/no-inline-handlers.test.js` (رویداد/اسکریپت/`javascript:` درون‌خطی و نام‌های `data-*` ناشناخته؛
+  فهرست `SCANNED` بالای فایل برای اپ عمومی گسترش می‌یابد) و `test/admin-csp.test.js` (هدر CSP).
+- `tailwind.config.js` فایل `actions.js` را از content کنار می‌گذارد (فقط نام رویداد دارد، نه کلاس).
 
 **قاعده:** هیچ داده‌ای از API نباید بدون `escHtml` وارد `innerHTML` شود. sanitizer
 سمت سرور یک blacklist است و به‌تنهایی کافی نیست.

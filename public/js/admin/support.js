@@ -12,7 +12,7 @@ async function loadTickets(){
       const act=activeTicketId==t.id&&currentSupportMode==='tickets';
       const copyText=`موضوع: ${t.subject||''}\nکاربر: ${t.username||''}\n${t.last_msg?'پیام: '+t.last_msg:''}`.trim();
       return `<div class="relative border rounded-xl transition ${act?'bg-amber-50 border-amber-200':'bg-white border-gray-100 hover:bg-gray-50'}">
-        <button onclick="selectTicket(${t.id},${jsArg(t.subject||'')},${jsArg(t.status||'')})" class="w-full text-right p-3 flex flex-col gap-1">
+        <button${window.act('click','selectTicket',t.id,window.act.s(t.subject||''),window.act.s(t.status||''))} class="w-full text-right p-3 flex flex-col gap-1">
           <div class="flex items-center justify-between gap-1">
             <h4 class="font-bold text-xs truncate flex-1">${escHtml(t.subject)}</h4>
             <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full ${s.cls} shrink-0 ml-6">${escHtml(s.text)}</span>
@@ -24,7 +24,7 @@ async function loadTickets(){
           </div>
           ${(t.last_msg||adminAttachLabel(t.last_attachment_type))?`<p class="text-[10px] text-gray-500 truncate">${escHtml(t.last_msg||adminAttachLabel(t.last_attachment_type))}</p>`:''}
         </button>
-        <button onclick="copyTicketText(event,${jsArg(copyText)})" title="کپی" class="absolute top-2 left-2 w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-teal-50 hover:text-teal-600 text-gray-400 rounded-lg transition text-[10px]"><i class="fas fa-copy"></i></button>
+        <button${window.act('click','copyTicketText',window.act.event,window.act.s(copyText))} title="کپی" class="absolute top-2 left-2 w-6 h-6 flex items-center justify-center bg-gray-100 hover:bg-teal-50 hover:text-teal-600 text-gray-400 rounded-lg transition text-[10px]"><i class="fas fa-copy"></i></button>
       </div>`;
     }).join('');
   }catch(e){}
@@ -59,8 +59,8 @@ async function selectTicket(id,subject,status){
         else if(m.attachment_type==='pdf') attachHtml=`<a href="${attUrl}" target="_blank" class="inline-flex items-center gap-1 mt-2 bg-red-50 border border-red-100 px-2 py-1 rounded-lg text-[10px] text-red-600 font-bold hover:bg-red-100"><i class="fas fa-file-pdf"></i>مشاهده PDF</a>`;
         else if(m.attachment_type==='audio') attachHtml=`<audio controls class="mt-2 w-full" style="min-height:40px;" src="${attUrl}"></audio>`;
       }
-      const editBtn=(isAdmin&&m.text)?`<button onclick="adminEditMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="ویرایش"><i class="fas fa-pen"></i></button>`:'';
-      const replyBtn=m.id?`<button onclick="adminReplyToMsg(${m.id})" class="text-[9px] text-gray-400 hover:text-teal-600" title="پاسخ"><i class="fas fa-reply"></i></button>`:'';
+      const editBtn=(isAdmin&&m.text)?`<button${act('click','adminEditMsg',m.id)} class="text-[9px] text-gray-400 hover:text-teal-600" title="ویرایش"><i class="fas fa-pen"></i></button>`:'';
+      const replyBtn=m.id?`<button${act('click','adminReplyToMsg',m.id)} class="text-[9px] text-gray-400 hover:text-teal-600" title="پاسخ"><i class="fas fa-reply"></i></button>`:'';
       return `<div class="flex ${isAdmin?'justify-start':'justify-end'}">
         <div class="${isAdmin?'bg-teal-50 border border-teal-100':'bg-white border border-gray-100'} max-w-[75%] px-4 py-2.5 rounded-2xl text-xs font-medium shadow-sm">
           ${adminReplyQuote(m)}
@@ -304,7 +304,7 @@ async function toggleCannedPicker(){
     const list=await r.json();
     if(!Array.isArray(list)||!list.length){ picker.innerHTML='<p class="text-center text-xs text-gray-400 p-2">پاسخ آماده‌ای ثبت نشده</p>'; }
     else {
-      picker.innerHTML=list.map(c=>`<button onclick="insertCanned(${jsArg(c.text)})" class="w-full text-right px-3 py-2 text-xs bg-white border border-gray-100 rounded-lg hover:bg-amber-50 hover:border-amber-200 transition flex flex-col gap-0.5">
+      picker.innerHTML=list.map(c=>`<button${act('click','insertCanned',act.s(c.text))} class="w-full text-right px-3 py-2 text-xs bg-white border border-gray-100 rounded-lg hover:bg-amber-50 hover:border-amber-200 transition flex flex-col gap-0.5">
         <span class="font-bold text-amber-700">${escHtml(c.title)}</span>
         <span class="text-gray-500 line-clamp-1">${escHtml(c.text)}</span>
       </button>`).join('');
@@ -328,8 +328,8 @@ async function loadTicketCategories(){
     c.innerHTML=cats.map(cat=>`<div class="flex items-center gap-2 p-3 bg-white border border-gray-100 rounded-xl">
       <span class="flex-1 text-xs font-bold text-gray-700">${escHtml(cat.name)}</span>
       <span class="text-[9px] px-1.5 py-0.5 rounded ${cat.active?'bg-green-50 text-green-600':'bg-gray-100 text-gray-400'}">${cat.active?'فعال':'غیرفعال'}</span>
-      <button onclick="editCategory(${cat.id},${jsArg(cat.name)},${cat.active})" class="text-[10px] text-blue-400 hover:text-blue-600 px-1"><i class="fas fa-pen"></i></button>
-      <button onclick="deleteCategory(${cat.id})" class="text-[10px] text-red-400 hover:text-red-600 px-1"><i class="fas fa-trash"></i></button>
+      <button${act('click','editCategory',cat.id,act.s(cat.name),cat.active)} class="text-[10px] text-blue-400 hover:text-blue-600 px-1"><i class="fas fa-pen"></i></button>
+      <button${act('click','deleteCategory',cat.id)} class="text-[10px] text-red-400 hover:text-red-600 px-1"><i class="fas fa-trash"></i></button>
     </div>`).join('');
   }catch(e){}
 }
@@ -374,8 +374,8 @@ async function loadCannedResponses(){
       <div class="flex items-center justify-between">
         <span class="text-xs font-bold text-amber-700">${escHtml(item.title)}</span>
         <div class="flex gap-1">
-          <button onclick="editCanned(${item.id},${jsArg(item.title)},${jsArg(item.text)})" class="text-[10px] text-blue-400 hover:text-blue-600 px-1"><i class="fas fa-pen"></i></button>
-          <button onclick="deleteCanned(${item.id})" class="text-[10px] text-red-400 hover:text-red-600 px-1"><i class="fas fa-trash"></i></button>
+          <button${act('click','editCanned',item.id,act.s(item.title),act.s(item.text))} class="text-[10px] text-blue-400 hover:text-blue-600 px-1"><i class="fas fa-pen"></i></button>
+          <button${act('click','deleteCanned',item.id)} class="text-[10px] text-red-400 hover:text-red-600 px-1"><i class="fas fa-trash"></i></button>
         </div>
       </div>
       <p class="text-[10px] text-gray-500 line-clamp-2">${escHtml(item.text)}</p>
@@ -420,7 +420,7 @@ async function loadQAUsers(){
     c.innerHTML=users.map(u=>{
       const act=activeUserId==u.id&&currentSupportMode==='qa';
       const d=new Date(u.last_date).toLocaleTimeString('fa-IR',{hour:'2-digit',minute:'2-digit'});
-      return `<button onclick="selectUser(${u.id},${jsArg(u.username)})" class="w-full text-right p-3 border rounded-xl transition ${act?'bg-teal-50 border-teal-200':'bg-white border-gray-100 hover:bg-gray-50'} flex items-center gap-2">
+      return `<button${window.act('click','selectUser',u.id,window.act.s(u.username))} class="w-full text-right p-3 border rounded-xl transition ${act?'bg-teal-50 border-teal-200':'bg-white border-gray-100 hover:bg-gray-50'} flex items-center gap-2">
         <div class="w-8 h-8 ${act?'bg-teal-200 text-teal-700':'bg-gray-100 text-gray-400'} rounded-full flex items-center justify-center text-xs shrink-0"><i class="fas fa-user"></i></div>
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-center mb-0.5">

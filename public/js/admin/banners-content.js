@@ -39,19 +39,19 @@ function renderBannerCards(bns){
     return `
     <div class="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-4 flex flex-col gap-3" id="banner-card-${pos}">
       <h3 class="font-bold text-sm text-gray-700">بنر ${pos}</h3>
-      <div class="aspect-video bg-gray-100 rounded-xl overflow-hidden cursor-pointer relative" onclick="document.getElementById('banner-img-${pos}').click()">
+      <div class="aspect-video bg-gray-100 rounded-xl overflow-hidden cursor-pointer relative"${act('click','uiClick',`banner-img-${pos}`)}>
         ${b.image&&b.image.trim().length>2?`<img id="banner-preview-${pos}" src="${safeUrl(b.image)}" class="w-full h-full object-cover">`:`<div id="banner-preview-${pos}" class="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-1"><i class="fas fa-image text-3xl"></i><span class="text-xs">کلیک برای انتخاب تصویر</span></div>`}
         <div class="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition flex items-center justify-center text-white text-sm font-bold rounded-xl">تغییر تصویر</div>
       </div>
-      <input type="file" id="banner-img-${pos}" accept="image/*" class="hidden" onchange="previewBanner(${pos},this);document.getElementById('banner-url-${pos}').value=''">
+      <input type="file" id="banner-img-${pos}" accept="image/*" class="hidden" ${act('change','onBannerFileChange',pos,act.el)}>
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-1">یا لینک تصویر (URL)</label>
-        <input type="url" id="banner-url-${pos}" value="" placeholder="https://example.com/banner.jpg" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500" oninput="if(this.value.trim()){document.getElementById('banner-img-${pos}').value='';previewBannerUrl(${pos},this.value);}">
+        <input type="url" id="banner-url-${pos}" value="" placeholder="https://example.com/banner.jpg" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500" ${act('input','onBannerUrlInput',pos,act.el)}>
       </div>
       <input type="text" id="banner-title-${pos}" value="${escHtml(b.title||'')}" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500" placeholder="عنوان بنر (اختیاری)">
       <div>
         <label class="block text-xs font-bold text-gray-500 mb-1.5">نوع لینک</label>
-        <select id="banner-link-type-${pos}" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500" onchange="onBannerLinkTypeChange(${pos})">
+        <select id="banner-link-type-${pos}" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500"${act('change','onBannerLinkTypeChange',pos)}>
           ${linkTypes.map(lt=>`<option value="${lt.v}" ${lp.type===lt.v?'selected':''}>${lt.l}</option>`).join('')}
         </select>
       </div>
@@ -148,6 +148,21 @@ function getBannerLinkValue(pos){
   const id=document.getElementById('banner-internal-id-'+pos)?.value||'';
   if(!id) return '';
   return 'app://'+type+'/'+id;
+}
+// جایگزین onchange درون‌خطی ورودی فایل بنر: پیش‌نمایش + خالی کردن لینک
+function onBannerFileChange(pos,input){
+  previewBanner(pos,input);document.getElementById('banner-url-'+pos).value='';
+}
+// جایگزین oninput درون‌خطی لینک بنر: فایل انتخابی را پاک و پیش‌نمایش لینک را نشان می‌دهد
+function onBannerUrlInput(pos,input){
+  if(input.value.trim()){document.getElementById('banner-img-'+pos).value='';previewBannerUrl(pos,input.value);}
+}
+// جایگزین oninput درون‌خطی اسلایدر ارتفاع بنر و کادر عددی آن
+function bannerHeightFromRange(){
+  document.getElementById('banner-height-num').value=this.value;document.getElementById('banner-height-val').textContent=this.value;
+}
+function bannerHeightFromNum(){
+  document.getElementById('s-banner_height').value=this.value;document.getElementById('banner-height-val').textContent=this.value;
 }
 function previewBanner(pos,input){
   if(!input.files[0]) return;
@@ -337,8 +352,8 @@ function _showImageInsertDialog(q){
       <input type="url" id="_img-url" placeholder="https://..." style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:13px;outline:none;box-sizing:border-box;">
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="document.getElementById('_img-dlg').remove()" style="background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px;">لغو</button>
-      <button onclick="_insertImg()" style="background:#0d9488;color:#fff;border:none;border-radius:8px;padding:8px 20px;cursor:pointer;font-weight:700;font-size:13px;">درج</button>
+      <button${act('click','uiRemove','_img-dlg')} style="background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:700;font-size:13px;">لغو</button>
+      <button${act('click','_insertImg')} style="background:#0d9488;color:#fff;border:none;border-radius:8px;padding:8px 20px;cursor:pointer;font-weight:700;font-size:13px;">درج</button>
     </div>
   </div>`;
   document.body.appendChild(d);
@@ -371,8 +386,8 @@ function _showImgResizeBar(img){
   bar.innerHTML=`<span>عرض:</span>
     <input type="number" id="_img-w" value="${curW}" min="10" max="2000" style="width:68px;background:#334155;border:1px solid #475569;color:#fff;border-radius:4px;padding:3px 6px;font-size:12px;outline:none;">
     <span>px</span>
-    <button onclick="_applyImgW()" style="background:#0d9488;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;">اعمال</button>
-    <button onclick="document.getElementById('_img-rbar').remove()" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;">✕</button>`;
+    <button${act('click','_applyImgW')} style="background:#0d9488;color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;">اعمال</button>
+    <button${act('click','uiRemove','_img-rbar')} style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;">✕</button>`;
   const rect=img.getBoundingClientRect();
   bar.style.top=Math.max(8,rect.top-48)+'px';
   bar.style.left=Math.max(8,rect.left)+'px';

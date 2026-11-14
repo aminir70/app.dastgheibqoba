@@ -40,8 +40,8 @@ function renderLivePresets(field){
   c.innerHTML=arr.map((val,i)=>{
     const short=val.length>40?val.slice(0,40)+'…':val;
     return `<span class="inline-flex items-center gap-1.5 bg-gray-100 hover:bg-red-50 border border-gray-200 rounded-full pr-3 pl-1 py-1 text-xs text-gray-700 transition group">
-      <button type="button" onclick="selectLivePreset('${field}',${i})" class="truncate font-medium" style="max-width:220px" title="${adminEscHtml(val)}">${adminEscHtml(short)}</button>
-      <button type="button" onclick="removeLivePreset('${field}',${i})" class="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 shrink-0" title="حذف"><i class="fas fa-times text-[10px]"></i></button>
+      <button type="button"${act('click','selectLivePreset',String(field),i)} class="truncate font-medium" style="max-width:220px" title="${adminEscHtml(val)}">${adminEscHtml(short)}</button>
+      <button type="button"${act('click','removeLivePreset',String(field),i)} class="w-5 h-5 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 shrink-0" title="حذف"><i class="fas fa-times text-[10px]"></i></button>
     </span>`;
   }).join('');
 }

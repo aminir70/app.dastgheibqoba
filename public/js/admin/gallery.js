@@ -14,7 +14,7 @@ function initSubcatSortables(rootEl, endpoint){
 }
 // نشانه‌ی کشیدن برای زیردسته
 function subcatHandle(){
-  return `<div class="subcat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines-vertical text-sm"></i></div>`;
+  return `<div class="subcat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" data-click="uiNop" data-stop><i class="fas fa-grip-lines-vertical text-sm"></i></div>`;
 }
 
 function renderGalleryAdminCat(cat, isChild=false){
@@ -37,9 +37,9 @@ function renderGalleryAdminCat(cat, isChild=false){
           </div>
         </div>
         <div class="flex gap-1.5 shrink-0">
-          <button onclick="openPhotoModal(${cat.id},${jsArg(cat.name)},'${cat.id}')" class="bg-teal-50 text-teal-600 hover:bg-teal-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"><i class="fas fa-plus"></i><span class="hidden sm:inline">افزودن عکس</span></button>
-          <button onclick="openEditCatModal(${cat.id},${jsArg(cat.name)},${jsArg(cat.description||'')},${jsArg(cat.cover||'')},${jsArg(cat.parent_id||'')})" class="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-edit text-xs"></i></button>
-          <button onclick="deleteGalleryCategory(${cat.id})" class="bg-rose-50 text-rose-500 hover:bg-rose-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-trash text-xs"></i></button>
+          <button${act('click','openPhotoModal',cat.id,act.s(cat.name),String(cat.id))} class="bg-teal-50 text-teal-600 hover:bg-teal-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"><i class="fas fa-plus"></i><span class="hidden sm:inline">افزودن عکس</span></button>
+          <button${act('click','openEditCatModal',cat.id,act.s(cat.name),act.s(cat.description||''),act.s(cat.cover||''),act.s(cat.parent_id||''))} class="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-edit text-xs"></i></button>
+          <button${act('click','deleteGalleryCategory',cat.id)} class="bg-rose-50 text-rose-500 hover:bg-rose-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-trash text-xs"></i></button>
         </div>
       </div>
       <div id="gcat-photos-${cat.id}" class="p-3">
@@ -103,8 +103,8 @@ async function loadCategoryPhotosAdmin(catId){
         <img src="${safeUrl(ph.image)}" class="w-full h-full object-cover">
         ${ph.title?`<div class="absolute bottom-0 inset-x-0 bg-black/50 px-1.5 py-1 text-white text-[9px] text-center truncate">${escHtml(ph.title)}</div>`:''}
         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-          <button onclick="editGalleryPhotoTitle(${ph.id},${catId},${jsArg(ph.title||'')})" class="bg-white text-blue-500 w-7 h-7 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-50 transition"><i class="fas fa-edit text-[10px]"></i></button>
-          <button onclick="deleteGalleryPhoto(${ph.id},${catId})" class="bg-white text-rose-500 w-7 h-7 rounded-full flex items-center justify-center shadow-lg hover:bg-rose-50 transition"><i class="fas fa-trash text-[10px]"></i></button>
+          <button${act('click','editGalleryPhotoTitle',ph.id,catId,act.s(ph.title||''))} class="bg-white text-blue-500 w-7 h-7 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-50 transition"><i class="fas fa-edit text-[10px]"></i></button>
+          <button${act('click','deleteGalleryPhoto',ph.id,catId)} class="bg-white text-rose-500 w-7 h-7 rounded-full flex items-center justify-center shadow-lg hover:bg-rose-50 transition"><i class="fas fa-trash text-[10px]"></i></button>
         </div>
       </div>`).join('')}</div>`;
   }catch(e){}

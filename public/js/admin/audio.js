@@ -4,8 +4,8 @@
 function renderAudioAdminCat(cat, isChild=false){
   return `
     <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100':'border-gray-100'} overflow-hidden" id="acat-${cat.id}" data-cat-id="${cat.id}">
-      <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}" onclick="toggleAudioCat(${cat.id})">
-        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
+      <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}"${act('click','toggleAudioCat',cat.id)}>
+        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" data-click="uiNop" data-stop><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
         <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
           ${cat.cover?`<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">`:`<div class="w-full h-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center"><i class="fas fa-headphones text-white text-xl"></i></div>`}
         </div>
@@ -21,10 +21,10 @@ function renderAudioAdminCat(cat, isChild=false){
           </div>
         </div>
         <i id="acat-chevron-${cat.id}" class="fas fa-chevron-left text-gray-300 text-xs transition-transform shrink-0"></i>
-        <div class="flex gap-1.5 shrink-0" onclick="event.stopPropagation()">
-          <button onclick="openAudioTrackModal(${cat.id},${jsArg(cat.name)});" class="bg-teal-50 text-teal-600 hover:bg-teal-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"><i class="fas fa-plus"></i><span class="hidden sm:inline">افزودن صوت</span></button>
-          <button onclick="openEditAudioCat(${cat.id})" class="bg-amber-50 text-amber-600 hover:bg-amber-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-edit text-xs"></i></button>
-          <button onclick="deleteAudioCategory(${cat.id})" class="bg-rose-50 text-rose-500 hover:bg-rose-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-trash text-xs"></i></button>
+        <div class="flex gap-1.5 shrink-0" data-click="uiNop" data-stop>
+          <button${act('click','openAudioTrackModal',cat.id,act.s(cat.name))} class="bg-teal-50 text-teal-600 hover:bg-teal-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"><i class="fas fa-plus"></i><span class="hidden sm:inline">افزودن صوت</span></button>
+          <button${act('click','openEditAudioCat',cat.id)} class="bg-amber-50 text-amber-600 hover:bg-amber-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-edit text-xs"></i></button>
+          <button${act('click','deleteAudioCategory',cat.id)} class="bg-rose-50 text-rose-500 hover:bg-rose-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-trash text-xs"></i></button>
         </div>
       </div>
       <div id="acat-tracks-${cat.id}" class="hidden p-3 border-t border-gray-100" data-loaded="0">
@@ -102,8 +102,8 @@ async function loadCategoryTracksAdmin(catId){
           ${tr.artist?`<p class="text-[10px] text-gray-400">${escHtml(tr.artist)}</p>`:''}
           <p class="text-[10px] text-gray-300 truncate mt-0.5">${escHtml((tr.publish_date?'📅 '+tr.publish_date:'')+' '+(tr.audio_url.startsWith('/')?'فایل آپلود شده':tr.audio_url.substring(0,40)+'...'))}</p>
         </div>
-        <button onclick="openEditAudioTrack(${tr.id},${catId})" class="bg-amber-50 text-amber-500 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-amber-100 transition shrink-0"><i class="fas fa-edit text-xs"></i></button>
-        <button onclick="deleteAudioTrack(${tr.id},${catId})" class="bg-rose-50 text-rose-500 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-rose-100 transition shrink-0"><i class="fas fa-trash text-xs"></i></button>
+        <button${act('click','openEditAudioTrack',tr.id,catId)} class="bg-amber-50 text-amber-500 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-amber-100 transition shrink-0"><i class="fas fa-edit text-xs"></i></button>
+        <button${act('click','deleteAudioTrack',tr.id,catId)} class="bg-rose-50 text-rose-500 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-rose-100 transition shrink-0"><i class="fas fa-trash text-xs"></i></button>
       </div>`).join('')}</div>`;
     // Drag-and-drop for tracks
     const listEl=c.querySelector('.flex.flex-col.gap-2');

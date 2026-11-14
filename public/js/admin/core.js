@@ -22,7 +22,7 @@ function safeUrl(v){
   if(u.charAt(0)==='/'&&u.charAt(1)!=='/') return escHtml(u);
   return '';
 }
-// آرگومان JS امن داخل attribute:  onclick="f(${jsArg(v)})"
+// (قدیمی — فقط برای اپ عمومی؛ پنل ادمین از act(...) در actions.js استفاده می‌کند) آرگومان JS امن داخل attribute
 function jsArg(v){ return escHtml(JSON.stringify(v==null?'':String(v))); }
 
 async function adminFetch(url, options={}) {

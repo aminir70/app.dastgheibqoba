@@ -98,9 +98,15 @@ const CSP_VALUE = [
     "connect-src 'self' https:",
     "frame-src 'self' https:"
 ].join('; ');
+// صفحهٔ پنل ادمین هیچ رویداد/اسکریپت درون‌خطی ندارد (data-click و actions.js)؛
+// پس برایش script-src سخت‌گیرانه: فقط 'self' (بدون unsafe-inline/unsafe-eval).
+const CSP_ADMIN_VALUE = CSP_VALUE.replace(/script-src [^;]*/, "script-src 'self'");
+const ADMIN_PAGE_RE = /^\/admin(\.html)?\/?$/i;
 if (process.env.CSP_DISABLED !== '1') {
     app.use((req, res, next) => {
-        if (!res.getHeader('Content-Security-Policy')) res.setHeader('Content-Security-Policy', CSP_VALUE);
+        if (!res.getHeader('Content-Security-Policy')) {
+            res.setHeader('Content-Security-Policy', ADMIN_PAGE_RE.test(req.path) ? CSP_ADMIN_VALUE : CSP_VALUE);
+        }
         next();
     });
 }

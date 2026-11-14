@@ -4,8 +4,8 @@
 function renderVideoAdminCat(cat, isChild=false){
   return `
     <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-rose-100':'border-gray-100'} overflow-hidden" id="vcat-${cat.id}" data-cat-id="${cat.id}">
-      <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-rose-50 bg-rose-50/20':'border-gray-100'}" onclick="toggleVideoCat(${cat.id})">
-        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" onclick="event.stopPropagation()"><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
+      <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-rose-50 bg-rose-50/20':'border-gray-100'}"${act('click','toggleVideoCat',cat.id)}>
+        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" data-click="uiNop" data-stop><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
         <div class="w-20 h-[45px] rounded-xl overflow-hidden shrink-0 bg-gray-900 flex items-center justify-center">
           ${cat.cover?`<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">`:`<i class="fas fa-film text-gray-600 text-xl"></i>`}
         </div>
@@ -21,10 +21,10 @@ function renderVideoAdminCat(cat, isChild=false){
           </div>
         </div>
         <i id="vcat-chevron-${cat.id}" class="fas fa-chevron-left text-gray-300 text-xs transition-transform shrink-0"></i>
-        <div class="flex gap-1.5 shrink-0" onclick="event.stopPropagation()">
-          <button onclick="openVideoItemModal(${cat.id},${jsArg(cat.name)});" class="bg-teal-50 text-teal-600 hover:bg-teal-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"><i class="fas fa-plus"></i><span class="hidden sm:inline">افزودن ویدیو</span></button>
-          <button onclick="openEditVideoCat(${cat.id})" class="bg-amber-50 text-amber-600 hover:bg-amber-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-edit text-xs"></i></button>
-          <button onclick="deleteVideoCategory(${cat.id})" class="bg-rose-50 text-rose-500 hover:bg-rose-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-trash text-xs"></i></button>
+        <div class="flex gap-1.5 shrink-0" data-click="uiNop" data-stop>
+          <button${act('click','openVideoItemModal',cat.id,act.s(cat.name))} class="bg-teal-50 text-teal-600 hover:bg-teal-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"><i class="fas fa-plus"></i><span class="hidden sm:inline">افزودن ویدیو</span></button>
+          <button${act('click','openEditVideoCat',cat.id)} class="bg-amber-50 text-amber-600 hover:bg-amber-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-edit text-xs"></i></button>
+          <button${act('click','deleteVideoCategory',cat.id)} class="bg-rose-50 text-rose-500 hover:bg-rose-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-trash text-xs"></i></button>
         </div>
       </div>
       <div id="vcat-items-${cat.id}" class="hidden p-3 border-t border-gray-100" data-loaded="0">
@@ -100,8 +100,8 @@ async function loadCategoryItemsAdmin(catId){
         </div>
         <div class="p-2.5 flex items-start gap-2">
           <p class="font-bold text-xs flex-1 line-clamp-2" data-id="${v.id}">${escHtml(v.title)}${v.publish_date?`<span class='block text-[9px] text-gray-400 font-normal mt-0.5'>📅 ${escHtml(v.publish_date)}</span>`:''}</p>
-          <button onclick="openEditVideoItem(${v.id},${catId})" class="bg-amber-50 text-amber-500 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-amber-100 transition shrink-0 mt-0.5"><i class="fas fa-edit text-[10px]"></i></button>
-          <button onclick="deleteVideoItem(${v.id},${catId})" class="bg-rose-50 text-rose-500 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-rose-100 transition shrink-0 mt-0.5"><i class="fas fa-trash text-[10px]"></i></button>
+          <button${act('click','openEditVideoItem',v.id,catId)} class="bg-amber-50 text-amber-500 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-amber-100 transition shrink-0 mt-0.5"><i class="fas fa-edit text-[10px]"></i></button>
+          <button${act('click','deleteVideoItem',v.id,catId)} class="bg-rose-50 text-rose-500 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-rose-100 transition shrink-0 mt-0.5"><i class="fas fa-trash text-[10px]"></i></button>
         </div>
       </div>`).join('')}</div>`;
     // Drag-and-drop for video items

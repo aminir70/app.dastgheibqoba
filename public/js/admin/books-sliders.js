@@ -75,8 +75,8 @@ async function loadBooks(){
           <span class="text-[10px] ${b.book_type==='pdf'?'bg-rose-50 text-rose-400':'bg-gray-100 text-gray-400'} px-2 py-0.5 rounded mt-0.5 inline-block">${b.book_type==='pdf'?'PDF':(b.page_count+' صفحه')}</span>
         </div>
         <div class="flex gap-1 shrink-0">
-          <button onclick="openEditBook(${b.id})" class="bg-white text-teal-600 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-teal-100 text-xs"><i class="fas fa-edit"></i></button>
-          <button onclick="deleteBook(${b.id})" class="bg-white text-rose-500 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-rose-100 text-xs"><i class="fas fa-trash"></i></button>
+          <button${act('click','openEditBook',b.id)} class="bg-white text-teal-600 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-teal-100 text-xs"><i class="fas fa-edit"></i></button>
+          <button${act('click','deleteBook',b.id)} class="bg-white text-rose-500 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border border-rose-100 text-xs"><i class="fas fa-trash"></i></button>
         </div>
       </div>
     `).join('');
@@ -251,7 +251,7 @@ async function loadSliders(){
     const sectionLabel={'main':'بالای صفحه','after_shortcuts':'بعد از میانبرها','after_books':'بعد از کتاب‌ها','after_banners':'بعد از بنرها','after_lectures':'بعد از سخنرانی‌ها'};
     c.innerHTML=slides.map(s=>`
       <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative group">
-        <button onclick="deleteSlider(${s.id})" class="absolute top-2 right-2 bg-white/90 text-rose-500 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm z-10 text-xs"><i class="fas fa-trash"></i></button>
+        <button${act('click','deleteSlider',s.id)} class="absolute top-2 right-2 bg-white/90 text-rose-500 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm z-10 text-xs"><i class="fas fa-trash"></i></button>
         <img src="${safeUrl(s.image)}" class="w-full aspect-video object-cover">
         <div class="p-2">
           <p class="text-xs font-bold truncate">${escHtml(s.title||'بدون عنوان')}</p>
@@ -402,12 +402,12 @@ async function loadNewsSliders() {
           <p class="text-sm font-bold text-gray-800 truncate">${item.post_title}</p>
           <p class="text-xs text-teal-600 truncate">${escHtml(item.post_url)}</p>
         </div>
-        <button onclick="toggleNewsSliderTitle(${item.id},${item.show_title!==0?0:1},this)"
+        <button${act('click','toggleNewsSliderTitle',item.id,item.show_title!==0?0:1,act.el)}
           class="w-8 h-8 rounded-lg flex items-center justify-center transition shrink-0 text-xs ${item.show_title!==0?'bg-teal-50 text-teal-600':'bg-gray-100 text-gray-400'}"
           title="${item.show_title!==0?'پنهان کردن عنوان':'نمایش عنوان'}">
           <i class="fas ${item.show_title!==0?'fa-eye':'fa-eye-slash'}"></i>
         </button>
-        <button onclick="deleteNewsSlider(${item.id})" class="w-8 h-8 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-lg flex items-center justify-center transition shrink-0 text-xs"><i class="fas fa-trash"></i></button>
+        <button${act('click','deleteNewsSlider',item.id)} class="w-8 h-8 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-lg flex items-center justify-center transition shrink-0 text-xs"><i class="fas fa-trash"></i></button>
       </div>
     `).join('');
   } catch(e) {
@@ -430,7 +430,7 @@ async function toggleNewsSliderTitle(id, newVal, btn) {
       body: JSON.stringify({show_title: newVal})
     });
     if (r.ok) {
-      btn.setAttribute('onclick', `toggleNewsSliderTitle(${id},${newVal?0:1},this)`);
+      btn.setAttribute('data-args', JSON.stringify([id, newVal?0:1, act.el]));
       btn.title = newVal ? 'پنهان کردن عنوان' : 'نمایش عنوان';
       btn.className = btn.className.replace(newVal?'bg-gray-100 text-gray-400':'bg-teal-50 text-teal-600', newVal?'bg-teal-50 text-teal-600':'bg-gray-100 text-gray-400');
       btn.innerHTML = `<i class="fas ${newVal?'fa-eye':'fa-eye-slash'}"></i>`;

@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/css/tailwind.dist.css">
 <link href="/vendor/quill/quill.snow.css" rel="stylesheet">
 <script src="/vendor/quill/quill.min.js"></script>
+<script src="/js/actions.js?v=5e79422a"></script>
 <link rel="stylesheet" href="/css/admin.css?v=dc1b7c9d">
 <script src="/vendor/Sortable.min.js"></script>
 <script src="/vendor/jalaali.js"></script>
@@ -18,22 +19,22 @@
 
 <!-- Mobile Header -->
 <header id="admin-mobile-header">
-  <button onclick="openMobileMenu()" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-700 transition flex-shrink-0"><i class="fas fa-bars text-lg"></i></button>
+  <button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-slate-700 transition flex-shrink-0" data-click="openMobileMenu"><i class="fas fa-bars text-lg"></i></button>
   <span id="mobile-tab-title" class="flex-1 text-sm font-bold text-center">مدیریت کتاب‌ها</span>
-  <button onclick="logoutAdmin()" class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-rose-700 text-rose-400 transition flex-shrink-0"><i class="fas fa-sign-out-alt"></i></button>
+  <button class="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-rose-700 text-rose-400 transition flex-shrink-0" data-click="logoutAdmin"><i class="fas fa-sign-out-alt"></i></button>
 </header>
 
 <!-- Sidebar Overlay -->
-<div id="sidebar-overlay" class="hidden" onclick="closeMobileMenu()"></div>
+<div id="sidebar-overlay" class="hidden" data-click="closeMobileMenu"></div>
 
 <!-- Login -->
 <div id="login-screen" class="fixed inset-0 bg-gray-900/95 z-50 flex items-center justify-center">
   <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm text-center">
     <div class="w-20 h-20 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl"><i class="fas fa-lock"></i></div>
     <h2 class="text-2xl font-black mb-6">ورود مدیریت</h2>
-    <input type="text" id="admin-user" autocomplete="username" autocapitalize="none" spellcheck="false" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-xl mb-3 text-center text-lg outline-none focus:border-teal-500" placeholder="نام کاربری" onkeypress="if(event.key==='Enter')loginAdmin()">
-    <input type="password" id="admin-pass" autocomplete="current-password" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-xl mb-4 text-center text-lg outline-none focus:border-teal-500" placeholder="رمز عبور" onkeypress="if(event.key==='Enter')loginAdmin()">
-    <button onclick="loginAdmin()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-xl shadow-lg transition">ورود به پنل</button>
+    <input type="text" id="admin-user" autocomplete="username" autocapitalize="none" spellcheck="false" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-xl mb-3 text-center text-lg outline-none focus:border-teal-500" placeholder="نام کاربری" data-keypress="loginAdmin" data-key="Enter">
+    <input type="password" id="admin-pass" autocomplete="current-password" class="w-full bg-gray-50 border border-gray-200 p-4 rounded-xl mb-4 text-center text-lg outline-none focus:border-teal-500" placeholder="رمز عبور" data-keypress="loginAdmin" data-key="Enter">
+    <button class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 rounded-xl shadow-lg transition" data-click="loginAdmin">ورود به پنل</button>
   </div>
 </div>
 
@@ -44,22 +45,22 @@
     <div class="min-w-0"><h1 class="text-sm font-black">مدیریت سیستم</h1><p class="text-[10px] text-slate-400">مرکز نشر آثار</p><p id="admin-whoami" class="text-[11px] text-teal-300 font-bold truncate"></p></div>
   </div>
   <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
-    <button onclick="switchTab('books')" id="tab-btn-books" class="tab-active w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-book w-5"></i>مدیریت کتاب‌ها</button>
-    <button onclick="switchTab('slider')" id="tab-btn-slider" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-images w-5"></i>اسلایدر</button>
-    <button onclick="switchTab('banners')" id="tab-btn-banners" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-ad w-5"></i>بنرها</button>
-    <button onclick="switchTab('videogallery')" id="tab-btn-videogallery" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-film w-5"></i>گالری ویدیو</button>
-    <button onclick="switchTab('live')" id="tab-btn-live" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-broadcast-tower w-5"></i>پخش زنده</button>
-    <button onclick="switchTab('gallery')" id="tab-btn-gallery" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-camera w-5"></i>گالری عکس</button>
-    <button onclick="switchTab('audiogallery')" id="tab-btn-audiogallery" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-headphones w-5"></i>گالری صوت</button>
-    <button onclick="switchTab('support')" id="tab-btn-support" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition relative"><i class="fas fa-headset w-5"></i>پشتیبانی<span id="support-badge" class="hidden absolute left-2 top-2 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center"></span></button>
-    <button onclick="switchTab('chatbot')" id="tab-btn-chatbot" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-robot w-5"></i>دستیار هوشمند</button>
-    <button onclick="switchTab('broadcast')" id="tab-btn-broadcast" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-bullhorn w-5"></i>پیام همگانی</button>
-    <button onclick="switchTab('analytics')" id="tab-btn-analytics" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-chart-line w-5"></i>آمار بازدید</button>
-    <button onclick="switchTab('users')" id="tab-btn-users" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-users w-5"></i>کاربران</button>
-    <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-palette w-5"></i>تنظیمات</button>
-    <button onclick="switchTab('pagecontent')" id="tab-btn-pagecontent" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition"><i class="fas fa-file-alt w-5"></i>صفحات محتوا</button>
+    <button id="tab-btn-books" class="tab-active w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["books"]'><i class="fas fa-book w-5"></i>مدیریت کتاب‌ها</button>
+    <button id="tab-btn-slider" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["slider"]'><i class="fas fa-images w-5"></i>اسلایدر</button>
+    <button id="tab-btn-banners" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["banners"]'><i class="fas fa-ad w-5"></i>بنرها</button>
+    <button id="tab-btn-videogallery" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["videogallery"]'><i class="fas fa-film w-5"></i>گالری ویدیو</button>
+    <button id="tab-btn-live" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["live"]'><i class="fas fa-broadcast-tower w-5"></i>پخش زنده</button>
+    <button id="tab-btn-gallery" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["gallery"]'><i class="fas fa-camera w-5"></i>گالری عکس</button>
+    <button id="tab-btn-audiogallery" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["audiogallery"]'><i class="fas fa-headphones w-5"></i>گالری صوت</button>
+    <button id="tab-btn-support" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition relative" data-click="switchTab" data-args='["support"]'><i class="fas fa-headset w-5"></i>پشتیبانی<span id="support-badge" class="hidden absolute left-2 top-2 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center"></span></button>
+    <button id="tab-btn-chatbot" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["chatbot"]'><i class="fas fa-robot w-5"></i>دستیار هوشمند</button>
+    <button id="tab-btn-broadcast" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["broadcast"]'><i class="fas fa-bullhorn w-5"></i>پیام همگانی</button>
+    <button id="tab-btn-analytics" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["analytics"]'><i class="fas fa-chart-line w-5"></i>آمار بازدید</button>
+    <button id="tab-btn-users" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["users"]'><i class="fas fa-users w-5"></i>کاربران</button>
+    <button id="tab-btn-settings" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["settings"]'><i class="fas fa-palette w-5"></i>تنظیمات</button>
+    <button id="tab-btn-pagecontent" class="tab-inactive w-full flex items-center gap-3 p-3 rounded-xl text-sm font-bold transition" data-click="switchTab" data-args='["pagecontent"]'><i class="fas fa-file-alt w-5"></i>صفحات محتوا</button>
   </nav>
-  <button onclick="logoutAdmin()" class="m-3 p-3 text-rose-400 hover:bg-slate-800 rounded-xl font-bold flex items-center justify-center gap-2 text-sm"><i class="fas fa-sign-out-alt"></i>خروج</button>
+  <button class="m-3 p-3 text-rose-400 hover:bg-slate-800 rounded-xl font-bold flex items-center justify-center gap-2 text-sm" data-click="logoutAdmin"><i class="fas fa-sign-out-alt"></i>خروج</button>
 </aside>
 
 <!-- Main -->
@@ -69,14 +70,14 @@
   <div id="tab-books" class="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-plus-circle text-teal-600 ml-2"></i>افزودن کتاب جدید</h2>
-      <form id="upload-form" onsubmit="uploadBook(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form id="upload-form" class="grid grid-cols-1 md:grid-cols-2 gap-4" data-submit="uploadBook" data-args='[{"$":"event"}]'>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان کتاب *</label><input type="text" id="book-title" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان کتاب"></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">نویسنده</label><input type="text" id="book-author" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نام نویسنده"></div>
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-gray-500 mb-2">نوع کتاب *</label>
           <div class="flex gap-4 bg-gray-50 border border-gray-200 p-3 rounded-xl">
-            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="book-type" id="book-type-db" value="db" checked onchange="toggleBookTypeFields()"><span class="text-sm font-bold text-gray-700">دیتابیس (SQLite)</span></label>
-            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="book-type" id="book-type-pdf" value="pdf" onchange="toggleBookTypeFields()"><span class="text-sm font-bold text-gray-700">فایل PDF</span></label>
+            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="book-type" id="book-type-db" value="db" checked data-change="toggleBookTypeFields"><span class="text-sm font-bold text-gray-700">دیتابیس (SQLite)</span></label>
+            <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="book-type" id="book-type-pdf" value="pdf" data-change="toggleBookTypeFields"><span class="text-sm font-bold text-gray-700">فایل PDF</span></label>
           </div>
         </div>
         <div id="field-book-db"><label class="block text-xs font-bold text-gray-500 mb-2">فایل دیتابیس (SQLite) *</label><input type="file" id="book-db" accept=".sqlite,.db" required class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer"></div>
@@ -86,7 +87,7 @@
       </form>
     </div>
     <div>
-      <div class="flex items-center justify-between mb-4"><h2 class="text-base font-black">کتاب‌های موجود</h2><button onclick="loadBooks()" class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button></div>
+      <div class="flex items-center justify-between mb-4"><h2 class="text-base font-black">کتاب‌های موجود</h2><button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadBooks"><i class="fas fa-sync-alt text-sm"></i></button></div>
       <div id="books-list" class="flex flex-col gap-2"></div>
     </div>
   </div>
@@ -95,11 +96,11 @@
   <div id="tab-slider" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-plus-circle text-teal-600 ml-2"></i>افزودن اسلاید جدید (حداکثر ۱۰)</h2>
-      <form id="slider-form" onsubmit="addSlider(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form id="slider-form" class="grid grid-cols-1 md:grid-cols-2 gap-4" data-submit="addSlider" data-args='[{"$":"event"}]'>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان (اختیاری)</label><input type="text" id="slider-title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان اسلاید"></div>
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">لینک (اختیاری)</label>
-          <select id="slider-link-type" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 mb-2" onchange="onSliderLinkTypeChange()">
+          <select id="slider-link-type" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 mb-2" data-change="onSliderLinkTypeChange">
             <option value="external">لینک خارجی (URL)</option>
             <option value="book">کتاب</option>
             <option value="audio">صوت</option>
@@ -123,9 +124,9 @@
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-gray-500 mb-2">تصویر اسلاید <span class="text-gray-400 font-normal">(فایل یا لینک URL)</span></label>
           <div class="flex flex-col gap-2">
-            <input type="file" id="slider-image" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('slider-image-url').value=''">
+            <input type="file" id="slider-image" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" data-change="uiClearIfFile" data-args='["slider-image-url"]'>
             <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا<span class="flex-1 border-t border-gray-200"></span></div>
-            <input type="url" id="slider-image-url" placeholder="https://example.com/image.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.value.trim())document.getElementById('slider-image').value=''">
+            <input type="url" id="slider-image-url" placeholder="https://example.com/image.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfText" data-args='["slider-image"]'>
           </div>
         </div>
         <div class="md:col-span-2">
@@ -149,11 +150,11 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">فاصله داخلی (padding) - <span id="slider-padding-val">0</span>px</label>
-          <input type="range" id="s-slider_padding" min="0" max="24" value="0" class="w-full" oninput="document.getElementById('slider-padding-val').textContent=this.value">
+          <input type="range" id="s-slider_padding" min="0" max="24" value="0" class="w-full" data-input="uiMirrorText" data-args='["slider-padding-val"]'>
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">گردی گوشه‌ها (border-radius) - <span id="slider-radius-val">0</span>px</label>
-          <input type="range" id="s-slider_radius" min="0" max="32" value="0" class="w-full" oninput="document.getElementById('slider-radius-val').textContent=this.value">
+          <input type="range" id="s-slider_radius" min="0" max="32" value="0" class="w-full" data-input="uiMirrorText" data-args='["slider-radius-val"]'>
         </div>
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-gray-500 mb-3"><i class="fas fa-mobile-alt ml-1 text-teal-500"></i>ارتفاع اسلایدر بر اساس دستگاه (px)</label>
@@ -161,35 +162,35 @@
             <div>
               <label class="flex items-center gap-1 text-[11px] font-bold text-gray-500 mb-2"><i class="fas fa-mobile-alt text-rose-400"></i>موبایل (تا ۶۴۰px)</label>
               <div class="flex items-center gap-2">
-                <input type="range" id="s-slider_height_mobile" min="100" max="600" value="200" step="10" class="flex-1" oninput="document.getElementById('slider-h-mob-num').value=this.value">
-                <input type="number" id="slider-h-mob-num" value="200" min="100" max="600" class="w-16 bg-white border border-gray-200 p-1.5 rounded-lg text-center text-xs outline-none focus:border-teal-500" oninput="document.getElementById('s-slider_height_mobile').value=this.value">
+                <input type="range" id="s-slider_height_mobile" min="100" max="600" value="200" step="10" class="flex-1" data-input="uiMirrorValue" data-args='["slider-h-mob-num"]'>
+                <input type="number" id="slider-h-mob-num" value="200" min="100" max="600" class="w-16 bg-white border border-gray-200 p-1.5 rounded-lg text-center text-xs outline-none focus:border-teal-500" data-input="uiMirrorValue" data-args='["s-slider_height_mobile"]'>
                 <span class="text-[10px] text-gray-400">px</span>
               </div>
             </div>
             <div>
               <label class="flex items-center gap-1 text-[11px] font-bold text-gray-500 mb-2"><i class="fas fa-tablet-alt text-amber-400"></i>تبلت (۶۴۰-۱۰۲۴px)</label>
               <div class="flex items-center gap-2">
-                <input type="range" id="s-slider_height_tablet" min="100" max="700" value="350" step="10" class="flex-1" oninput="document.getElementById('slider-h-tab-num').value=this.value">
-                <input type="number" id="slider-h-tab-num" value="350" min="100" max="700" class="w-16 bg-white border border-gray-200 p-1.5 rounded-lg text-center text-xs outline-none focus:border-teal-500" oninput="document.getElementById('s-slider_height_tablet').value=this.value">
+                <input type="range" id="s-slider_height_tablet" min="100" max="700" value="350" step="10" class="flex-1" data-input="uiMirrorValue" data-args='["slider-h-tab-num"]'>
+                <input type="number" id="slider-h-tab-num" value="350" min="100" max="700" class="w-16 bg-white border border-gray-200 p-1.5 rounded-lg text-center text-xs outline-none focus:border-teal-500" data-input="uiMirrorValue" data-args='["s-slider_height_tablet"]'>
                 <span class="text-[10px] text-gray-400">px</span>
               </div>
             </div>
             <div>
               <label class="flex items-center gap-1 text-[11px] font-bold text-gray-500 mb-2"><i class="fas fa-laptop text-blue-400"></i>لپ‌تاپ/دسکتاپ (بالای ۱۰۲۴px)</label>
               <div class="flex items-center gap-2">
-                <input type="range" id="s-slider_height_desktop" min="100" max="800" value="500" step="10" class="flex-1" oninput="document.getElementById('slider-h-desk-num').value=this.value">
-                <input type="number" id="slider-h-desk-num" value="500" min="100" max="800" class="w-16 bg-white border border-gray-200 p-1.5 rounded-lg text-center text-xs outline-none focus:border-teal-500" oninput="document.getElementById('s-slider_height_desktop').value=this.value">
+                <input type="range" id="s-slider_height_desktop" min="100" max="800" value="500" step="10" class="flex-1" data-input="uiMirrorValue" data-args='["slider-h-desk-num"]'>
+                <input type="number" id="slider-h-desk-num" value="500" min="100" max="800" class="w-16 bg-white border border-gray-200 p-1.5 rounded-lg text-center text-xs outline-none focus:border-teal-500" data-input="uiMirrorValue" data-args='["s-slider_height_desktop"]'>
                 <span class="text-[10px] text-gray-400">px</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <button onclick="saveSliderSettings()" class="mt-5 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره تنظیمات اسلایدر</button>
+      <button class="mt-5 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition" data-click="saveSliderSettings"><i class="fas fa-save ml-2"></i>ذخیره تنظیمات اسلایدر</button>
     </div>
 
     <div>
-      <div class="flex items-center justify-between mb-4"><h2 class="text-base font-black">اسلایدهای فعلی</h2><button onclick="loadSliders()" class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button></div>
+      <div class="flex items-center justify-between mb-4"><h2 class="text-base font-black">اسلایدهای فعلی</h2><button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadSliders"><i class="fas fa-sync-alt text-sm"></i></button></div>
       <div id="sliders-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"></div>
     </div>
 
@@ -197,7 +198,7 @@
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h2 class="text-lg font-black mb-2 border-b pb-4"><i class="fas fa-newspaper text-teal-600 ml-2"></i>نمایش آخرین مطالب سایت در اسلایدر</h2>
       <p class="text-xs text-gray-500 mb-4">۱۰ مطلب آخر سایت را بارگذاری کنید و مواردی که می‌خواهید به صورت اسلاید در صفحه اصلی نمایش داده شوند را تیک بزنید.</p>
-      <button onclick="loadWPPostsForSlider()" id="btn-load-wp-posts" class="mb-5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2">
+      <button id="btn-load-wp-posts" class="mb-5 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold px-5 py-2.5 rounded-xl text-sm transition flex items-center gap-2" data-click="loadWPPostsForSlider">
         <i class="fas fa-download text-sm"></i>بارگذاری آخرین مطالب سایت
       </button>
 
@@ -206,7 +207,7 @@
 
       <!-- دکمه ذخیره -->
       <div id="wp-posts-save-row" class="hidden">
-        <button onclick="saveNewsSliders()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2">
+        <button class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2" data-click="saveNewsSliders">
           <i class="fas fa-save"></i>ذخیره موارد انتخاب‌شده
         </button>
       </div>
@@ -216,7 +217,7 @@
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-black">اسلایدهای خبری انتخاب‌شده</h2>
-        <button onclick="loadNewsSliders()" class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button>
+        <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadNewsSliders"><i class="fas fa-sync-alt text-sm"></i></button>
       </div>
       <div id="news-sliders-list" class="flex flex-col gap-3"></div>
     </div>
@@ -228,7 +229,7 @@
       <h2 class="text-lg font-black mb-2"><i class="fas fa-ad text-teal-600 ml-2"></i>مدیریت بنرها</h2>
       <p class="text-xs text-gray-500 mb-5">سه بنر در صفحه اصلی نمایش داده می‌شود. برای هر بنر می‌توانید موقعیت نسبت به بخش‌های صفحه را تعیین کنید.</p>
       <div id="banners-list" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
-      <div class="mt-4"><button onclick="saveBanners()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره تغییرات بنرها</button></div>
+      <div class="mt-4"><button class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition" data-click="saveBanners"><i class="fas fa-save ml-2"></i>ذخیره تغییرات بنرها</button></div>
     </div>
 
     <!-- Banner Style Settings -->
@@ -237,22 +238,22 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">فاصله داخلی بنرها (padding) - <span id="banner-padding-val">4</span>px</label>
-          <input type="range" id="s-banner_padding" min="0" max="24" value="4" class="w-full" oninput="document.getElementById('banner-padding-val').textContent=this.value">
+          <input type="range" id="s-banner_padding" min="0" max="24" value="4" class="w-full" data-input="uiMirrorText" data-args='["banner-padding-val"]'>
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">گردی گوشه‌های بنر - <span id="banner-radius-val">16</span>px</label>
-          <input type="range" id="s-banner_radius" min="0" max="32" value="16" class="w-full" oninput="document.getElementById('banner-radius-val').textContent=this.value">
+          <input type="range" id="s-banner_radius" min="0" max="32" value="16" class="w-full" data-input="uiMirrorText" data-args='["banner-radius-val"]'>
         </div>
         <div>
           <label class="block text-xs font-bold text-gray-500 mb-2">ارتفاع بنر (px)</label>
           <div class="flex items-center gap-3">
-            <input type="range" id="s-banner_height" min="60" max="500" value="120" step="10" class="flex-1" oninput="document.getElementById('banner-height-num').value=this.value;document.getElementById('banner-height-val').textContent=this.value">
-            <input type="number" id="banner-height-num" value="120" min="60" max="500" class="w-20 bg-gray-50 border border-gray-200 p-2 rounded-xl text-center text-sm outline-none focus:border-teal-500" oninput="document.getElementById('s-banner_height').value=this.value;document.getElementById('banner-height-val').textContent=this.value">
+            <input type="range" id="s-banner_height" min="60" max="500" value="120" step="10" class="flex-1" data-input="bannerHeightFromRange">
+            <input type="number" id="banner-height-num" value="120" min="60" max="500" class="w-20 bg-gray-50 border border-gray-200 p-2 rounded-xl text-center text-sm outline-none focus:border-teal-500" data-input="bannerHeightFromNum">
             <span class="text-xs text-gray-400 hidden" id="banner-height-val">120</span>
           </div>
         </div>
       </div>
-      <button onclick="saveBannerSettings()" class="mt-5 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره تنظیمات بنر</button>
+      <button class="mt-5 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition" data-click="saveBannerSettings"><i class="fas fa-save ml-2"></i>ذخیره تنظیمات بنر</button>
     </div>
   </div>
 
@@ -261,16 +262,16 @@
     <!-- افزودن دسته‌بندی -->
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-folder-plus text-teal-600 ml-2"></i>افزودن دسته‌بندی جدید</h2>
-      <form id="gallery-cat-form" onsubmit="addGalleryCategory(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form id="gallery-cat-form" class="grid grid-cols-1 md:grid-cols-2 gap-4" data-submit="addGalleryCategory" data-args='[{"$":"event"}]'>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">نام دسته‌بندی *</label><input type="text" id="gcat-name" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="مثلاً: مراسمات، برنامه‌ها"></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">زیرمجموعه چه دسته‌ای؟ <span class="text-gray-400 font-normal">(اختیاری)</span></label><select id="gcat-parent" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm"><option value="">--- دسته اصلی (سطح اول) ---</option></select></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات (اختیاری)</label><input type="text" id="gcat-desc" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="توضیح مختصر"></div>
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-gray-500 mb-2">تصویر کاور <span class="text-gray-400 font-normal">(فایل یا لینک URL)</span></label>
           <div class="flex flex-col gap-2">
-            <input type="file" id="gcat-image" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('gcat-image-url').value=''">
+            <input type="file" id="gcat-image" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" data-change="uiClearIfFile" data-args='["gcat-image-url"]'>
             <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا<span class="flex-1 border-t border-gray-200"></span></div>
-            <input type="url" id="gcat-image-url" placeholder="https://example.com/image.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.value.trim())document.getElementById('gcat-image').value=''">
+            <input type="url" id="gcat-image-url" placeholder="https://example.com/image.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfText" data-args='["gcat-image"]'>
           </div>
         </div>
         <div class="md:col-span-2"><button type="submit" id="btn-add-gcat" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-plus"></i>افزودن دسته‌بندی</button></div>
@@ -281,27 +282,27 @@
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-black">دسته‌بندی‌های گالری</h2>
-        <button onclick="loadGalleryAdmin()" class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button>
+        <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadGalleryAdmin"><i class="fas fa-sync-alt text-sm"></i></button>
       </div>
       <div id="gallery-admin-list" class="flex flex-col gap-6"></div>
     </div>
 
     <!-- مودال افزودن عکس -->
     <div id="gallery-photo-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base">افزودن تصویر به <span id="gphoto-modal-catname" class="text-teal-600"></span></h3>
-          <button onclick="closePhotoModal()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="closePhotoModal"><i class="fas fa-times"></i></button>
         </div>
-        <form id="gallery-photo-form" onsubmit="addGalleryPhoto(event)" class="flex flex-col gap-4">
+        <form id="gallery-photo-form" class="flex flex-col gap-4" data-submit="addGalleryPhoto" data-args='[{"$":"event"}]'>
           <input type="hidden" id="gphoto-cat-id">
           <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان (اختیاری)</label><input type="text" id="gphoto-title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان تصویر"></div>
           <div>
             <label class="block text-xs font-bold text-gray-500 mb-2">تصویر *</label>
             <div class="flex flex-col gap-2">
-              <input type="file" id="gphoto-image" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('gphoto-url').value=''">
+              <input type="file" id="gphoto-image" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" data-change="uiClearIfFile" data-args='["gphoto-url"]'>
               <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا<span class="flex-1 border-t border-gray-200"></span></div>
-              <input type="url" id="gphoto-url" placeholder="https://example.com/photo.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.value.trim())document.getElementById('gphoto-image').value=''">
+              <input type="url" id="gphoto-url" placeholder="https://example.com/photo.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfText" data-args='["gphoto-image"]'>
             </div>
           </div>
           <button type="submit" id="btn-add-gphoto" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-plus"></i>افزودن تصویر</button>
@@ -311,10 +312,10 @@
 
     <!-- مودال ویرایش دسته‌بندی -->
     <div id="gallery-edit-cat-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base"><i class="fas fa-edit text-blue-600 ml-2"></i>ویرایش دسته‌بندی</h3>
-          <button onclick="closeEditCatModal()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="closeEditCatModal"><i class="fas fa-times"></i></button>
         </div>
         <input type="hidden" id="gedit-cat-id">
         <div class="flex flex-col gap-4">
@@ -324,12 +325,12 @@
             <label class="block text-xs font-bold text-gray-500 mb-2">تصویر کاور (فایل جدید یا لینک)</label>
             <div id="gedit-cat-cover-preview" class="mb-2 hidden"><img id="gedit-cat-cover-img" src="" class="h-20 rounded-xl object-cover border border-gray-200"></div>
             <div class="flex flex-col gap-2">
-              <input type="file" id="gedit-cat-image" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('gedit-cat-image-url').value=''">
+              <input type="file" id="gedit-cat-image" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 cursor-pointer" data-change="uiClearIfFile" data-args='["gedit-cat-image-url"]'>
               <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا<span class="flex-1 border-t border-gray-200"></span></div>
-              <input type="url" id="gedit-cat-image-url" placeholder="https://example.com/image.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.value.trim())document.getElementById('gedit-cat-image').value=''">
+              <input type="url" id="gedit-cat-image-url" placeholder="https://example.com/image.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfText" data-args='["gedit-cat-image"]'>
             </div>
           </div>
-          <button onclick="saveGalleryCategoryEdit()" id="btn-save-gcat-edit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-save"></i>ذخیره تغییرات</button>
+          <button id="btn-save-gcat-edit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2" data-click="saveGalleryCategoryEdit"><i class="fas fa-save"></i>ذخیره تغییرات</button>
         </div>
       </div>
     </div>
@@ -337,17 +338,17 @@
 
     <!-- مودال ویرایش عکس (عنوان + دسته) -->
     <div id="gallery-edit-photo-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base"><i class="fas fa-edit text-blue-600 ml-2"></i>ویرایش تصویر</h3>
-          <button onclick="closeEditPhotoModal()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="closeEditPhotoModal"><i class="fas fa-times"></i></button>
         </div>
         <input type="hidden" id="gedit-photo-id">
         <input type="hidden" id="gedit-photo-orig-cat">
         <div class="flex flex-col gap-4">
           <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان تصویر</label><input type="text" id="gedit-photo-title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="اختیاری"></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">دسته‌بندی</label><select id="gedit-photo-cat" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm"><option value="">در حال بارگذاری...</option></select></div>
-          <button onclick="saveGalleryPhotoEdit()" id="btn-save-gphoto-edit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-save"></i>ذخیره تغییرات</button>
+          <button id="btn-save-gphoto-edit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2" data-click="saveGalleryPhotoEdit"><i class="fas fa-save"></i>ذخیره تغییرات</button>
         </div>
       </div>
     </div>
@@ -357,16 +358,16 @@
     <!-- افزودن دسته‌بندی -->
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-folder-plus text-teal-600 ml-2"></i>افزودن دسته‌بندی ویدیو</h2>
-      <form id="vcat-form" onsubmit="addVideoCategory(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form id="vcat-form" class="grid grid-cols-1 md:grid-cols-2 gap-4" data-submit="addVideoCategory" data-args='[{"$":"event"}]'>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">نام دسته‌بندی *</label><input type="text" id="vcat-name" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="مثلاً: سخنرانی‌ها، مناجات"></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">زیرمجموعه چه دسته‌ای؟ <span class="text-gray-400 font-normal">(اختیاری)</span></label><select id="vcat-parent" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm"><option value="">--- دسته اصلی (سطح اول) ---</option></select></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات (اختیاری)</label><input type="text" id="vcat-desc" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="توضیح مختصر"></div>
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-gray-500 mb-2">تصویر کاور <span class="text-gray-400 font-normal">(فایل یا لینک URL)</span></label>
           <div class="flex flex-col gap-2">
-            <input type="file" id="vcat-cover-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('vcat-cover-url').value=''">
+            <input type="file" id="vcat-cover-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" data-change="uiClearIfFile" data-args='["vcat-cover-url"]'>
             <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا<span class="flex-1 border-t border-gray-200"></span></div>
-            <input type="url" id="vcat-cover-url" placeholder="https://example.com/cover.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.value.trim())document.getElementById('vcat-cover-file').value=''">
+            <input type="url" id="vcat-cover-url" placeholder="https://example.com/cover.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfText" data-args='["vcat-cover-file"]'>
           </div>
         </div>
         <div class="md:col-span-2"><button type="submit" id="btn-add-vcat" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-plus"></i>افزودن دسته‌بندی</button></div>
@@ -377,19 +378,19 @@
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-black">دسته‌بندی‌های ویدیو</h2>
-        <button onclick="loadVideoGalleryAdmin()" class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button>
+        <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadVideoGalleryAdmin"><i class="fas fa-sync-alt text-sm"></i></button>
       </div>
       <div id="video-admin-list" class="flex flex-col gap-6"></div>
     </div>
 
     <!-- مودال افزودن ویدیو -->
     <div id="video-item-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base">افزودن ویدیو به <span id="vitem-modal-catname" class="text-teal-600"></span></h3>
-          <button onclick="closeVideoItemModal()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="closeVideoItemModal"><i class="fas fa-times"></i></button>
         </div>
-        <form id="video-item-form" onsubmit="addVideoItem(event)" class="flex flex-col gap-4">
+        <form id="video-item-form" class="flex flex-col gap-4" data-submit="addVideoItem" data-args='[{"$":"event"}]'>
           <input type="hidden" id="vitem-cat-id">
           <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان ویدیو *</label><input type="text" id="vitem-title" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان ویدیو"></div>
 
@@ -403,16 +404,16 @@
           <div>
             <label class="block text-xs font-bold text-gray-500 mb-2">تصویر بندانگشتی <span class="text-gray-400 font-normal">(اختیاری - اگر خالی بماند از آپارات دریافت می‌شود)</span></label>
             <div class="flex flex-col gap-2">
-              <button type="button" onclick="useCatCover('video','vitem-cat-id','vitem-thumb-url')" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition"><i class="fas fa-palette"></i>استفاده از کاور دسته‌بندی</button>
-              <input type="file" id="vitem-thumb-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('vitem-thumb-url').value=''">
+              <button type="button" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition" data-click="useCatCover" data-args='["video","vitem-cat-id","vitem-thumb-url"]'><i class="fas fa-palette"></i>استفاده از کاور دسته‌بندی</button>
+              <input type="file" id="vitem-thumb-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" data-change="uiClearIfFile" data-args='["vitem-thumb-url"]'>
               <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا URL<span class="flex-1 border-t border-gray-200"></span></div>
-              <input type="url" id="vitem-thumb-url" placeholder="https://example.com/thumb.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.value.trim())document.getElementById('vitem-thumb-file').value=''">
+              <input type="url" id="vitem-thumb-url" placeholder="https://example.com/thumb.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfText" data-args='["vitem-thumb-file"]'>
             </div>
           </div>
 
           <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات (اختیاری)</label><textarea id="vitem-desc" rows="2" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm resize-none" placeholder="توضیح کوتاه درباره ویدیو"></textarea></div>
 
-          <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار (اختیاری)</label><div class="flex gap-2"><input type="text" id="vitem-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" onclick="openJalaliPicker(document.getElementById('vitem-publish-date'))" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم"><i class="fas fa-calendar-alt"></i></button></div></div>
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار (اختیاری)</label><div class="flex gap-2"><input type="text" id="vitem-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم" data-click="openJalaliPickerById" data-args='["vitem-publish-date"]'><i class="fas fa-calendar-alt"></i></button></div></div>
           <label class="flex items-center gap-2 cursor-pointer bg-rose-50 border border-rose-200 p-3 rounded-xl"><input type="checkbox" id="vitem-vertical" class="w-4 h-4 accent-rose-500"><span class="text-xs font-bold text-rose-700">ویدیوی عمودی (استوری) — برای نمایش تمام‌صفحه در ریلز</span></label>
           <button type="submit" id="btn-add-vitem" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-plus"></i>افزودن ویدیو</button>
         </form>
@@ -421,25 +422,25 @@
 
     <!-- مودال ویرایش ویدیو -->
     <div id="edit-video-item-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base text-rose-600"><i class="fas fa-edit ml-2"></i>ویرایش ویدیو</h3>
-          <button onclick="this.closest('#edit-video-item-modal').classList.add('hidden');this.closest('#edit-video-item-modal').classList.remove('flex')" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="uiCloseModal" data-args='["#edit-video-item-modal"]'><i class="fas fa-times"></i></button>
         </div>
-        <form id="edit-video-item-form" onsubmit="saveEditVideoItem(event)" class="flex flex-col gap-4">
+        <form id="edit-video-item-form" class="flex flex-col gap-4" data-submit="saveEditVideoItem" data-args='[{"$":"event"}]'>
           <input type="hidden" id="edit-vitem-id">
           <input type="hidden" id="edit-vitem-cat-id">
           <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان ویدیو *</label><input type="text" id="edit-vitem-title" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">لینک جدید آپارات (اختیاری)</label><textarea id="edit-vitem-embed" rows="2" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm font-mono resize-none" placeholder="خالی بذارید تا تغییر نکند"></textarea></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">تصویر بندانگشتی جدید (اختیاری)</label>
             <div class="flex flex-col gap-2">
-              <button type="button" onclick="useCatCover('video','edit-vitem-cat-id','edit-vitem-thumb-url')" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition"><i class="fas fa-palette"></i>استفاده از کاور دسته‌بندی</button>
+              <button type="button" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition" data-click="useCatCover" data-args='["video","edit-vitem-cat-id","edit-vitem-thumb-url"]'><i class="fas fa-palette"></i>استفاده از کاور دسته‌بندی</button>
               <input type="file" id="edit-vitem-thumb-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-rose-50 file:text-rose-700 cursor-pointer">
               <input type="url" id="edit-vitem-thumb-url" placeholder="https://..." class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm">
             </div>
           </div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات</label><textarea id="edit-vitem-desc" rows="2" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm resize-none"></textarea></div>
-          <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار</label><div class="flex gap-2"><input type="text" id="edit-vitem-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" onclick="openJalaliPicker(document.getElementById('edit-vitem-publish-date'))" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم"><i class="fas fa-calendar-alt"></i></button></div></div>
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار</label><div class="flex gap-2"><input type="text" id="edit-vitem-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم" data-click="openJalaliPickerById" data-args='["edit-vitem-publish-date"]'><i class="fas fa-calendar-alt"></i></button></div></div>
           <label class="flex items-center gap-2 cursor-pointer bg-rose-50 border border-rose-200 p-3 rounded-xl"><input type="checkbox" id="edit-vitem-vertical" class="w-4 h-4 accent-rose-500"><span class="text-xs font-bold text-rose-700">ویدیوی عمودی (استوری)</span></label>
           <button type="submit" id="btn-save-vitem" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-save"></i>ذخیره تغییرات</button>
         </form>
@@ -448,12 +449,12 @@
 
     <!-- مودال ویرایش دسته‌بندی ویدیو -->
     <div id="edit-video-cat-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base text-rose-600"><i class="fas fa-folder-open ml-2"></i>ویرایش دسته‌بندی ویدیو</h3>
-          <button onclick="this.closest('#edit-video-cat-modal').classList.add('hidden');this.closest('#edit-video-cat-modal').classList.remove('flex')" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="uiCloseModal" data-args='["#edit-video-cat-modal"]'><i class="fas fa-times"></i></button>
         </div>
-        <form id="edit-video-cat-form" onsubmit="saveEditVideoCat(event)" class="flex flex-col gap-4">
+        <form id="edit-video-cat-form" class="flex flex-col gap-4" data-submit="saveEditVideoCat" data-args='[{"$":"event"}]'>
           <input type="hidden" id="edit-vcat-id">
           <div><label class="block text-xs font-bold text-gray-500 mb-2">نام دسته‌بندی *</label><input type="text" id="edit-vcat-name" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات</label><input type="text" id="edit-vcat-desc" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
@@ -504,7 +505,7 @@
           <input type="text" id="s-live_banner_title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-red-500" placeholder="پخش زنده">
           <div class="flex items-center justify-between mt-2">
             <span class="text-[11px] text-gray-400">موارد ذخیره‌شده:</span>
-            <button type="button" onclick="addLivePreset('live_banner_title')" class="text-[11px] text-red-600 font-bold hover:text-red-700"><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
+            <button type="button" class="text-[11px] text-red-600 font-bold hover:text-red-700" data-click="addLivePreset" data-args='["live_banner_title"]'><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
           </div>
           <div id="presets-live_banner_title" class="flex flex-wrap gap-1.5 mt-2"></div>
         </div>
@@ -513,7 +514,7 @@
           <input type="text" id="s-live_banner_subtitle" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-red-500" placeholder="برای مشاهده کلیک کنید">
           <div class="flex items-center justify-between mt-2">
             <span class="text-[11px] text-gray-400">موارد ذخیره‌شده:</span>
-            <button type="button" onclick="addLivePreset('live_banner_subtitle')" class="text-[11px] text-red-600 font-bold hover:text-red-700"><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
+            <button type="button" class="text-[11px] text-red-600 font-bold hover:text-red-700" data-click="addLivePreset" data-args='["live_banner_subtitle"]'><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
           </div>
           <div id="presets-live_banner_subtitle" class="flex flex-wrap gap-1.5 mt-2"></div>
         </div>
@@ -551,7 +552,7 @@
           <input type="text" id="s-live_page_title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-red-500" placeholder="مثلاً: سخنرانی ویژه شب قدر">
           <div class="flex items-center justify-between mt-2">
             <span class="text-[11px] text-gray-400">موارد ذخیره‌شده:</span>
-            <button type="button" onclick="addLivePreset('live_page_title')" class="text-[11px] text-red-600 font-bold hover:text-red-700"><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
+            <button type="button" class="text-[11px] text-red-600 font-bold hover:text-red-700" data-click="addLivePreset" data-args='["live_page_title"]'><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
           </div>
           <div id="presets-live_page_title" class="flex flex-wrap gap-1.5 mt-2"></div>
         </div>
@@ -561,7 +562,7 @@
           <p class="text-xs text-gray-400 mt-1">خطوط جدید (Enter) به صورت پاراگراف نمایش داده می‌شوند.</p>
           <div class="flex items-center justify-between mt-2">
             <span class="text-[11px] text-gray-400">موارد ذخیره‌شده:</span>
-            <button type="button" onclick="addLivePreset('live_page_description')" class="text-[11px] text-red-600 font-bold hover:text-red-700"><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
+            <button type="button" class="text-[11px] text-red-600 font-bold hover:text-red-700" data-click="addLivePreset" data-args='["live_page_description"]'><i class="fas fa-plus ml-1"></i>ذخیره مقدار فعلی در لیست</button>
           </div>
           <div id="presets-live_page_description" class="flex flex-wrap gap-1.5 mt-2"></div>
         </div>
@@ -569,8 +570,8 @@
     </div>
 
     <div class="flex gap-3">
-      <button onclick="saveLiveSettings()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-sm transition flex-1 text-sm"><i class="fas fa-save ml-2"></i>ذخیره تنظیمات پخش زنده</button>
-      <button onclick="loadLiveSettings()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-xl text-sm"><i class="fas fa-sync-alt ml-2"></i>بازنشانی</button>
+      <button class="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-sm transition flex-1 text-sm" data-click="saveLiveSettings"><i class="fas fa-save ml-2"></i>ذخیره تنظیمات پخش زنده</button>
+      <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-xl text-sm" data-click="loadLiveSettings"><i class="fas fa-sync-alt ml-2"></i>بازنشانی</button>
     </div>
   </div>
 
@@ -579,21 +580,21 @@
     <!-- استخراج خودکار کاور -->
     <div class="bg-teal-50 border border-teal-200 rounded-2xl p-4 flex items-center justify-between gap-4">
       <div><p class="font-bold text-sm text-teal-800">استخراج خودکار کاور از فایل‌های صوتی</p><p class="text-xs text-teal-600 mt-0.5">برای فایل‌های mp3 که کاور ندارند، تصویر جلد را از تگ ID3 استخراج می‌کند</p></div>
-      <button onclick="extractAllCovers()" id="btn-extract-covers" class="shrink-0 bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-teal-700 transition"><i class="fas fa-magic ml-2"></i>استخراج</button>
+      <button id="btn-extract-covers" class="shrink-0 bg-teal-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-teal-700 transition" data-click="extractAllCovers"><i class="fas fa-magic ml-2"></i>استخراج</button>
     </div>
     <!-- افزودن دسته‌بندی صوت -->
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <h2 class="text-lg font-black mb-5 border-b pb-4"><i class="fas fa-folder-plus text-teal-600 ml-2"></i>افزودن دسته‌بندی صوتی</h2>
-      <form id="audio-cat-form" onsubmit="addAudioCategory(event)" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form id="audio-cat-form" class="grid grid-cols-1 md:grid-cols-2 gap-4" data-submit="addAudioCategory" data-args='[{"$":"event"}]'>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">نام دسته‌بندی *</label><input type="text" id="acat-name" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="مثلاً: سخنرانی‌ها، دعاها"></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">زیرمجموعه چه دسته‌ای؟ <span class="text-gray-400 font-normal">(اختیاری)</span></label><select id="acat-parent" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm"><option value="">--- دسته اصلی (سطح اول) ---</option></select></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات (اختیاری)</label><input type="text" id="acat-desc" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="توضیح مختصر"></div>
         <div class="md:col-span-2">
           <label class="block text-xs font-bold text-gray-500 mb-2">تصویر کاور <span class="text-gray-400 font-normal">(فایل یا لینک URL - کپی نمی‌شود)</span></label>
           <div class="flex flex-col gap-2">
-            <input type="file" id="acat-cover-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('acat-cover-url').value=''">
+            <input type="file" id="acat-cover-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" data-change="uiClearIfFile" data-args='["acat-cover-url"]'>
             <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا<span class="flex-1 border-t border-gray-200"></span></div>
-            <input type="url" id="acat-cover-url" placeholder="https://example.com/cover.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.value.trim())document.getElementById('acat-cover-file').value=''">
+            <input type="url" id="acat-cover-url" placeholder="https://example.com/cover.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfText" data-args='["acat-cover-file"]'>
           </div>
         </div>
         <div class="md:col-span-2"><button type="submit" id="btn-add-acat" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-plus"></i>افزودن دسته‌بندی</button></div>
@@ -604,40 +605,40 @@
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-black">دسته‌بندی‌های صوتی</h2>
-        <button onclick="loadAudioGalleryAdmin()" class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button>
+        <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadAudioGalleryAdmin"><i class="fas fa-sync-alt text-sm"></i></button>
       </div>
       <div id="audio-admin-list" class="flex flex-col gap-6"></div>
     </div>
 
     <!-- مودال افزودن صوت -->
     <div id="audio-track-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base">افزودن صوت به <span id="atrack-modal-catname" class="text-teal-600"></span></h3>
-          <button onclick="closeAudioTrackModal()" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="closeAudioTrackModal"><i class="fas fa-times"></i></button>
         </div>
-        <form id="audio-track-form" onsubmit="addAudioTrack(event)" class="flex flex-col gap-4">
+        <form id="audio-track-form" class="flex flex-col gap-4" data-submit="addAudioTrack" data-args='[{"$":"event"}]'>
           <input type="hidden" id="atrack-cat-id">
           <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان صوت *</label><input type="text" id="atrack-title" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان فایل صوتی"></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">گوینده / سخنران (اختیاری)</label><input type="text" id="atrack-artist" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نام گوینده"></div>
           <div>
             <label class="block text-xs font-bold text-gray-500 mb-2">فایل صوتی * <span class="text-gray-400 font-normal">(آپلود تا ۱۰۰MB یا لینک URL)</span></label>
             <div class="flex flex-col gap-2">
-              <input type="file" id="atrack-file" accept="audio/*,.mp3,.m4a,.ogg,.wav,.aac,.opus" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('atrack-url').value=''">
+              <input type="file" id="atrack-file" accept="audio/*,.mp3,.m4a,.ogg,.wav,.aac,.opus" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer" data-change="uiClearIfFile" data-args='["atrack-url"]'>
               <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا لینک URL (کپی نمی‌شود)<span class="flex-1 border-t border-gray-200"></span></div>
-              <input type="url" id="atrack-url" placeholder="https://example.com/audio.mp3" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.value.trim())document.getElementById('atrack-file').value=''">
+              <input type="url" id="atrack-url" placeholder="https://example.com/audio.mp3" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfText" data-args='["atrack-file"]'>
             </div>
           </div>
           <div>
             <label class="block text-xs font-bold text-gray-500 mb-2">تصویر کاور (اختیاری)</label>
             <div class="flex flex-col gap-2">
-              <button type="button" onclick="useCatCover('audio','atrack-cat-id','atrack-cover-url')" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition"><i class="fas fa-palette"></i>استفاده از کاور دسته‌بندی</button>
-              <input type="file" id="atrack-cover-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer" onchange="if(this.files[0])document.getElementById('atrack-cover-url').value=''">
+              <button type="button" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition" data-click="useCatCover" data-args='["audio","atrack-cat-id","atrack-cover-url"]'><i class="fas fa-palette"></i>استفاده از کاور دسته‌بندی</button>
+              <input type="file" id="atrack-cover-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer" data-change="uiClearIfFile" data-args='["atrack-cover-url"]'>
               <div class="flex items-center gap-2 text-xs text-gray-400"><span class="flex-1 border-t border-gray-200"></span>یا URL<span class="flex-1 border-t border-gray-200"></span></div>
-              <input type="url" id="atrack-cover-url" placeholder="https://example.com/cover.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" oninput="if(this.files[0]||this.value)document.getElementById('atrack-cover-file').value=''">
+              <input type="url" id="atrack-cover-url" placeholder="https://example.com/cover.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" data-input="uiClearIfFileOrText" data-args='["atrack-cover-file"]'>
             </div>
           </div>
-          <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار (اختیاری)</label><div class="flex gap-2"><input type="text" id="atrack-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" onclick="openJalaliPicker(document.getElementById('atrack-publish-date'))" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم"><i class="fas fa-calendar-alt"></i></button></div></div>
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار (اختیاری)</label><div class="flex gap-2"><input type="text" id="atrack-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم" data-click="openJalaliPickerById" data-args='["atrack-publish-date"]'><i class="fas fa-calendar-alt"></i></button></div></div>
           <button type="submit" id="btn-add-atrack" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-plus"></i>افزودن صوت</button>
         </form>
       </div>
@@ -645,12 +646,12 @@
 
     <!-- مودال ویرایش صوت -->
     <div id="edit-audio-track-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base text-teal-700"><i class="fas fa-edit ml-2"></i>ویرایش صوت</h3>
-          <button onclick="this.closest('#edit-audio-track-modal').classList.add('hidden');this.closest('#edit-audio-track-modal').classList.remove('flex')" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="uiCloseModal" data-args='["#edit-audio-track-modal"]'><i class="fas fa-times"></i></button>
         </div>
-        <form id="edit-audio-track-form" onsubmit="saveEditAudioTrack(event)" class="flex flex-col gap-4">
+        <form id="edit-audio-track-form" class="flex flex-col gap-4" data-submit="saveEditAudioTrack" data-args='[{"$":"event"}]'>
           <input type="hidden" id="edit-atrack-id">
           <input type="hidden" id="edit-atrack-cat-id">
           <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان صوت *</label><input type="text" id="edit-atrack-title" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان"></div>
@@ -658,12 +659,12 @@
           <div><label class="block text-xs font-bold text-gray-500 mb-2">لینک فایل صوتی (اختیاری — خالی بذارید تا تغییر نکند)</label><input type="url" id="edit-atrack-url" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" placeholder="https://..."></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">کاور جدید (اختیاری)</label>
             <div class="flex flex-col gap-2">
-              <button type="button" onclick="useCatCover('audio','edit-atrack-cat-id','edit-atrack-cover-url')" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition"><i class="fas fa-palette"></i>استفاده از کاور دسته‌بندی</button>
+              <button type="button" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition" data-click="useCatCover" data-args='["audio","edit-atrack-cat-id","edit-atrack-cover-url"]'><i class="fas fa-palette"></i>استفاده از کاور دسته‌بندی</button>
               <input type="file" id="edit-atrack-cover-file" accept="image/*" class="w-full bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 cursor-pointer">
               <input type="url" id="edit-atrack-cover-url" placeholder="https://example.com/cover.jpg" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm">
             </div>
           </div>
-          <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار</label><div class="flex gap-2"><input type="text" id="edit-atrack-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" onclick="openJalaliPicker(document.getElementById('edit-atrack-publish-date'))" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم"><i class="fas fa-calendar-alt"></i></button></div></div>
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">تاریخ انتشار</label><div class="flex gap-2"><input type="text" id="edit-atrack-publish-date" placeholder="مثال: ۱۴۰۳/۰۱/۱۵" maxlength="10" class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm text-right" dir="ltr"><button type="button" class="shrink-0 bg-gray-50 hover:bg-teal-50 border border-gray-200 hover:border-teal-300 px-3 rounded-xl text-gray-400 hover:text-teal-600 transition" title="انتخاب از تقویم" data-click="openJalaliPickerById" data-args='["edit-atrack-publish-date"]'><i class="fas fa-calendar-alt"></i></button></div></div>
           <button type="submit" id="btn-save-atrack" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-save"></i>ذخیره تغییرات</button>
         </form>
       </div>
@@ -671,12 +672,12 @@
 
     <!-- مودال ویرایش دسته‌بندی صوت -->
     <div id="edit-audio-cat-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" data-click="uiNop" data-stop>
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-black text-base text-teal-700"><i class="fas fa-folder-open ml-2"></i>ویرایش دسته‌بندی صوت</h3>
-          <button onclick="this.closest('#edit-audio-cat-modal').classList.add('hidden');this.closest('#edit-audio-cat-modal').classList.remove('flex')" class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fas fa-times"></i></button>
+          <button class="w-8 h-8 bg-gray-100 rounded-full text-gray-500 hover:bg-gray-200 flex items-center justify-center" data-click="uiCloseModal" data-args='["#edit-audio-cat-modal"]'><i class="fas fa-times"></i></button>
         </div>
-        <form id="edit-audio-cat-form" onsubmit="saveEditAudioCat(event)" class="flex flex-col gap-4">
+        <form id="edit-audio-cat-form" class="flex flex-col gap-4" data-submit="saveEditAudioCat" data-args='[{"$":"event"}]'>
           <input type="hidden" id="edit-acat-id">
           <div><label class="block text-xs font-bold text-gray-500 mb-2">نام دسته‌بندی *</label><input type="text" id="edit-acat-name" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">توضیحات</label><input type="text" id="edit-acat-desc" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
@@ -699,10 +700,10 @@
     <div id="support-list-panel" class="w-72 max-sm:w-full bg-white border-l border-gray-100 flex flex-col h-full shrink-0 shadow-sm">
       <div class="p-3 border-b border-gray-100 bg-gray-50">
         <div class="flex bg-gray-100 rounded-xl p-1">
-          <button onclick="switchSupportTab('tickets')" id="sup-tab-tickets" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-teal-600 transition">تیکت‌ها</button>
-          <button onclick="switchSupportTab('qa')" id="sup-tab-qa" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition">پیام‌ها</button>
-          <button onclick="switchSupportTab('categories')" id="sup-tab-categories" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition">دسته‌ها</button>
-          <button onclick="switchSupportTab('canned')" id="sup-tab-canned" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition">آماده</button>
+          <button id="sup-tab-tickets" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-teal-600 transition" data-click="switchSupportTab" data-args='["tickets"]'>تیکت‌ها</button>
+          <button id="sup-tab-qa" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition" data-click="switchSupportTab" data-args='["qa"]'>پیام‌ها</button>
+          <button id="sup-tab-categories" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition" data-click="switchSupportTab" data-args='["categories"]'>دسته‌ها</button>
+          <button id="sup-tab-canned" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition" data-click="switchSupportTab" data-args='["canned"]'>آماده</button>
         </div>
       </div>
 
@@ -710,7 +711,7 @@
       <div id="support-tickets-panel" class="flex-1 flex flex-col overflow-hidden">
         <div class="p-3 border-b border-gray-100 flex justify-between items-center">
           <h2 class="font-black text-xs text-gray-600">تیکت‌های پشتیبانی</h2>
-          <button onclick="loadTickets()" class="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded-lg">بروزرسانی</button>
+          <button class="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded-lg" data-click="loadTickets">بروزرسانی</button>
         </div>
         <div id="tickets-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
       </div>
@@ -719,7 +720,7 @@
       <div id="support-qa-panel" class="hidden flex-1 flex flex-col overflow-hidden">
         <div class="p-3 border-b border-gray-100 flex justify-between items-center">
           <h2 class="font-black text-xs text-gray-600">پیام‌های مستقیم</h2>
-          <button onclick="loadQAUsers()" class="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded-lg">بروزرسانی</button>
+          <button class="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded-lg" data-click="loadQAUsers">بروزرسانی</button>
         </div>
         <div id="qa-users-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
       </div>
@@ -727,13 +728,13 @@
       <div id="support-categories-panel" class="hidden flex-1 flex flex-col overflow-hidden">
         <div class="p-3 border-b border-gray-100 flex justify-between items-center">
           <h2 class="font-black text-xs text-gray-600">دسته‌بندی سوالات</h2>
-          <button onclick="showAddCategoryForm()" class="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded-lg"><i class="fas fa-plus ml-1"></i>جدید</button>
+          <button class="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded-lg" data-click="showAddCategoryForm"><i class="fas fa-plus ml-1"></i>جدید</button>
         </div>
         <div id="add-category-form" class="hidden p-3 border-b border-gray-100 bg-gray-50 flex flex-col gap-2">
           <input id="new-cat-name" type="text" placeholder="نام دسته‌بندی" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-teal-500">
           <div class="flex gap-2">
-            <button onclick="saveNewCategory()" class="flex-1 bg-teal-600 text-white text-xs font-bold py-2 rounded-lg">ذخیره</button>
-            <button onclick="document.getElementById('add-category-form').classList.add('hidden')" class="px-3 bg-gray-200 text-gray-600 text-xs font-bold py-2 rounded-lg">لغو</button>
+            <button class="flex-1 bg-teal-600 text-white text-xs font-bold py-2 rounded-lg" data-click="saveNewCategory">ذخیره</button>
+            <button class="px-3 bg-gray-200 text-gray-600 text-xs font-bold py-2 rounded-lg" data-click="uiHide" data-args='["add-category-form"]'>لغو</button>
           </div>
         </div>
         <div id="ticket-categories-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
@@ -742,14 +743,14 @@
       <div id="support-canned-panel" class="hidden flex-1 flex flex-col overflow-hidden">
         <div class="p-3 border-b border-gray-100 flex justify-between items-center">
           <h2 class="font-black text-xs text-gray-600">پاسخ‌های آماده</h2>
-          <button onclick="showAddCannedForm()" class="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded-lg"><i class="fas fa-plus ml-1"></i>جدید</button>
+          <button class="text-teal-600 text-xs font-bold bg-teal-50 px-2 py-1 rounded-lg" data-click="showAddCannedForm"><i class="fas fa-plus ml-1"></i>جدید</button>
         </div>
         <div id="add-canned-form" class="hidden p-3 border-b border-gray-100 bg-gray-50 flex flex-col gap-2">
           <input id="new-canned-title" type="text" placeholder="عنوان پاسخ" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-teal-500">
           <textarea id="new-canned-text" rows="4" placeholder="متن پاسخ آماده..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:border-teal-500 resize-none"></textarea>
           <div class="flex gap-2">
-            <button onclick="saveNewCanned()" class="flex-1 bg-teal-600 text-white text-xs font-bold py-2 rounded-lg">ذخیره</button>
-            <button onclick="document.getElementById('add-canned-form').classList.add('hidden')" class="px-3 bg-gray-200 text-gray-600 text-xs font-bold py-2 rounded-lg">لغو</button>
+            <button class="flex-1 bg-teal-600 text-white text-xs font-bold py-2 rounded-lg" data-click="saveNewCanned">ذخیره</button>
+            <button class="px-3 bg-gray-200 text-gray-600 text-xs font-bold py-2 rounded-lg" data-click="uiHide" data-args='["add-canned-form"]'>لغو</button>
           </div>
         </div>
         <div id="canned-responses-list" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
@@ -760,7 +761,7 @@
     <div id="support-chat-panel" class="flex-1 flex flex-col h-full bg-gray-50 max-sm:hidden max-sm:absolute max-sm:inset-0 max-sm:z-10">
       <div class="p-4 bg-white shadow-sm border-b border-gray-100 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <button id="support-back-btn" onclick="closeSupportChat()" class="hidden max-sm:flex w-9 h-9 items-center justify-center bg-gray-50 rounded-full text-gray-500 shrink-0"><i class="fas fa-arrow-right"></i></button>
+          <button id="support-back-btn" class="hidden max-sm:flex w-9 h-9 items-center justify-center bg-gray-50 rounded-full text-gray-500 shrink-0" data-click="closeSupportChat"><i class="fas fa-arrow-right"></i></button>
           <div id="support-avatar" class="w-9 h-9 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center"><i class="fas fa-headset text-sm"></i></div>
           <div>
             <h2 id="active-support-title" class="font-bold text-sm">موردی انتخاب نشده</h2>
@@ -768,10 +769,10 @@
           </div>
         </div>
         <div id="ticket-status-btns" class="hidden gap-2 flex">
-          <button onclick="changeTicketStatus('open')" class="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100">باز</button>
-          <button onclick="changeTicketStatus('answered')" class="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-bold hover:bg-green-100">پاسخ داده شد</button>
-          <button onclick="changeTicketStatus('user_replied')" class="text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-100">پاسخ کاربر</button>
-          <button onclick="changeTicketStatus('closed')" class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-200">بستن تیکت</button>
+          <button class="text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-100" data-click="changeTicketStatus" data-args='["open"]'>باز</button>
+          <button class="text-xs bg-green-50 text-green-600 px-3 py-1.5 rounded-lg font-bold hover:bg-green-100" data-click="changeTicketStatus" data-args='["answered"]'>پاسخ داده شد</button>
+          <button class="text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-100" data-click="changeTicketStatus" data-args='["user_replied"]'>پاسخ کاربر</button>
+          <button class="text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg font-bold hover:bg-gray-200" data-click="changeTicketStatus" data-args='["closed"]'>بستن تیکت</button>
         </div>
       </div>
       <div id="support-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
@@ -784,7 +785,7 @@
             <div id="support-reply-quote-who" class="text-[10px] font-bold text-teal-600"></div>
             <div id="support-reply-quote-text" class="text-[11px] text-gray-500 truncate"></div>
           </div>
-          <button onclick="adminCancelReply()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="لغو پاسخ"><i class="fas fa-times text-xs"></i></button>
+          <button class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="لغو پاسخ" data-click="adminCancelReply"><i class="fas fa-times text-xs"></i></button>
         </div>
         <!-- پاسخ آماده -->
         <div id="canned-picker" class="hidden max-h-48 overflow-y-auto border-b border-gray-100 p-2 flex flex-col gap-1 bg-gray-50"></div>
@@ -793,16 +794,16 @@
           <i id="support-attach-icon" class="fas fa-paperclip text-teal-600 text-xs shrink-0"></i>
           <span id="support-attach-name" class="text-[11px] text-gray-600 flex-1 truncate"></span>
           <audio id="support-attach-player" controls class="hidden h-7" style="max-width:180px;"></audio>
-          <button onclick="supportClearAttachment()" class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="حذف پیوست"><i class="fas fa-times text-xs"></i></button>
+          <button class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 shrink-0" title="حذف پیوست" data-click="supportClearAttachment"><i class="fas fa-times text-xs"></i></button>
         </div>
         <div class="p-3 flex gap-2 items-center">
-          <button onclick="toggleCannedPicker()" title="پاسخ آماده" class="w-9 h-9 shrink-0 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 hover:bg-amber-100 transition flex items-center justify-center text-sm"><i class="fas fa-bolt"></i></button>
-          <input type="file" id="support-attach-input" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.mp3,.wav,.ogg,.aac,.m4a,.webm,.flac" onchange="supportPickFile()">
-          <button id="support-attach-btn" onclick="document.getElementById('support-attach-input').click()" title="پیوست فایل (تصویر، PDF یا صوت)" class="w-9 h-9 shrink-0 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center text-sm" disabled><i class="fas fa-paperclip"></i></button>
-          <button id="support-voice-btn" onclick="supportToggleVoice()" title="ضبط پاسخ صوتی" class="w-9 h-9 shrink-0 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center text-sm" disabled><i class="fas fa-microphone"></i></button>
+          <button title="پاسخ آماده" class="w-9 h-9 shrink-0 bg-amber-50 border border-amber-100 rounded-xl text-amber-600 hover:bg-amber-100 transition flex items-center justify-center text-sm" data-click="toggleCannedPicker"><i class="fas fa-bolt"></i></button>
+          <input type="file" id="support-attach-input" class="hidden" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.mp3,.wav,.ogg,.aac,.m4a,.webm,.flac" data-change="supportPickFile">
+          <button id="support-attach-btn" title="پیوست فایل (تصویر، PDF یا صوت)" class="w-9 h-9 shrink-0 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center text-sm" disabled data-click="uiClick" data-args='["support-attach-input"]'><i class="fas fa-paperclip"></i></button>
+          <button id="support-voice-btn" title="ضبط پاسخ صوتی" class="w-9 h-9 shrink-0 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-100 transition flex items-center justify-center text-sm" disabled data-click="supportToggleVoice"><i class="fas fa-microphone"></i></button>
           <span id="support-record-timer" class="hidden text-xs font-bold text-red-500 shrink-0"></span>
-          <input type="text" id="support-reply-input" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-teal-500 text-sm" placeholder="پاسخ..." disabled onkeypress="if(event.key==='Enter')sendSupportReply()">
-          <button id="support-reply-send" onclick="sendSupportReply()" class="bg-teal-600 hover:bg-teal-700 text-white px-5 rounded-xl font-bold text-sm opacity-50 cursor-not-allowed transition" disabled>ارسال</button>
+          <input type="text" id="support-reply-input" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 outline-none focus:border-teal-500 text-sm" placeholder="پاسخ..." disabled data-keypress="sendSupportReply" data-key="Enter">
+          <button id="support-reply-send" class="bg-teal-600 hover:bg-teal-700 text-white px-5 rounded-xl font-bold text-sm opacity-50 cursor-not-allowed transition" disabled data-click="sendSupportReply">ارسال</button>
         </div>
       </div>
     </div>
@@ -817,13 +818,13 @@
       <div class="flex flex-col gap-4">
         <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان پیام *</label><input type="text" id="bc-title" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان اعلان"></div>
         <div><label class="block text-xs font-bold text-gray-500 mb-2">متن پیام *</label><textarea id="bc-message" rows="4" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 resize-none" placeholder="متن اعلان برای کاربران..."></textarea></div>
-        <button onclick="sendBroadcast()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-paper-plane"></i>ارسال پیام همگانی</button>
+        <button class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3.5 rounded-xl shadow-sm transition flex items-center justify-center gap-2" data-click="sendBroadcast"><i class="fas fa-paper-plane"></i>ارسال پیام همگانی</button>
       </div>
     </div>
     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-black">پیام‌های ارسال شده</h2>
-        <button onclick="loadBroadcasts()" class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button>
+        <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadBroadcasts"><i class="fas fa-sync-alt text-sm"></i></button>
       </div>
       <div id="broadcast-list" class="flex flex-col gap-3"></div>
     </div>
@@ -833,7 +834,7 @@
   <div id="tab-analytics" class="hidden flex-1 overflow-y-auto p-4 sm:p-6">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <h2 class="font-black text-lg"><i class="fas fa-chart-line text-teal-600 ml-2"></i>آمار بازدید</h2>
-      <button onclick="loadAnalytics()" class="text-teal-600 text-xs font-bold bg-teal-50 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition"><i class="fas fa-sync-alt ml-1"></i>بروزرسانی</button>
+      <button class="text-teal-600 text-xs font-bold bg-teal-50 px-3 py-1.5 rounded-lg hover:bg-teal-100 transition" data-click="loadAnalytics"><i class="fas fa-sync-alt ml-1"></i>بروزرسانی</button>
     </div>
 
     <!-- زنده -->
@@ -871,12 +872,12 @@
     <div class="flex flex-wrap items-center gap-2 mb-3">
       <span class="text-xs font-bold text-gray-500 ml-1">جزئیات در بازهٔ:</span>
       <div id="an-range" class="flex flex-wrap gap-1.5">
-        <button data-range="today" onclick="setAnalyticsRange('today')" class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">امروز</button>
-        <button data-range="week"  onclick="setAnalyticsRange('week')"  class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">این هفته</button>
-        <button data-range="month" onclick="setAnalyticsRange('month')" class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">این ماه</button>
-        <button data-range="30d"   onclick="setAnalyticsRange('30d')"   class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">۳۰ روز اخیر</button>
-        <button data-range="year"  onclick="setAnalyticsRange('year')"  class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">امسال</button>
-        <button data-range="all"   onclick="setAnalyticsRange('all')"   class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition">همه</button>
+        <button data-range="today" class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition" data-click="setAnalyticsRange" data-args='["today"]'>امروز</button>
+        <button data-range="week"  class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition" data-click="setAnalyticsRange" data-args='["week"]'>این هفته</button>
+        <button data-range="month" class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition" data-click="setAnalyticsRange" data-args='["month"]'>این ماه</button>
+        <button data-range="30d"   class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition" data-click="setAnalyticsRange" data-args='["30d"]'>۳۰ روز اخیر</button>
+        <button data-range="year"  class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition" data-click="setAnalyticsRange" data-args='["year"]'>امسال</button>
+        <button data-range="all"   class="an-range-btn text-xs font-bold px-3 py-1.5 rounded-lg transition" data-click="setAnalyticsRange" data-args='["all"]'>همه</button>
       </div>
     </div>
 
@@ -936,7 +937,7 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div class="p-5 border-b border-gray-100 flex items-center justify-between">
         <h2 class="font-black"><i class="fas fa-users text-teal-600 ml-2"></i>مدیریت کاربران</h2>
-        <button onclick="loadUsers()" class="w-9 h-9 bg-gray-50 rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button>
+        <button class="w-9 h-9 bg-gray-50 rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadUsers"><i class="fas fa-sync-alt text-sm"></i></button>
       </div>
       <div id="users-table" class="overflow-x-auto">
         <table class="w-full text-sm">
@@ -960,11 +961,11 @@
   <div id="tab-settings" class="hidden flex-1 overflow-y-auto p-6 flex flex-col gap-6">
     <!-- زیربخش‌های تنظیمات -->
     <div id="settings-subnav" class="settings-subnav">
-      <button data-pane="general" onclick="switchSettingsPane('general')"><i class="fas fa-sliders-h"></i>عمومی</button>
-      <button data-pane="shortcuts" onclick="switchSettingsPane('shortcuts')"><i class="fas fa-th"></i>آیکن‌های خانه</button>
-      <button data-pane="linkshortcuts" onclick="switchSettingsPane('linkshortcuts')"><i class="fas fa-external-link-alt"></i>لینک‌های خانه</button>
-      <button data-pane="navitems" onclick="switchSettingsPane('navitems')"><i class="fas fa-bars"></i>نوار پایین</button>
-      <button data-pane="admins" onclick="switchSettingsPane('admins')"><i class="fas fa-user-shield"></i>مدیران</button>
+      <button data-pane="general" data-click="switchSettingsPane" data-args='["general"]'><i class="fas fa-sliders-h"></i>عمومی</button>
+      <button data-pane="shortcuts" data-click="switchSettingsPane" data-args='["shortcuts"]'><i class="fas fa-th"></i>آیکن‌های خانه</button>
+      <button data-pane="linkshortcuts" data-click="switchSettingsPane" data-args='["linkshortcuts"]'><i class="fas fa-external-link-alt"></i>لینک‌های خانه</button>
+      <button data-pane="navitems" data-click="switchSettingsPane" data-args='["navitems"]'><i class="fas fa-bars"></i>نوار پایین</button>
+      <button data-pane="admins" data-click="switchSettingsPane" data-args='["admins"]'><i class="fas fa-user-shield"></i>مدیران</button>
     </div>
     <div id="settings-pane-general" class="settings-pane">
 
@@ -990,9 +991,9 @@
                 <i id="logo-placeholder" class="fas fa-image text-gray-300 text-2xl"></i>
               </div>
               <div class="flex-1">
-                <input type="file" id="logo-input" accept="image/*" class="hidden" onchange="previewLogo(this)">
-                <button onclick="document.getElementById('logo-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب لوگو</button>
-                <button onclick="uploadLogo()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود لوگو</button>
+                <input type="file" id="logo-input" accept="image/*" class="hidden" data-change="previewLogo" data-args='[{"$":"el"}]'>
+                <button class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full" data-click="uiClick" data-args='["logo-input"]'><i class="fas fa-upload ml-2"></i>انتخاب لوگو</button>
+                <button class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full" data-click="uploadLogo"><i class="fas fa-save ml-2"></i>آپلود لوگو</button>
               </div>
             </div>
           </div>
@@ -1005,9 +1006,9 @@
                 <i id="header-logo-placeholder" class="fas fa-heading text-gray-300 text-2xl"></i>
               </div>
               <div class="flex-1">
-                <input type="file" id="header-logo-input" accept="image/*" class="hidden" onchange="previewHeaderLogo(this)">
-                <button onclick="document.getElementById('header-logo-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب لوگو</button>
-                <button onclick="uploadHeaderLogo()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود لوگو</button>
+                <input type="file" id="header-logo-input" accept="image/*" class="hidden" data-change="previewHeaderLogo" data-args='[{"$":"el"}]'>
+                <button class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full" data-click="uiClick" data-args='["header-logo-input"]'><i class="fas fa-upload ml-2"></i>انتخاب لوگو</button>
+                <button class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full" data-click="uploadHeaderLogo"><i class="fas fa-save ml-2"></i>آپلود لوگو</button>
               </div>
             </div>
           </div>
@@ -1020,9 +1021,9 @@
                 <i id="favicon-placeholder" class="fas fa-globe text-gray-300 text-2xl"></i>
               </div>
               <div class="flex-1">
-                <input type="file" id="favicon-input" accept="image/*,.ico" class="hidden" onchange="previewFavicon(this)">
-                <button onclick="document.getElementById('favicon-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full"><i class="fas fa-upload ml-2"></i>انتخاب آیکون</button>
-                <button onclick="uploadFavicon()" class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full"><i class="fas fa-save ml-2"></i>آپلود آیکون</button>
+                <input type="file" id="favicon-input" accept="image/*,.ico" class="hidden" data-change="previewFavicon" data-args='[{"$":"el"}]'>
+                <button class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition mb-2 block w-full" data-click="uiClick" data-args='["favicon-input"]'><i class="fas fa-upload ml-2"></i>انتخاب آیکون</button>
+                <button class="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-teal-700 transition w-full" data-click="uploadFavicon"><i class="fas fa-save ml-2"></i>آپلود آیکون</button>
               </div>
             </div>
           </div>
@@ -1038,12 +1039,12 @@
             <div class="flex items-center gap-3">
               <input type="color" id="s-primary_color" value="#0d9488" class="rounded-lg cursor-pointer">
               <div class="flex flex-wrap gap-2">
-                <div class="color-swatch" style="background:#0d9488" onclick="setColorSwatch('primary','#0d9488')"></div>
-                <div class="color-swatch" style="background:#2563eb" onclick="setColorSwatch('primary','#2563eb')"></div>
-                <div class="color-swatch" style="background:#7c3aed" onclick="setColorSwatch('primary','#7c3aed')"></div>
-                <div class="color-swatch" style="background:#dc2626" onclick="setColorSwatch('primary','#dc2626')"></div>
-                <div class="color-swatch" style="background:#d97706" onclick="setColorSwatch('primary','#d97706')"></div>
-                <div class="color-swatch" style="background:#1e293b" onclick="setColorSwatch('primary','#1e293b')"></div>
+                <div class="color-swatch" style="background:#0d9488" data-click="setColorSwatch" data-args='["primary","#0d9488"]'></div>
+                <div class="color-swatch" style="background:#2563eb" data-click="setColorSwatch" data-args='["primary","#2563eb"]'></div>
+                <div class="color-swatch" style="background:#7c3aed" data-click="setColorSwatch" data-args='["primary","#7c3aed"]'></div>
+                <div class="color-swatch" style="background:#dc2626" data-click="setColorSwatch" data-args='["primary","#dc2626"]'></div>
+                <div class="color-swatch" style="background:#d97706" data-click="setColorSwatch" data-args='["primary","#d97706"]'></div>
+                <div class="color-swatch" style="background:#1e293b" data-click="setColorSwatch" data-args='["primary","#1e293b"]'></div>
               </div>
             </div>
           </div>
@@ -1052,10 +1053,10 @@
             <div class="flex items-center gap-3">
               <input type="color" id="s-secondary_color" value="#0f766e" class="rounded-lg cursor-pointer">
               <div class="flex flex-wrap gap-2">
-                <div class="color-swatch" style="background:#0f766e" onclick="setColorSwatch('secondary','#0f766e')"></div>
-                <div class="color-swatch" style="background:#1d4ed8" onclick="setColorSwatch('secondary','#1d4ed8')"></div>
-                <div class="color-swatch" style="background:#6d28d9" onclick="setColorSwatch('secondary','#6d28d9')"></div>
-                <div class="color-swatch" style="background:#b91c1c" onclick="setColorSwatch('secondary','#b91c1c')"></div>
+                <div class="color-swatch" style="background:#0f766e" data-click="setColorSwatch" data-args='["secondary","#0f766e"]'></div>
+                <div class="color-swatch" style="background:#1d4ed8" data-click="setColorSwatch" data-args='["secondary","#1d4ed8"]'></div>
+                <div class="color-swatch" style="background:#6d28d9" data-click="setColorSwatch" data-args='["secondary","#6d28d9"]'></div>
+                <div class="color-swatch" style="background:#b91c1c" data-click="setColorSwatch" data-args='["secondary","#b91c1c"]'></div>
               </div>
             </div>
           </div>
@@ -1103,11 +1104,11 @@
             <div class="flex items-center gap-3">
               <input type="color" id="s-splash_bg_color" value="#ffffff" class="rounded-lg cursor-pointer w-12 h-10">
               <div class="flex flex-wrap gap-2">
-                <div class="w-8 h-8 rounded-lg cursor-pointer border border-gray-200" style="background:#ffffff" onclick="document.getElementById('s-splash_bg_color').value='#ffffff'"></div>
-                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0d9488" onclick="document.getElementById('s-splash_bg_color').value='#0d9488'"></div>
-                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#1e293b" onclick="document.getElementById('s-splash_bg_color').value='#1e293b'"></div>
-                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#7c3aed" onclick="document.getElementById('s-splash_bg_color').value='#7c3aed'"></div>
-                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0f172a" onclick="document.getElementById('s-splash_bg_color').value='#0f172a'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer border border-gray-200" style="background:#ffffff" data-click="uiSetValue" data-args='["s-splash_bg_color","#ffffff"]'></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0d9488" data-click="uiSetValue" data-args='["s-splash_bg_color","#0d9488"]'></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#1e293b" data-click="uiSetValue" data-args='["s-splash_bg_color","#1e293b"]'></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#7c3aed" data-click="uiSetValue" data-args='["s-splash_bg_color","#7c3aed"]'></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0f172a" data-click="uiSetValue" data-args='["s-splash_bg_color","#0f172a"]'></div>
               </div>
             </div>
           </div>
@@ -1116,10 +1117,10 @@
             <div class="flex items-center gap-3">
               <input type="color" id="s-splash_spinner_color" value="#0d9488" class="rounded-lg cursor-pointer w-12 h-10">
               <div class="flex flex-wrap gap-2">
-                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0d9488" onclick="document.getElementById('s-splash_spinner_color').value='#0d9488'"></div>
-                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#ffffff" onclick="document.getElementById('s-splash_spinner_color').value='#ffffff'"></div>
-                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#7c3aed" onclick="document.getElementById('s-splash_spinner_color').value='#7c3aed'"></div>
-                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#f59e0b" onclick="document.getElementById('s-splash_spinner_color').value='#f59e0b'"></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#0d9488" data-click="uiSetValue" data-args='["s-splash_spinner_color","#0d9488"]'></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#ffffff" data-click="uiSetValue" data-args='["s-splash_spinner_color","#ffffff"]'></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#7c3aed" data-click="uiSetValue" data-args='["s-splash_spinner_color","#7c3aed"]'></div>
+                <div class="w-8 h-8 rounded-lg cursor-pointer" style="background:#f59e0b" data-click="uiSetValue" data-args='["s-splash_spinner_color","#f59e0b"]'></div>
               </div>
             </div>
           </div>
@@ -1131,10 +1132,10 @@
                 <i id="splash-icon-ph" class="fas fa-image text-gray-300 text-2xl"></i>
               </div>
               <div class="flex-1 flex flex-col gap-2">
-                <input type="file" id="splash-icon-input" accept="image/*" class="hidden" onchange="previewSplashIcon(this)">
-                <button onclick="document.getElementById('splash-icon-input').click()" class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition"><i class="fas fa-upload ml-2"></i>انتخاب تصویر</button>
-                <button onclick="uploadSplashIcon()" class="bg-purple-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-purple-700 transition"><i class="fas fa-save ml-2"></i>آپلود آیکون</button>
-                <button onclick="clearSplashIcon()" class="bg-red-50 border border-red-100 text-red-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition"><i class="fas fa-times ml-1"></i>حذف آیکون (نمایش اسپینر)</button>
+                <input type="file" id="splash-icon-input" accept="image/*" class="hidden" data-change="previewSplashIcon" data-args='[{"$":"el"}]'>
+                <button class="bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-gray-100 transition" data-click="uiClick" data-args='["splash-icon-input"]'><i class="fas fa-upload ml-2"></i>انتخاب تصویر</button>
+                <button class="bg-purple-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-purple-700 transition" data-click="uploadSplashIcon"><i class="fas fa-save ml-2"></i>آپلود آیکون</button>
+                <button class="bg-red-50 border border-red-100 text-red-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition" data-click="clearSplashIcon"><i class="fas fa-times ml-1"></i>حذف آیکون (نمایش اسپینر)</button>
               </div>
             </div>
           </div>
@@ -1148,7 +1149,7 @@
             <div id="sp-title" style="font-size:18px;font-weight:900;color:#1f2937;font-family:Vazir,Tahoma,sans-serif;">نرم افزار آیت الله دستغیب</div>
             <div id="sp-sub" style="font-size:12px;color:#6b7280;font-family:Vazir,Tahoma,sans-serif;text-align:center;">در حال آماده‌سازی...</div>
           </div>
-          <button onclick="updateSplashPreview()" class="mt-3 bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-200 transition"><i class="fas fa-eye ml-1"></i>به‌روزرسانی پیش‌نمایش</button>
+          <button class="mt-3 bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-gray-200 transition" data-click="updateSplashPreview"><i class="fas fa-eye ml-1"></i>به‌روزرسانی پیش‌نمایش</button>
         </div>
       </div>
 
@@ -1159,43 +1160,43 @@
         <div class="flex flex-col gap-4">
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از اسلایدر</span>
-            <input type="range" min="0" max="80" value="16" id="s-gap_slider" oninput="document.getElementById('sv-gap_slider').textContent=this.value" class="flex-1 accent-teal-600">
+            <input type="range" min="0" max="80" value="16" id="s-gap_slider" class="flex-1 accent-teal-600" data-input="uiMirrorText" data-args='["sv-gap_slider"]'>
             <span id="sv-gap_slider" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
             <span class="text-xs text-gray-400">px</span>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آیکن‌ها</span>
-            <input type="range" min="0" max="80" value="16" id="s-gap_shortcuts" oninput="document.getElementById('sv-gap_shortcuts').textContent=this.value" class="flex-1 accent-teal-600">
+            <input type="range" min="0" max="80" value="16" id="s-gap_shortcuts" class="flex-1 accent-teal-600" data-input="uiMirrorText" data-args='["sv-gap_shortcuts"]'>
             <span id="sv-gap_shortcuts" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
             <span class="text-xs text-gray-400">px</span>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از کتاب‌ها</span>
-            <input type="range" min="0" max="80" value="16" id="s-gap_books" oninput="document.getElementById('sv-gap_books').textContent=this.value" class="flex-1 accent-teal-600">
+            <input type="range" min="0" max="80" value="16" id="s-gap_books" class="flex-1 accent-teal-600" data-input="uiMirrorText" data-args='["sv-gap_books"]'>
             <span id="sv-gap_books" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
             <span class="text-xs text-gray-400">px</span>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از تصاویر</span>
-            <input type="range" min="0" max="80" value="16" id="s-gap_images" oninput="document.getElementById('sv-gap_images').textContent=this.value" class="flex-1 accent-teal-600">
+            <input type="range" min="0" max="80" value="16" id="s-gap_images" class="flex-1 accent-teal-600" data-input="uiMirrorText" data-args='["sv-gap_images"]'>
             <span id="sv-gap_images" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
             <span class="text-xs text-gray-400">px</span>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین مطالب</span>
-            <input type="range" min="0" max="80" value="16" id="s-gap_lectures" oninput="document.getElementById('sv-gap_lectures').textContent=this.value" class="flex-1 accent-teal-600">
+            <input type="range" min="0" max="80" value="16" id="s-gap_lectures" class="flex-1 accent-teal-600" data-input="uiMirrorText" data-args='["sv-gap_lectures"]'>
             <span id="sv-gap_lectures" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
             <span class="text-xs text-gray-400">px</span>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین صوت‌ها</span>
-            <input type="range" min="0" max="80" value="16" id="s-gap_audio" oninput="document.getElementById('sv-gap_audio').textContent=this.value" class="flex-1 accent-teal-600">
+            <input type="range" min="0" max="80" value="16" id="s-gap_audio" class="flex-1 accent-teal-600" data-input="uiMirrorText" data-args='["sv-gap_audio"]'>
             <span id="sv-gap_audio" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
             <span class="text-xs text-gray-400">px</span>
           </div>
           <div class="flex items-center gap-3">
             <span class="text-xs font-bold text-gray-600 w-44 shrink-0">بعد از آخرین ویدیوها</span>
-            <input type="range" min="0" max="80" value="16" id="s-gap_videos" oninput="document.getElementById('sv-gap_videos').textContent=this.value" class="flex-1 accent-teal-600">
+            <input type="range" min="0" max="80" value="16" id="s-gap_videos" class="flex-1 accent-teal-600" data-input="uiMirrorText" data-args='["sv-gap_videos"]'>
             <span id="sv-gap_videos" class="text-sm font-black text-teal-600 w-7 text-center">16</span>
             <span class="text-xs text-gray-400">px</span>
           </div>
@@ -1203,7 +1204,7 @@
             <p class="text-xs text-gray-400 mb-3">فاصله بالا و پایین بنرها</p>
             <div class="flex items-center gap-3">
               <span class="text-xs font-bold text-gray-600 w-44 shrink-0">فاصله بالا/پایین بنر</span>
-              <input type="range" min="0" max="40" value="0" id="s-gap_banner" oninput="document.getElementById('sv-gap_banner').textContent=this.value" class="flex-1 accent-teal-600">
+              <input type="range" min="0" max="40" value="0" id="s-gap_banner" class="flex-1 accent-teal-600" data-input="uiMirrorText" data-args='["sv-gap_banner"]'>
               <span id="sv-gap_banner" class="text-sm font-black text-teal-600 w-7 text-center">0</span>
               <span class="text-xs text-gray-400">px</span>
             </div>
@@ -1227,8 +1228,8 @@
       </div>
 
       <div class="flex gap-3">
-        <button onclick="saveSettings()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-sm transition flex-1 text-sm"><i class="fas fa-save ml-2"></i>ذخیره تمام تنظیمات</button>
-        <button onclick="loadSettings()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-xl text-sm"><i class="fas fa-sync-alt ml-2"></i>بازنشانی</button>
+        <button class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3.5 rounded-xl shadow-sm transition flex-1 text-sm" data-click="saveSettings"><i class="fas fa-save ml-2"></i>ذخیره تمام تنظیمات</button>
+        <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-6 py-3.5 rounded-xl text-sm" data-click="loadSettings"><i class="fas fa-sync-alt ml-2"></i>بازنشانی</button>
       </div>
 
       <!-- Digital Asset Links (اپ اندروید) — جدا از «ذخیره تمام تنظیمات»؛ دکمهٔ ذخیرهٔ خودش را دارد -->
@@ -1248,9 +1249,9 @@
         <textarea id="al-text" dir="ltr" rows="11" spellcheck="false" class="w-full font-mono text-xs bg-gray-50 border border-gray-200 rounded-xl p-3 outline-none focus:ring-2 focus:ring-teal-200 focus:bg-white transition" placeholder='[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "android_app", "package_name": "info.dastgheibqoba.app.twa", "sha256_cert_fingerprints": ["AA:BB:..."] } }]'></textarea>
         <div id="al-summary" class="mt-3 flex flex-col gap-1.5"></div>
         <div class="flex flex-wrap items-center gap-2 mt-4">
-          <button onclick="saveAssetLinks()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition"><i class="fas fa-save ml-2"></i>ذخیرهٔ اتصال اپ</button>
-          <button onclick="addBazaarStatement()" title="کافه‌بازار برای هر پکیج یک ردیف با namespace «cafebazaar_twa» می‌خواهد" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-plus ml-2"></i>افزودن ردیف کافه‌بازار</button>
-          <button onclick="resetAssetLinks()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition"><i class="fas fa-undo ml-2"></i>حذف مقدار ذخیره‌شده</button>
+          <button class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition" data-click="saveAssetLinks"><i class="fas fa-save ml-2"></i>ذخیرهٔ اتصال اپ</button>
+          <button title="کافه‌بازار برای هر پکیج یک ردیف با namespace «cafebazaar_twa» می‌خواهد" class="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-4 py-2.5 rounded-xl text-sm transition" data-click="addBazaarStatement"><i class="fas fa-plus ml-2"></i>افزودن ردیف کافه‌بازار</button>
+          <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition" data-click="resetAssetLinks"><i class="fas fa-undo ml-2"></i>حذف مقدار ذخیره‌شده</button>
           <a href="/.well-known/assetlinks.json" target="_blank" rel="noopener" class="text-teal-600 text-xs font-bold px-3 py-2.5 rounded-xl hover:bg-teal-50 transition"><i class="fas fa-external-link-alt ml-1"></i>دیدن نسخهٔ زنده</a>
         </div>
       </div>
@@ -1261,8 +1262,8 @@
         <p class="text-xs text-gray-500 mb-4 leading-relaxed">سرور فهرست سخنرانی‌ها و مطالب سایت را کپی می‌کند تا در اپ سریع باز شوند و در جستجو پیدا شوند. روزی یک‌بار مطالب جدید یا ویرایش‌شده خودکار گرفته و مطالب حذف‌شده پاک می‌شوند. برای دیدن فوری یک مطلب تازه، دکمهٔ «همگام‌سازی کامل الان» را بزنید.</p>
         <div id="wpm-status" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-3 text-gray-600 leading-6">...</div>
         <div class="flex flex-wrap items-center gap-2 mt-4">
-          <button id="wpm-sync-btn" onclick="wpMirrorSync()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition"><i class="fas fa-sync-alt ml-2"></i>همگام‌سازی کامل الان</button>
-          <button onclick="loadWpMirrorStatus()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition">بروزرسانی وضعیت</button>
+          <button id="wpm-sync-btn" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition" data-click="wpMirrorSync"><i class="fas fa-sync-alt ml-2"></i>همگام‌سازی کامل الان</button>
+          <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition" data-click="loadWpMirrorStatus">بروزرسانی وضعیت</button>
         </div>
       </div>
 
@@ -1272,8 +1273,8 @@
         <p class="text-xs text-gray-500 mb-4 leading-relaxed">متن کتاب‌ها برای جستجوی سریع در یک فهرست جدا نگه داشته می‌شود و با افزودن، ویرایش یا حذف کتاب خودکار به‌روز می‌شود. اگر جستجو در متن کتاب‌ها ناقص بود، «بازسازی فهرست» را بزنید.</p>
         <div id="bsi-status" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-3 text-gray-600 leading-6 break-words">...</div>
         <div class="flex flex-wrap items-center gap-2 mt-4">
-          <button id="bsi-rebuild-btn" onclick="bookIndexRebuild()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition"><i class="fas fa-sync-alt ml-2"></i>بازسازی فهرست</button>
-          <button onclick="loadBookIndexStatus()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition">بروزرسانی وضعیت</button>
+          <button id="bsi-rebuild-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition" data-click="bookIndexRebuild"><i class="fas fa-sync-alt ml-2"></i>بازسازی فهرست</button>
+          <button class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-sm transition" data-click="loadBookIndexStatus">بروزرسانی وضعیت</button>
         </div>
       </div>
     </div>
@@ -1285,7 +1286,7 @@
           <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
         </div>
         <div class="mt-6 border-t pt-5">
-          <button onclick="saveShortcuts()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره آیکن‌ها</button>
+          <button class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition" data-click="saveShortcuts"><i class="fas fa-save ml-2"></i>ذخیره آیکن‌ها</button>
         </div>
       </div>
     </div>
@@ -1297,7 +1298,7 @@
           <div class="col-span-full text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
         </div>
         <div class="mt-6 border-t pt-5">
-          <button onclick="saveLinkShortcuts()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره لینک‌ها</button>
+          <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition" data-click="saveLinkShortcuts"><i class="fas fa-save ml-2"></i>ذخیره لینک‌ها</button>
         </div>
       </div>
     </div>
@@ -1309,7 +1310,7 @@
           <div class="text-center text-gray-400 text-sm py-10"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div>
         </div>
         <div class="mt-6 border-t pt-5">
-          <button onclick="saveNavItemsAdmin()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition"><i class="fas fa-save ml-2"></i>ذخیره نوار پایین</button>
+          <button class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition" data-click="saveNavItemsAdmin"><i class="fas fa-save ml-2"></i>ذخیره نوار پایین</button>
         </div>
       </div>
     </div>
@@ -1320,9 +1321,9 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-3xl">
           <input type="password" id="my-pw-current" autocomplete="current-password" class="min-w-0 bg-gray-50 border border-gray-200 p-3 rounded-xl text-sm outline-none focus:border-teal-500" placeholder="رمز فعلی">
           <input type="password" id="my-pw-new" autocomplete="new-password" class="min-w-0 bg-gray-50 border border-gray-200 p-3 rounded-xl text-sm outline-none focus:border-teal-500" placeholder="رمز جدید">
-          <input type="password" id="my-pw-new2" autocomplete="new-password" class="min-w-0 bg-gray-50 border border-gray-200 p-3 rounded-xl text-sm outline-none focus:border-teal-500" placeholder="تکرار رمز جدید" onkeypress="if(event.key==='Enter')changeMyPassword()">
+          <input type="password" id="my-pw-new2" autocomplete="new-password" class="min-w-0 bg-gray-50 border border-gray-200 p-3 rounded-xl text-sm outline-none focus:border-teal-500" placeholder="تکرار رمز جدید" data-keypress="changeMyPassword" data-key="Enter">
         </div>
-        <div class="mt-4"><button onclick="changeMyPassword()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-3 rounded-xl shadow-sm transition text-sm"><i class="fas fa-save ml-2"></i>تغییر رمز</button></div>
+        <div class="mt-4"><button class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-3 rounded-xl shadow-sm transition text-sm" data-click="changeMyPassword"><i class="fas fa-save ml-2"></i>تغییر رمز</button></div>
       </div>
       <!-- فقط مدیر ارشد (owner) -->
       <div id="admins-owner-only" class="hidden">
@@ -1330,7 +1331,7 @@
           <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between gap-3 mb-4">
               <h2 class="text-lg font-black"><i class="fas fa-user-shield text-teal-600 ml-2"></i>مدیران</h2>
-              <button onclick="loadAdminsList()" aria-label="تازه‌سازی" class="w-9 h-9 shrink-0 bg-gray-50 rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button>
+              <button aria-label="تازه‌سازی" class="w-9 h-9 shrink-0 bg-gray-50 rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadAdminsList"><i class="fas fa-sync-alt text-sm"></i></button>
             </div>
             <div id="admins-list" class="flex flex-col gap-3"><div class="text-center text-gray-400 text-sm py-6"><i class="fas fa-spinner fa-spin ml-2"></i>در حال بارگذاری...</div></div>
           </div>
@@ -1342,12 +1343,12 @@
               <input type="password" id="new-admin-pass" autocomplete="new-password" class="min-w-0 bg-gray-50 border border-gray-200 p-3 rounded-xl text-sm outline-none focus:border-teal-500" placeholder="رمز عبور (حداقل ۸ کاراکتر)">
               <select id="new-admin-role" class="min-w-0 bg-gray-50 border border-gray-200 p-3 rounded-xl text-sm outline-none focus:border-teal-500"><option value="admin">مدیر</option><option value="owner">مدیر ارشد</option></select>
             </div>
-            <div class="mt-4"><button onclick="addAdmin()" id="new-admin-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-3 rounded-xl shadow-sm transition text-sm"><i class="fas fa-plus ml-2"></i>افزودن مدیر</button></div>
+            <div class="mt-4"><button id="new-admin-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-6 py-3 rounded-xl shadow-sm transition text-sm" data-click="addAdmin"><i class="fas fa-plus ml-2"></i>افزودن مدیر</button></div>
           </div>
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="p-5 border-b border-gray-100 flex items-center justify-between gap-3">
               <div class="min-w-0"><h2 class="font-black"><i class="fas fa-clipboard-list text-teal-600 ml-2"></i>سابقهٔ کارها</h2><p class="text-xs text-gray-400 mt-1">۲۰۰ مورد آخر: ورودها و هر تغییری که مدیران داده‌اند (تا ۱۸۰ روز نگه‌داری می‌شود).</p></div>
-              <button onclick="loadAudit()" aria-label="تازه‌سازی" class="w-9 h-9 shrink-0 bg-gray-50 rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100"><i class="fas fa-sync-alt text-sm"></i></button>
+              <button aria-label="تازه‌سازی" class="w-9 h-9 shrink-0 bg-gray-50 rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadAudit"><i class="fas fa-sync-alt text-sm"></i></button>
             </div>
             <table id="audit-table" class="w-full text-xs">
               <thead class="bg-gray-50 border-b border-gray-100"><tr>
@@ -1371,43 +1372,43 @@
       <h2 class="text-lg font-black mb-2 border-b pb-4"><i class="fas fa-file-alt text-teal-600 ml-2"></i>ویرایش صفحات محتوا</h2>
       <p class="text-xs text-gray-400 mt-3 mb-5">محتوای هر صفحه را ویرایش کرده و ذخیره کنید. از ویرایشگر می‌توانید تصویر، لینک، لیست، عنوان و ... اضافه کنید.</p>
       <div class="flex bg-gray-100 p-1 rounded-xl mb-6 gap-1 flex-wrap">
-        <button onclick="switchPageContentTab('social')" id="pctab-social" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-teal-600 transition min-w-[80px]"><i class="fab fa-instagram ml-1"></i>شبکه‌های اجتماعی</button>
-        <button onclick="switchPageContentTab('biography')" id="pctab-biography" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition min-w-[80px]"><i class="fas fa-user-graduate ml-1"></i>زندگی‌نامه</button>
-        <button onclick="switchPageContentTab('mosque')" id="pctab-mosque" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition min-w-[80px]"><i class="fas fa-mosque ml-1"></i>مسجد قبا</button>
-        <button onclick="switchPageContentTab('contact')" id="pctab-contact" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition min-w-[80px]"><i class="fas fa-headset ml-1"></i>ارتباط با ما</button>
+        <button id="pctab-social" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white shadow-sm text-teal-600 transition min-w-[80px]" data-click="switchPageContentTab" data-args='["social"]'><i class="fab fa-instagram ml-1"></i>شبکه‌های اجتماعی</button>
+        <button id="pctab-biography" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition min-w-[80px]" data-click="switchPageContentTab" data-args='["biography"]'><i class="fas fa-user-graduate ml-1"></i>زندگی‌نامه</button>
+        <button id="pctab-mosque" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition min-w-[80px]" data-click="switchPageContentTab" data-args='["mosque"]'><i class="fas fa-mosque ml-1"></i>مسجد قبا</button>
+        <button id="pctab-contact" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-500 transition min-w-[80px]" data-click="switchPageContentTab" data-args='["contact"]'><i class="fas fa-headset ml-1"></i>ارتباط با ما</button>
       </div>
       <div id="pc-panels">
         <div id="pc-panel-social" class="pc-panel">
           <div class="flex justify-end mb-2">
-            <button onclick="toggleHtmlMode('social')" id="htmlbtn-social" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white transition flex items-center gap-1.5"><i class="fas fa-code"></i>ویرایش HTML</button>
+            <button id="htmlbtn-social" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white transition flex items-center gap-1.5" data-click="toggleHtmlMode" data-args='["social"]'><i class="fas fa-code"></i>ویرایش HTML</button>
           </div>
           <div id="quill-social" style="min-height:300px;font-size:14px;direction:rtl;"></div>
           <textarea id="html-source-social" style="display:none;min-height:300px;width:100%;font-family:monospace;font-size:12px;background:#1e293b;color:#86efac;padding:16px;border-radius:12px;border:1px solid #334155;resize:vertical;outline:none;direction:ltr;" spellcheck="false" placeholder="کد HTML را اینجا وارد کنید..."></textarea>
-          <button onclick="savePageContent('social')" class="mt-4 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2"><i class="fas fa-save"></i>ذخیره شبکه‌های اجتماعی</button>
+          <button class="mt-4 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2" data-click="savePageContent" data-args='["social"]'><i class="fas fa-save"></i>ذخیره شبکه‌های اجتماعی</button>
         </div>
         <div id="pc-panel-biography" class="pc-panel hidden">
           <div class="flex justify-end mb-2">
-            <button onclick="toggleHtmlMode('biography')" id="htmlbtn-biography" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white transition flex items-center gap-1.5"><i class="fas fa-code"></i>ویرایش HTML</button>
+            <button id="htmlbtn-biography" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white transition flex items-center gap-1.5" data-click="toggleHtmlMode" data-args='["biography"]'><i class="fas fa-code"></i>ویرایش HTML</button>
           </div>
           <div id="quill-biography" style="min-height:300px;font-size:14px;direction:rtl;"></div>
           <textarea id="html-source-biography" style="display:none;min-height:300px;width:100%;font-family:monospace;font-size:12px;background:#1e293b;color:#86efac;padding:16px;border-radius:12px;border:1px solid #334155;resize:vertical;outline:none;direction:ltr;" spellcheck="false" placeholder="کد HTML را اینجا وارد کنید..."></textarea>
-          <button onclick="savePageContent('biography')" class="mt-4 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2"><i class="fas fa-save"></i>ذخیره زندگی‌نامه</button>
+          <button class="mt-4 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2" data-click="savePageContent" data-args='["biography"]'><i class="fas fa-save"></i>ذخیره زندگی‌نامه</button>
         </div>
         <div id="pc-panel-mosque" class="pc-panel hidden">
           <div class="flex justify-end mb-2">
-            <button onclick="toggleHtmlMode('mosque')" id="htmlbtn-mosque" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white transition flex items-center gap-1.5"><i class="fas fa-code"></i>ویرایش HTML</button>
+            <button id="htmlbtn-mosque" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white transition flex items-center gap-1.5" data-click="toggleHtmlMode" data-args='["mosque"]'><i class="fas fa-code"></i>ویرایش HTML</button>
           </div>
           <div id="quill-mosque" style="min-height:300px;font-size:14px;direction:rtl;"></div>
           <textarea id="html-source-mosque" style="display:none;min-height:300px;width:100%;font-family:monospace;font-size:12px;background:#1e293b;color:#86efac;padding:16px;border-radius:12px;border:1px solid #334155;resize:vertical;outline:none;direction:ltr;" spellcheck="false" placeholder="کد HTML را اینجا وارد کنید..."></textarea>
-          <button onclick="savePageContent('mosque')" class="mt-4 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2"><i class="fas fa-save"></i>ذخیره مسجد قبا</button>
+          <button class="mt-4 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2" data-click="savePageContent" data-args='["mosque"]'><i class="fas fa-save"></i>ذخیره مسجد قبا</button>
         </div>
         <div id="pc-panel-contact" class="pc-panel hidden">
           <div class="flex justify-end mb-2">
-            <button onclick="toggleHtmlMode('contact')" id="htmlbtn-contact" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white transition flex items-center gap-1.5"><i class="fas fa-code"></i>ویرایش HTML</button>
+            <button id="htmlbtn-contact" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-teal-600 hover:text-white transition flex items-center gap-1.5" data-click="toggleHtmlMode" data-args='["contact"]'><i class="fas fa-code"></i>ویرایش HTML</button>
           </div>
           <div id="quill-contact" style="min-height:300px;font-size:14px;direction:rtl;"></div>
           <textarea id="html-source-contact" style="display:none;min-height:300px;width:100%;font-family:monospace;font-size:12px;background:#1e293b;color:#86efac;padding:16px;border-radius:12px;border:1px solid #334155;resize:vertical;outline:none;direction:ltr;" spellcheck="false" placeholder="کد HTML را اینجا وارد کنید..."></textarea>
-          <button onclick="savePageContent('contact')" class="mt-4 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2"><i class="fas fa-save"></i>ذخیره ارتباط با ما</button>
+          <button class="mt-4 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-3 rounded-xl shadow-sm transition flex items-center gap-2" data-click="savePageContent" data-args='["contact"]'><i class="fas fa-save"></i>ذخیره ارتباط با ما</button>
         </div>
       </div>
     </div>
@@ -1421,15 +1422,15 @@
 </main>
 
 <!-- پنجرهٔ نمایش رمز بازنشانی‌شدهٔ کاربر -->
-<div id="reset-pw-modal" class="hidden fixed inset-0 z-[9000] bg-gray-900/60 flex items-center justify-center p-4" onclick="if(event.target===this)closeResetPwModal()">
+<div id="reset-pw-modal" class="hidden fixed inset-0 z-[9000] bg-gray-900/60 flex items-center justify-center p-4" data-click="closeResetPwModal" data-self>
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 text-center">
     <h3 class="font-black mb-1"><i class="fas fa-key text-amber-600 ml-2"></i>رمز جدید کاربر</h3>
     <p class="text-xs text-gray-500 mb-4 break-all">کاربر: <b id="reset-pw-name"></b></p>
     <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-3"><code id="reset-pw-value" dir="ltr" class="text-xl font-black tracking-widest select-all break-all"></code></div>
     <p class="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mb-4 leading-6">این رمز را به کاربر برسانید؛ بعد از بستن این پنجره دیگر نمایش داده نمی‌شود. کاربر در دستگاه‌های دیگرش از حساب خارج شده است.</p>
     <div class="flex gap-2">
-      <button onclick="copyResetPw()" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-xl text-sm"><i class="fas fa-copy ml-1"></i>کپی رمز</button>
-      <button onclick="closeResetPwModal()" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm">بستن</button>
+      <button class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-xl text-sm" data-click="copyResetPw"><i class="fas fa-copy ml-1"></i>کپی رمز</button>
+      <button class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-sm" data-click="closeResetPwModal">بستن</button>
     </div>
   </div>
 </div>
@@ -1440,7 +1441,7 @@
   <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
     <div class="flex items-center justify-between border-b pb-4">
       <h3 class="font-black text-base"><i class="fas fa-edit text-teal-600 ml-2"></i>ویرایش کتاب</h3>
-      <button onclick="closeEditBook()" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200"><i class="fas fa-times text-sm"></i></button>
+      <button class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-200" data-click="closeEditBook"><i class="fas fa-times text-sm"></i></button>
     </div>
     <input type="hidden" id="edit-book-id">
     <input type="hidden" id="edit-book-type">
@@ -1454,42 +1455,42 @@
       <div class="flex items-center gap-3">
         <img id="edit-book-cover-preview" src="" class="w-12 h-16 object-cover rounded-xl border border-gray-200 hidden">
         <div id="edit-book-cover-placeholder" class="w-12 h-16 bg-gray-100 rounded-xl flex items-center justify-center text-teal-300"><i class="fas fa-book"></i></div>
-        <input type="file" id="edit-book-cover" accept="image/*" class="flex-1 bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 text-xs cursor-pointer" onchange="previewEditCover(this)">
+        <input type="file" id="edit-book-cover" accept="image/*" class="flex-1 bg-gray-50 border border-gray-200 p-2 rounded-xl file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 text-xs cursor-pointer" data-change="previewEditCover" data-args='[{"$":"el"}]'>
       </div>
     </div>
-    <button onclick="saveBookEdit()" id="btn-save-book-edit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl shadow-sm transition flex items-center justify-center gap-2"><i class="fas fa-save"></i>ذخیره تغییرات</button>
+    <button id="btn-save-book-edit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-xl shadow-sm transition flex items-center justify-center gap-2" data-click="saveBookEdit"><i class="fas fa-save"></i>ذخیره تغییرات</button>
   </div>
 </div>
 
-<script src="/js/admin/core.js?v=b23d5481"></script>
-<script src="/js/admin/books-sliders.js?v=6c986776"></script>
-<script src="/js/admin/banners-content.js?v=702d6d6f"></script>
-<script src="/js/admin/support.js?v=acd19c7b"></script>
+<script src="/js/admin/core.js?v=4da58a5e"></script>
+<script src="/js/admin/books-sliders.js?v=ba85e76b"></script>
+<script src="/js/admin/banners-content.js?v=61c0913f"></script>
+<script src="/js/admin/support.js?v=8a29a0ed"></script>
 <script src="/js/admin/analytics.js?v=f32afcab"></script>
-<script src="/js/admin/users-admins.js?v=446dfede"></script>
-<script src="/js/admin/settings.js?v=7f8535c8"></script>
-<script src="/js/admin/gallery.js?v=4c69c45d"></script>
-<script src="/js/admin/audio.js?v=55a0cf61"></script>
-<script src="/js/admin/video.js?v=e360a8a3"></script>
-<script src="/js/admin/home-shortcuts.js?v=a22bbb72"></script>
+<script src="/js/admin/users-admins.js?v=b63bd2c9"></script>
+<script src="/js/admin/settings.js?v=a84bb25c"></script>
+<script src="/js/admin/gallery.js?v=564a3926"></script>
+<script src="/js/admin/audio.js?v=1a162c96"></script>
+<script src="/js/admin/video.js?v=9332379a"></script>
+<script src="/js/admin/home-shortcuts.js?v=c6bb9e9d"></script>
 
 <!-- Link Shortcuts Icon Picker Modal -->
-<div id="lsc-icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onclick="if(event.target===this)closeLscIconPicker()">
+<div id="lsc-icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" data-click="closeLscIconPicker" data-self>
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
     <div class="flex items-center justify-between px-4 py-3 border-b">
       <h3 class="font-black text-sm">انتخاب آیکن</h3>
-      <button onclick="closeLscIconPicker()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"><i class="fas fa-times"></i></button>
+      <button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500" data-click="closeLscIconPicker"><i class="fas fa-times"></i></button>
     </div>
     <div id="lsc-icon-picker-grid" class="p-4 grid grid-cols-7 gap-2 max-h-72 overflow-y-auto"></div>
   </div>
 </div>
 
 <!-- Icon Picker Modal -->
-<div id="sc-icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" onclick="if(event.target===this)closeScIconPicker()">
+<div id="sc-icon-picker-modal" class="hidden fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4" data-click="closeScIconPicker" data-self>
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
     <div class="flex items-center justify-between px-4 py-3 border-b">
       <h3 class="font-black text-sm">انتخاب آیکن</h3>
-      <button onclick="closeScIconPicker()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"><i class="fas fa-times"></i></button>
+      <button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500" data-click="closeScIconPicker"><i class="fas fa-times"></i></button>
     </div>
     <div id="sc-icon-picker-grid" class="p-4 grid grid-cols-7 gap-2 max-h-72 overflow-y-auto"></div>
   </div>

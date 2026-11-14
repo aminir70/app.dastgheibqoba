@@ -34,35 +34,40 @@ function _renderJalaliPicker(jy,jm,jd){
   for(let i=0;i<startDow;i++) daysHtml+=`<div></div>`;
   for(let d=1;d<=daysInMonth;d++){
     const sel=d===jd?'bg-teal-500 text-white font-black':'hover:bg-teal-50 text-gray-700';
-    daysHtml+=`<button type="button" onclick="selectJalaliDay(${jy},${jm},${d})" class="h-8 w-8 rounded-full text-xs flex items-center justify-center mx-auto transition ${sel}">${d.toLocaleString('fa-IR')}</button>`;
+    daysHtml+=`<button type="button"${act('click','selectJalaliDay',jy,jm,d)} class="h-8 w-8 rounded-full text-xs flex items-center justify-center mx-auto transition ${sel}">${d.toLocaleString('fa-IR')}</button>`;
   }
 
   overlay.innerHTML=`
-  <div class="bg-white rounded-2xl shadow-2xl p-4 w-80 select-none" onclick="event.stopPropagation()">
+  <div class="bg-white rounded-2xl shadow-2xl p-4 w-80 select-none" data-click="uiNop" data-stop>
     <div class="flex items-center justify-between mb-3">
-      <button type="button" onclick="_renderJalaliPicker(${jm===1?jy-1:jy},${jm===1?12:jm-1},1)" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"><i class="fas fa-chevron-right text-xs"></i></button>
+      <button type="button"${act('click','_renderJalaliPicker',jm===1?jy-1:jy,jm===1?12:jm-1,1)} class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"><i class="fas fa-chevron-right text-xs"></i></button>
       <div class="flex gap-2 items-center">
-        <select onchange="let v=this.value.split('-');_renderJalaliPicker(+v[0],+v[1],1)" class="text-sm font-bold bg-transparent outline-none cursor-pointer">
+        <select${act('change','_jalaliPickMonth',act.el)} class="text-sm font-bold bg-transparent outline-none cursor-pointer">
           ${Array.from({length:12},(_,i)=>`<option value="${jy}-${i+1}"${i+1===jm?' selected':''}>${monthNames[i]}</option>`).join('')}
         </select>
-        <select onchange="_renderJalaliPicker(+this.value,${jm},1)" class="text-sm font-bold bg-transparent outline-none cursor-pointer">
+        <select${act('change','_jalaliPickYear',act.el,jm)} class="text-sm font-bold bg-transparent outline-none cursor-pointer">
           ${Array.from({length:60},(_,i)=>`<option value="${1350+i}"${1350+i===jy?' selected':''}>${(1350+i).toLocaleString('fa-IR')}</option>`).join('')}
         </select>
       </div>
-      <button type="button" onclick="_renderJalaliPicker(${jm===12?jy+1:jy},${jm===12?1:jm+1},1)" class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"><i class="fas fa-chevron-left text-xs"></i></button>
+      <button type="button"${act('click','_renderJalaliPicker',jm===12?jy+1:jy,jm===12?1:jm+1,1)} class="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"><i class="fas fa-chevron-left text-xs"></i></button>
     </div>
     <div class="grid grid-cols-7 gap-0 mb-1">
       ${['ش','ی','د','س','چ','پ','ج'].map(d=>`<div class="text-center text-[10px] text-gray-400 font-bold py-1">${d}</div>`).join('')}
     </div>
     <div class="grid grid-cols-7 gap-0">${daysHtml}</div>
     <div class="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-      <button type="button" onclick="selectJalaliToday()" class="flex-1 text-xs py-2 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-600 transition">امروز</button>
-      <button type="button" onclick="clearJalaliDate()" class="flex-1 text-xs py-2 bg-rose-50 hover:bg-rose-100 rounded-xl font-bold text-rose-500 transition">پاک کردن</button>
-      <button type="button" onclick="document.getElementById('jalali-picker-overlay').remove()" class="flex-1 text-xs py-2 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-600 transition">بستن</button>
+      <button type="button"${act('click','selectJalaliToday')} class="flex-1 text-xs py-2 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-600 transition">امروز</button>
+      <button type="button"${act('click','clearJalaliDate')} class="flex-1 text-xs py-2 bg-rose-50 hover:bg-rose-100 rounded-xl font-bold text-rose-500 transition">پاک کردن</button>
+      <button type="button"${act('click','uiRemove','jalali-picker-overlay')} class="flex-1 text-xs py-2 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-600 transition">بستن</button>
     </div>
   </div>`;
   document.body.appendChild(overlay);
 }
+// جایگزین onchange درون‌خطی انتخاب ماه/سال تقویم جلالی
+function _jalaliPickMonth(sel){let v=sel.value.split('-');_renderJalaliPicker(+v[0],+v[1],1);}
+function _jalaliPickYear(sel,jm){_renderJalaliPicker(+sel.value,jm,1);}
+// جایگزین onclick درون‌خطی openJalaliPicker(عنصر) — عنصر با شناسه
+function openJalaliPickerById(id){openJalaliPicker(document.getElementById(id));}
 function selectJalaliDay(jy,jm,jd){
   if(_jalaliTarget){
     const jyStr=String(jy);
@@ -104,7 +109,7 @@ async function loadLinkShortcuts() {
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="col-span-2"><label class="text-xs font-bold text-gray-500 mb-1 block">نام (اگر خالی باشد نمایش داده نمی‌شود)</label>
-            <input type="text" id="lsc-lbl-${i}" value="${escHtml(s.label||'')}" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500" oninput="updateLscPrev(${i})">
+            <input type="text" id="lsc-lbl-${i}" value="${escHtml(s.label||'')}" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500"${act('input','updateLscPrev',i)}>
           </div>
           <div class="col-span-2"><label class="text-xs font-bold text-gray-500 mb-1 block">لینک (URL کامل با https://)</label>
             <input type="url" id="lsc-url-${i}" value="${escHtml(s.url||'')}" placeholder="https://example.com" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-blue-500 font-mono" dir="ltr">
@@ -112,23 +117,23 @@ async function loadLinkShortcuts() {
           <div class="col-span-2"><label class="text-xs font-bold text-gray-500 mb-1 block">تصویر سفارشی (اختیاری — جایگزین آیکن می‌شود)</label>
             <div class="flex items-center gap-2">
               <div id="lsc-imgprev-${i}" class="w-10 h-10 rounded-xl border border-gray-200 overflow-hidden flex items-center justify-center bg-gray-100 shrink-0">${thumbInner}</div>
-              <input type="file" id="lsc-imgfile-${i}" accept="image/*" class="hidden" onchange="uploadLscIcon(${i})">
-              <button onclick="document.getElementById('lsc-imgfile-${i}').click()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap">آپلود تصویر</button>
-              <button id="lsc-imgclear-${i}" onclick="clearLscIcon(${i})" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap${img ? '' : ' hidden'}">حذف تصویر</button>
+              <input type="file" id="lsc-imgfile-${i}" accept="image/*" class="hidden"${act('change','uploadLscIcon',i)}>
+              <button${act('click','uiClick',`lsc-imgfile-${i}`)} class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap">آپلود تصویر</button>
+              <button id="lsc-imgclear-${i}"${act('click','clearLscIcon',i)} class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap${img ? '' : ' hidden'}">حذف تصویر</button>
               <input type="hidden" id="lsc-img-${i}" value="${escHtml(img)}">
             </div>
           </div>
           <div class="col-span-2"><label class="text-xs font-bold text-gray-500 mb-1 block">آیکن FontAwesome (وقتی تصویر ندارید)</label>
             <div class="flex gap-2">
-              <input type="text" id="lsc-ico-${i}" value="${escHtml(s.icon||'fas fa-link')}" class="flex-1 bg-white border border-gray-200 p-2.5 rounded-xl text-xs outline-none focus:border-blue-500 font-mono" oninput="updateLscPrev(${i})">
-              <button onclick="openLscIconPicker(${i})" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 rounded-xl text-xs font-bold transition whitespace-nowrap shrink-0">انتخاب</button>
+              <input type="text" id="lsc-ico-${i}" value="${escHtml(s.icon||'fas fa-link')}" class="flex-1 bg-white border border-gray-200 p-2.5 rounded-xl text-xs outline-none focus:border-blue-500 font-mono"${act('input','updateLscPrev',i)}>
+              <button${act('click','openLscIconPicker',i)} class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 rounded-xl text-xs font-bold transition whitespace-nowrap shrink-0">انتخاب</button>
             </div>
           </div>
           <div><label class="text-xs font-bold text-gray-500 mb-1 block">رنگ ۱</label>
-            <input type="color" id="lsc-c1-${i}" value="${escHtml(s.color1||'#3b82f6')}" class="w-full h-10 rounded-xl border border-gray-200 cursor-pointer p-0.5" oninput="updateLscPrev(${i})">
+            <input type="color" id="lsc-c1-${i}" value="${escHtml(s.color1||'#3b82f6')}" class="w-full h-10 rounded-xl border border-gray-200 cursor-pointer p-0.5"${act('input','updateLscPrev',i)}>
           </div>
           <div><label class="text-xs font-bold text-gray-500 mb-1 block">رنگ ۲</label>
-            <input type="color" id="lsc-c2-${i}" value="${escHtml(s.color2||'#1d4ed8')}" class="w-full h-10 rounded-xl border border-gray-200 cursor-pointer p-0.5" oninput="updateLscPrev(${i})">
+            <input type="color" id="lsc-c2-${i}" value="${escHtml(s.color2||'#1d4ed8')}" class="w-full h-10 rounded-xl border border-gray-200 cursor-pointer p-0.5"${act('input','updateLscPrev',i)}>
           </div>
         </div>
       </div>`;
@@ -197,7 +202,7 @@ function openLscIconPicker(idx) {
   _lscIconPickerIdx = idx;
   const grid = document.getElementById('lsc-icon-picker-grid');
   if (grid) grid.innerHTML = _SHORTCUT_ICONS.map(ic =>
-    `<button onclick="selectLscIcon('${ic}')" class="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-blue-50 rounded-xl transition text-gray-600 hover:text-blue-600 border border-transparent hover:border-blue-200 text-base" title="${ic}"><i class="${ic}"></i></button>`
+    `<button${act('click','selectLscIcon',String(ic))} class="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-blue-50 rounded-xl transition text-gray-600 hover:text-blue-600 border border-transparent hover:border-blue-200 text-base" title="${ic}"><i class="${ic}"></i></button>`
   ).join('');
   document.getElementById('lsc-icon-picker-modal')?.classList.remove('hidden');
 }
@@ -269,28 +274,28 @@ async function loadShortcuts() {
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="col-span-2"><label class="text-xs font-bold text-gray-500 mb-1 block">نام</label>
-            <input type="text" id="sc-lbl-${i}" value="${escHtml(s.label)}" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500" oninput="updateScPrev(${i})">
+            <input type="text" id="sc-lbl-${i}" value="${escHtml(s.label)}" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500"${act('input','updateScPrev',i)}>
           </div>
           <div class="col-span-2"><label class="text-xs font-bold text-gray-500 mb-1 block">تصویر سفارشی (اختیاری — جایگزین آیکن می‌شود)</label>
             <div class="flex items-center gap-2">
               <div id="sc-imgprev-${i}" class="w-10 h-10 rounded-xl border border-gray-200 overflow-hidden flex items-center justify-center bg-gray-100 shrink-0">${thumbInner}</div>
-              <input type="file" id="sc-imgfile-${i}" accept="image/*" class="hidden" onchange="uploadScIcon(${i})">
-              <button onclick="document.getElementById('sc-imgfile-${i}').click()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap">آپلود تصویر</button>
-              <button id="sc-imgclear-${i}" onclick="clearScIcon(${i})" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap${img ? '' : ' hidden'}">حذف تصویر</button>
+              <input type="file" id="sc-imgfile-${i}" accept="image/*" class="hidden"${act('change','uploadScIcon',i)}>
+              <button${act('click','uiClick',`sc-imgfile-${i}`)} class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap">آپلود تصویر</button>
+              <button id="sc-imgclear-${i}"${act('click','clearScIcon',i)} class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap${img ? '' : ' hidden'}">حذف تصویر</button>
               <input type="hidden" id="sc-img-${i}" value="${escHtml(img)}">
             </div>
           </div>
           <div class="col-span-2"><label class="text-xs font-bold text-gray-500 mb-1 block">آیکن FontAwesome (وقتی تصویر ندارید)</label>
             <div class="flex gap-2">
-              <input type="text" id="sc-ico-${i}" value="${escHtml(s.icon)}" class="flex-1 bg-white border border-gray-200 p-2.5 rounded-xl text-xs outline-none focus:border-teal-500 font-mono" oninput="updateScPrev(${i})">
-              <button onclick="openScIconPicker(${i})" class="bg-teal-50 hover:bg-teal-100 text-teal-700 px-3 rounded-xl text-xs font-bold transition whitespace-nowrap shrink-0">انتخاب</button>
+              <input type="text" id="sc-ico-${i}" value="${escHtml(s.icon)}" class="flex-1 bg-white border border-gray-200 p-2.5 rounded-xl text-xs outline-none focus:border-teal-500 font-mono"${act('input','updateScPrev',i)}>
+              <button${act('click','openScIconPicker',i)} class="bg-teal-50 hover:bg-teal-100 text-teal-700 px-3 rounded-xl text-xs font-bold transition whitespace-nowrap shrink-0">انتخاب</button>
             </div>
           </div>
           <div><label class="text-xs font-bold text-gray-500 mb-1 block">رنگ ۱</label>
-            <input type="color" id="sc-c1-${i}" value="${escHtml(s.color1)}" class="w-full h-10 rounded-xl border border-gray-200 cursor-pointer p-0.5" oninput="updateScPrev(${i})">
+            <input type="color" id="sc-c1-${i}" value="${escHtml(s.color1)}" class="w-full h-10 rounded-xl border border-gray-200 cursor-pointer p-0.5"${act('input','updateScPrev',i)}>
           </div>
           <div><label class="text-xs font-bold text-gray-500 mb-1 block">رنگ ۲</label>
-            <input type="color" id="sc-c2-${i}" value="${escHtml(s.color2)}" class="w-full h-10 rounded-xl border border-gray-200 cursor-pointer p-0.5" oninput="updateScPrev(${i})">
+            <input type="color" id="sc-c2-${i}" value="${escHtml(s.color2)}" class="w-full h-10 rounded-xl border border-gray-200 cursor-pointer p-0.5"${act('input','updateScPrev',i)}>
           </div>
           <div class="col-span-2"><label class="text-xs font-bold text-gray-500 mb-1 block">عملکرد</label>
             <select id="sc-act-${i}" class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500">${opts}</select>
@@ -361,7 +366,7 @@ function openScIconPicker(idx) {
   _iconPickerIdx = idx;
   const grid = document.getElementById('sc-icon-picker-grid');
   if (grid) grid.innerHTML = _SHORTCUT_ICONS.map(ic =>
-    `<button onclick="selectScIcon('${ic}')" class="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-teal-50 rounded-xl transition text-gray-600 hover:text-teal-600 border border-transparent hover:border-teal-200 text-base" title="${ic}"><i class="${ic}"></i></button>`
+    `<button${act('click','selectScIcon',String(ic))} class="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-teal-50 rounded-xl transition text-gray-600 hover:text-teal-600 border border-transparent hover:border-teal-200 text-base" title="${ic}"><i class="${ic}"></i></button>`
   ).join('');
   document.getElementById('sc-icon-picker-modal')?.classList.remove('hidden');
 }
@@ -429,7 +434,7 @@ async function loadNavItemsAdmin() {
             <label class="text-xs font-bold text-gray-500 mb-1 block">آیکن FontAwesome</label>
             <input type="text" id="ni-icon-${i}" value="${escHtml(icon)}" placeholder="fas fa-home"
               class="w-full bg-white border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-teal-500 text-left"
-              oninput="updateNavPreview(${i})">
+             ${act('input','updateNavPreview',i)}>
           </div>
           <div>
             <label class="text-xs font-bold text-gray-500 mb-1 block">نام</label>
@@ -439,9 +444,9 @@ async function loadNavItemsAdmin() {
           <div class="col-span-2">
             <label class="text-xs font-bold text-gray-500 mb-1 block">یا آپلود تصویر (جایگزین آیکن می‌شود)</label>
             <div class="flex items-center gap-2">
-              <input type="file" id="ni-imgfile-${i}" accept="image/*" class="hidden" onchange="uploadNavIcon(${i})">
-              <button onclick="document.getElementById('ni-imgfile-${i}').click()" class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap"><i class="fas fa-upload ml-1"></i>آپلود تصویر</button>
-              <button id="ni-imgclear-${i}" onclick="clearNavIcon(${i})" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap${img?'':' hidden'}"><i class="fas fa-times ml-1"></i>حذف تصویر</button>
+              <input type="file" id="ni-imgfile-${i}" accept="image/*" class="hidden"${act('change','uploadNavIcon',i)}>
+              <button${act('click','uiClick',`ni-imgfile-${i}`)} class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap"><i class="fas fa-upload ml-1"></i>آپلود تصویر</button>
+              <button id="ni-imgclear-${i}"${act('click','clearNavIcon',i)} class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap${img?'':' hidden'}"><i class="fas fa-times ml-1"></i>حذف تصویر</button>
               <input type="hidden" id="ni-img-${i}" value="${escHtml(img)}">
             </div>
           </div>

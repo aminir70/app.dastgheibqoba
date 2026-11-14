@@ -34,7 +34,7 @@ async function loadBroadcasts(){
           <p class="text-xs text-gray-500 line-clamp-2">${escHtml(n.message)}</p>
           <span class="text-[10px] text-gray-400 mt-1 block">${new Date(n.created_at).toLocaleString('fa-IR')}</span>
         </div>
-        <button onclick="deleteBroadcast(${n.id})" class="text-rose-500 hover:text-rose-700 text-xs bg-rose-50 px-2 py-1 rounded-lg hover:bg-rose-100 transition shrink-0"><i class="fas fa-trash"></i></button>
+        <button${act('click','deleteBroadcast',n.id)} class="text-rose-500 hover:text-rose-700 text-xs bg-rose-50 px-2 py-1 rounded-lg hover:bg-rose-100 transition shrink-0"><i class="fas fa-trash"></i></button>
       </div>
     `).join('');
   }catch(e){}
@@ -62,7 +62,7 @@ async function loadUsers(){
         <td class="p-4 text-xs text-gray-400">${new Date(u.created_at).toLocaleDateString('fa-IR')}</td>
         <td class="p-4 text-xs"><span class="bg-teal-50 text-teal-700 px-2 py-1 rounded-full">${u.msg_count||0} پیام</span></td>
         <td class="p-4 text-xs text-gray-400">${u.last_active?new Date(u.last_active).toLocaleDateString('fa-IR'):'-'}</td>
-        <td class="p-4 whitespace-nowrap"><button onclick="resetUserPassword(${u.id},${jsArg(u.username)})" class="text-amber-700 hover:text-amber-800 text-xs font-bold bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition ml-1"><i class="fas fa-key ml-1"></i>بازنشانی رمز</button><button onclick="deleteUser(${u.id},${jsArg(u.username)})" class="text-rose-500 hover:text-rose-700 text-xs font-bold bg-rose-50 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition"><i class="fas fa-trash ml-1"></i>حذف</button></td>
+        <td class="p-4 whitespace-nowrap"><button${act('click','resetUserPassword',u.id,act.s(u.username))} class="text-amber-700 hover:text-amber-800 text-xs font-bold bg-amber-50 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition ml-1"><i class="fas fa-key ml-1"></i>بازنشانی رمز</button><button${act('click','deleteUser',u.id,act.s(u.username))} class="text-rose-500 hover:text-rose-700 text-xs font-bold bg-rose-50 px-3 py-1.5 rounded-lg hover:bg-rose-100 transition"><i class="fas fa-trash ml-1"></i>حذف</button></td>
       </tr>
     `).join('');
   }catch(e){}
@@ -121,15 +121,15 @@ async function loadAdminsList(){
     const r=await adminFetch('/api/admin/admins'); const list=await r.json();
     if(!r.ok||!Array.isArray(list)){ el.innerHTML=`<div class="text-center text-red-400 text-sm py-6">خطا: ${escHtml(list.error||r.status)}</div>`; return; }
     const badge=(cls,t)=>`<span class="${cls} px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap">${t}</span>`;
-    const btn=(cls,fn,icon,label)=>`<button onclick="${fn}" class="${cls} text-xs font-bold px-3 py-1.5 rounded-lg transition"><i class="fas ${icon} ml-1"></i>${label}</button>`;
+    const btn=(cls,fn,args,icon,label)=>`<button${act('click',fn,...args)} class="${cls} text-xs font-bold px-3 py-1.5 rounded-lg transition"><i class="fas ${icon} ml-1"></i>${label}</button>`;
     el.innerHTML=list.map(a=>{
       const me=!!adminMe&&String(a.username).toLowerCase()===String(adminMe.username).toLowerCase();
-      const id=Number(a.id), n=jsArg(a.username), owner=a.role==='owner';
+      const id=Number(a.id), n=act.s(a.username), owner=a.role==='owner';
       const actions=me?'<span class="text-xs text-gray-400">حساب خودتان — رمز را از «تغییر رمز من» عوض کنید.</span>':[
-        btn('bg-amber-50 text-amber-700 hover:bg-amber-100',`adminSetPassword(${id},${n})`,'fa-key','تغییر رمز'),
-        btn('bg-gray-100 text-gray-700 hover:bg-gray-200',`adminToggleDisabled(${id},${n},${a.disabled?0:1})`,a.disabled?'fa-toggle-off':'fa-toggle-on',a.disabled?'فعال‌سازی':'غیرفعال‌سازی'),
-        btn('bg-blue-50 text-blue-700 hover:bg-blue-100',`adminSetRole(${id},${n},${jsArg(owner?'admin':'owner')})`,'fa-user-shield',owner?'تبدیل به مدیر':'تبدیل به مدیر ارشد'),
-        btn('bg-rose-50 text-rose-600 hover:bg-rose-100',`adminDelete(${id},${n})`,'fa-trash','حذف')
+        btn('bg-amber-50 text-amber-700 hover:bg-amber-100','adminSetPassword',[id,n],'fa-key','تغییر رمز'),
+        btn('bg-gray-100 text-gray-700 hover:bg-gray-200','adminToggleDisabled',[id,n,a.disabled?0:1],a.disabled?'fa-toggle-off':'fa-toggle-on',a.disabled?'فعال‌سازی':'غیرفعال‌سازی'),
+        btn('bg-blue-50 text-blue-700 hover:bg-blue-100','adminSetRole',[id,n,owner?'admin':'owner'],'fa-user-shield',owner?'تبدیل به مدیر':'تبدیل به مدیر ارشد'),
+        btn('bg-rose-50 text-rose-600 hover:bg-rose-100','adminDelete',[id,n],'fa-trash','حذف')
       ].join('');
       return `<div class="border border-gray-100 rounded-xl p-3 flex flex-col gap-2 min-w-0" data-admin="${escHtml(a.username)}">
         <div class="flex items-center justify-between gap-2 flex-wrap">
