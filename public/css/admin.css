@@ -1,0 +1,81 @@
+body{font-family:'Vazir',Tahoma,sans-serif;}
+.tab-active{background:#0d9488;color:white;}
+.tab-inactive{color:#94a3b8;}
+.tab-inactive:hover{background:#1e293b;}
+.color-swatch{width:36px;height:36px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:all .2s;}
+.color-swatch.selected{border-color:white;box-shadow:0 0 0 3px #0d9488;}
+input[type=color]{width:48px;height:36px;border:none;border-radius:8px;cursor:pointer;padding:2px;}
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;background:#e2e8f0;outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#0d9488;cursor:pointer;}
+/* Quill: show actual size values in size picker */
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value]::before { content: attr(data-value) !important; }
+.ql-snow .ql-picker.ql-size { width: 80px !important; }
+/* Default RTL for editor — lower specificity so ql-align-* classes can override */
+.ql-editor { direction: rtl; text-align: right; min-height: 200px; }
+/* Mobile responsive */
+#admin-mobile-header{display:none;}
+@media(max-width:767px){
+  #admin-mobile-header.admin-visible{display:flex;position:fixed;top:0;right:0;left:0;height:3.5rem;background:#0f172a;color:white;z-index:30;align-items:center;padding:0 0.75rem;gap:0.75rem;}
+  #sidebar:not(.hidden){position:fixed!important;top:0;right:0;height:100%!important;width:280px;z-index:40;transform:translateX(100%);transition:transform 0.3s ease;}
+  #sidebar.sidebar-open{transform:translateX(0);}
+  #sidebar-overlay:not(.hidden){display:block;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:39;}
+  #main-content:not(.hidden){padding-top:3.5rem;}
+}
+/* ارتفاع = بخش دیدنی صفحه. 100vh روی گوشی نوار آدرس مرورگر را هم حساب می‌کند و
+   پایین صفحه (مثل کادر پاسخ پشتیبانی) زیر آن پنهان می‌شد. --app-h را اسکریپت پایین می‌گذارد. */
+body.h-screen{height:100vh;height:100dvh;height:var(--app-h,100dvh);}
+/* محتوای بلند (نشانی، کلمهٔ طولانی) نباید ستون را از صفحه بیرون بزند */
+#main-content{min-width:0;}
+#main-content > [id^="tab-"]{min-width:0;}
+#support-messages > div > div{min-width:0;overflow-wrap:anywhere;}
+#active-support-title,#active-support-sub{overflow-wrap:anywhere;}
+#support-reply-input{min-width:0;}
+#support-reply-send{flex-shrink:0;height:2.5rem;}
+#support-chat-panel > div:first-child{gap:.75rem;}
+#support-chat-panel > div:first-child > div:first-child{min-width:0;}
+#ticket-status-btns > button{white-space:nowrap;}
+/* زیربخش‌های تنظیمات */
+.settings-subnav{position:sticky;top:-1.5rem;z-index:5;display:flex;gap:.35rem;padding:.35rem;background:#fff;border:1px solid #f1f5f9;border-radius:1rem;box-shadow:0 1px 2px rgba(0,0,0,.05);overflow-x:auto;scrollbar-width:none;margin-bottom:1.5rem;}
+.settings-subnav::-webkit-scrollbar{display:none;}
+.settings-subnav button{flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:.45rem;white-space:nowrap;padding:.6rem .9rem;border-radius:.75rem;font-size:.8rem;font-weight:700;color:#64748b;transition:background .15s,color .15s;}
+.settings-subnav button:hover{background:#f8fafc;color:#0f172a;}
+.settings-subnav button.active{background:#0d9488;color:#fff;}
+.settings-pane:not(.hidden){display:flex;flex-direction:column;gap:1.5rem;}
+/* کارت‌های آیکن/لینک/نوار پایین: هر جا جا باشد چندستونه، روی گوشی یک ستون */
+#shortcuts-editor,#link-shortcuts-editor{grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));}
+#nav-items-editor{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:1rem;}
+#nav-items-editor > .text-center{grid-column:1/-1;}
+/* مدیران: جدول سابقه روی گوشی هم جا شود (مسیر و زمان بلند خط‌شکنی می‌شوند) */
+#audit-table{table-layout:fixed;}
+#audit-table td{overflow-wrap:anywhere;vertical-align:top;}
+#audit-table th:nth-child(1){width:24%;} #audit-table th:nth-child(2){width:19%;}
+#audit-table th:nth-child(3){width:15%;} #audit-table th:nth-child(5){width:13%;}
+/* گوشی */
+@media(max-width:639px){
+  #audit-table{font-size:11px;}
+  #audit-table th,#audit-table td{padding:.5rem .3rem;}
+  #audit-table th:first-child,#audit-table td:first-child{padding-right:.75rem;}
+  #audit-table th:nth-child(1){width:23%;} #audit-table th:nth-child(2){width:19%;}
+  #audit-table th:nth-child(3){width:14%;} #audit-table th:nth-child(5){width:11%;}
+  .settings-subnav{top:-1rem;margin-bottom:1rem;display:grid;grid-template-columns:1fr 1fr;}
+  .settings-subnav button{padding:.55rem .5rem;font-size:.75rem;}
+  #main-content .p-6{padding:1rem;}
+  #tab-support{position:relative;overflow:hidden;}
+  #support-list-panel{min-width:0;}
+  #support-chat-panel{min-width:0;}
+  /* سربرگ گفتگو: عنوان یک ردیف، دکمه‌های وضعیت ردیف بعد با اسکرول افقی */
+  #support-chat-panel > div:first-child{flex-wrap:wrap;gap:.5rem;padding:.6rem .75rem;}
+  #support-chat-panel > div:first-child > div:first-child{flex:1 1 100%;min-width:0;gap:.5rem;}
+  #support-chat-panel > div:first-child > div:first-child > div:last-child{min-width:0;flex:1;}
+  #active-support-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  #ticket-status-btns:not(.hidden){display:flex;width:100%;overflow-x:auto;gap:.4rem;scrollbar-width:none;}
+  #ticket-status-btns::-webkit-scrollbar{display:none;}
+  #ticket-status-btns > button{flex:1 0 auto;white-space:nowrap;padding:.35rem .6rem;}
+  #support-messages{padding:.75rem;}
+  #support-messages > div > div{max-width:88%;}
+  #support-chat-panel .p-3.flex.gap-2.items-center{gap:.35rem;padding:.5rem;}
+  #support-reply-input{padding:.55rem .75rem;}
+  #support-reply-send{padding:0 .8rem;height:2.25rem;}
+  #support-attach-player{max-width:120px!important;}
+}

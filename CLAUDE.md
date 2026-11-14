@@ -29,7 +29,7 @@
 ├── library.sqlite         # دیتابیس اصلی (در runtime ساخته می‌شود)
 └── public/
     ├── index.html         # اپ اصلی (SPA فارسی)
-    ├── admin.html         # پنل مدیریت
+    ├── admin.html         # پنل مدیریت (فقط HTML؛ CSS و JS بیرونی)
     ├── sw.js              # Service Worker (PWA)
     ├── js/
     │   ├── app.js         # کنترلر اصلی: ناوبری، تاریخچه، splash
@@ -39,10 +39,22 @@
     │   ├── news.js        # اخبار و news slider
     │   ├── utils.js       # توابع مشترک: toFa، تقویم جلالی، API helper
     │   ├── offline.js     # Service Worker registration
+    │   ├── admin/         # اسکریپت‌های پنل ادمین (classic، بدون minify، بدون ماژول — به ترتیب بارگذاری)
+    │   │   ├── boot.js            # --app-h (ارتفاع دیدنی صفحه)
+    │   │   ├── core.js            # state، escHtml/safeUrl/jsArg، adminFetch، ورود، switchTab/switchSettingsPane
+    │   │   ├── books-sliders.js   # کتاب‌ها، اسلایدر، اسلایدر اخبار
+    │   │   ├── banners-content.js # بنرها، صفحات محتوا (Quill)
+    │   │   ├── support.js         # تیکت‌ها، چت پشتیبانی، دسته‌ها، پاسخ‌های آماده، پرسش و پاسخ، پیام همگانی
+    │   │   ├── analytics.js       # داشبورد آمار
+    │   │   ├── users-admins.js    # وضعیت پوش، پیام‌های همگانی، کاربران، مدیران و سابقهٔ کارها
+    │   │   ├── settings.js        # پخش زنده، assetlinks، تنظیمات عمومی و برندینگ
+    │   │   ├── gallery.js · audio.js · video.js   # مدیریت گالری تصویر/صوت/ویدیو
+    │   │   └── home-shortcuts.js  # تقویم جلالی، لینک‌های خانه، آیکن‌های خانه، نوار پایین
     │   └── dist/          # فایل‌های minified (generated — git tracked)
     │       └── *.min.js
     └── css/
         ├── app.css        # استایل‌های اختصاصی
+        ├── admin.css      # استایل‌های پنل ادمین (قبلاً <style> درون‌خطی admin.html)
         ├── desktop.css    # کل چیدمان دسکتاپ (فقط ≥640px؛ با media روی <link>)
         ├── style.css      # فونت‌ها (Vazir/Shabnam)، layout پایه
         └── tailwind.dist.css  # Tailwind compiled (generated — git tracked)
@@ -379,6 +391,13 @@ npm run build          # معادل node build.js
 
 فایل‌های خروجی (`tailwind.dist.css` و `public/js/dist/*.min.js`) در git tracked هستند و باید بعد از هر تغییر JS/HTML دوباره build و commit شوند.
 
+پنل ادمین: `public/js/admin/*.js` و `public/css/admin.css` minify نمی‌شوند (همان فایل منبع سرو می‌شود)
+و کلاس‌های Tailwind داخلشان از همان glob `public/js/**/*.js` در `tailwind.config.js` پیدا می‌شود.
+اسکریپت‌ها classic و به ترتیب تگ‌های `<script>` در `admin.html` اجرا می‌شوند؛ `let/const` سطح بالا بین
+فایل‌ها مشترک است ولی تا اجرای فایل خودش در TDZ است. چیزی که هنگام بارگذاری اجرا می‌شود باید همان‌جا
+یا در فایل قبلی تعریف شده باشد. `node build.js` نسخهٔ `?v=` فایل‌های `admin.html` را هم می‌گذارد
+(مثل `index.html`)؛ فایل جدید admin را با `?v=0` به `admin.html` اضافه کنید و build بگیرید.
+
 `node build.js` در پایان شمارهٔ `?v=` همهٔ فایل‌های CSS/JS داخل `public/index.html` را از روی محتوای
 همان فایل (هش ۸ حرفی) می‌گذارد — **شمارهٔ نسخه را دستی عوض نکنید**؛ فقط build بگیرید و `index.html`
 را هم commit کنید. فایل‌های `?v=`دار زیر `/js/` و `/css/` یک سال کش می‌شوند (immutable).
@@ -474,7 +493,7 @@ JWT_SECRET=...
 | `san(s)` | **فقط** برای محتوای rich ویرایشگر ادمین (`page_contents.content`). |
 | `failMsg(err)` | پیام خطا برای کلاینت؛ در production جزئیات داخلی را مخفی می‌کند. |
 
-### سمت کلاینت (`utils.js` و بلوک اسکریپت `admin.html`)
+### سمت کلاینت (`utils.js` و `public/js/admin/core.js` برای پنل ادمین)
 | تابع | کاربرد |
 |------|--------|
 | `escHtml(v)` | هر داده‌ای که با `innerHTML` درج می‌شود. |
