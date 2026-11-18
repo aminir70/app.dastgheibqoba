@@ -143,13 +143,29 @@ app.put('/api/admin/video/items/:id',adminAuth,uploadImage.single('gallery_image
     const publishDate=req.body.publish_date||null;
     const vertical=(req.body.vertical==='1'||req.body.vertical==='on'||req.body.vertical===true)?1:0;
     const sets=['title=?','description=?','publish_date=?','vertical=?'];const vals=[title,desc,publishDate,vertical];
+    const newCat=req.body.category_id!==undefined&&req.body.category_id!==''?+req.body.category_id:null;   // انتقال به دستهٔ دیگر (اختیاری)
+    if(newCat!==null&&!(Number.isInteger(newCat)&&newCat>0)){_discardUploads(req);return res.status(400).json({error:'دسته‌بندی نامعتبر'});}
     const embedRaw=req.body.embed_url||'';
     if(embedRaw.trim()){const embedUrl=parseEmbedUrl(embedRaw);if(embedUrl){sets.push('embed_url=?');vals.push(embedUrl);}}
     const thumbUrlInput=req.body.thumb_url&&req.body.thumb_url.trim().length>5?sanUrl(req.body.thumb_url):null;
     if(req.file){sets.push('thumbnail=?');vals.push(`/gallery/${req.file.filename}`);}
     else if(thumbUrlInput){sets.push('thumbnail=?');vals.push(thumbUrlInput);}
-    vals.push(id);
-    mainDb.run(`UPDATE video_items SET ${sets.join(',')} WHERE id=?`,vals,err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});
+    const finish=()=>{vals.push(id);
+        mainDb.run(`UPDATE video_items SET ${sets.join(',')} WHERE id=?`,vals,err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});};
+    if(newCat===null) return finish();
+    mainDb.get('SELECT id FROM video_categories WHERE id=?',[newCat],(e1,c)=>{
+        if(e1){_discardUploads(req);return res.status(500).json({error:failMsg(e1)});}
+        if(!c){_discardUploads(req);return res.status(400).json({error:'دسته‌بندی پیدا نشد'});}
+        mainDb.get('SELECT category_id FROM video_items WHERE id=?',[id],(e2,cur)=>{
+            if(e2){_discardUploads(req);return res.status(500).json({error:failMsg(e2)});}
+            if(!cur){_discardUploads(req);return res.status(404).json({error:'ویدیو پیدا نشد'});}
+            if(cur.category_id===newCat) return finish();   // همان دسته: ترتیب دست نمی‌خورد
+            mainDb.get('SELECT MAX(sort_order) as mx FROM video_items WHERE category_id=?',[newCat],(e3,m)=>{
+                sets.push('category_id=?','sort_order=?');vals.push(newCat,((m&&m.mx)||0)+1);   // آخر دستهٔ مقصد
+                finish();
+            });
+        });
+    });
 });
 }
 

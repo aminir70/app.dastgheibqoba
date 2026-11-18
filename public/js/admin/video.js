@@ -265,6 +265,11 @@ async function openEditVideoItem(id,catId){
   document.getElementById('edit-vitem-embed').value='';
   document.getElementById('edit-vitem-thumb-url').value='';
   document.getElementById('edit-vitem-thumb-file').value='';
+  // فهرست دسته‌ها برای انتقال ویدیو (انتخاب فعلی = دستهٔ کنونی)
+  try{
+    const cr=await adminFetch('/api/admin/video/categories');
+    document.getElementById('edit-vitem-category').innerHTML=categoryOptionsHtml(await cr.json(),catId);
+  }catch(e){document.getElementById('edit-vitem-category').innerHTML='';}
   // fetch item data from server
   try{
     const r=await adminFetch(`/api/videos/categories/${catId}/items`);
@@ -296,12 +301,15 @@ async function saveEditVideoItem(e){
   const publishDate=document.getElementById('edit-vitem-publish-date').value;
   if(publishDate) fd.append('publish_date',publishDate);
   fd.append('vertical',document.getElementById('edit-vitem-vertical').checked?'1':'0');
+  const newCat=document.getElementById('edit-vitem-category').value;
+  const moved=!!newCat&&newCat!==String(catId);
+  if(moved) fd.append('category_id',newCat);
   const btn=document.getElementById('btn-save-vitem');
   btn.innerHTML='<i class="fas fa-spinner fa-spin ml-2"></i>ذخیره...';btn.disabled=true;
   try{
     const r=await adminFetch('/api/admin/video/items/'+id,{method:'PUT',body:fd});
     const d=await r.json();
-    if(r.ok&&d.success){showToast('ویدیو ویرایش شد');document.getElementById('edit-video-item-modal').classList.add('hidden');document.getElementById('edit-video-item-modal').classList.remove('flex');loadCategoryItemsAdmin(catId);}
+    if(r.ok&&d.success){showToast(moved?'ویدیو به دستهٔ تازه منتقل شد':'ویدیو ویرایش شد');document.getElementById('edit-video-item-modal').classList.add('hidden');document.getElementById('edit-video-item-modal').classList.remove('flex');if(moved)loadVideoGalleryAdmin();else loadCategoryItemsAdmin(catId);}
     else showToast(d.error||'خطا',false);
   }catch(err){showToast('خطا',false);}
   finally{btn.innerHTML='<i class="fas fa-save ml-1"></i>ذخیره تغییرات';btn.disabled=false;}

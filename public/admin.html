@@ -430,6 +430,7 @@
         <form id="edit-video-item-form" class="flex flex-col gap-4" data-submit="saveEditVideoItem" data-args='[{"$":"event"}]'>
           <input type="hidden" id="edit-vitem-id">
           <input type="hidden" id="edit-vitem-cat-id">
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">دسته‌بندی (برای انتقال، دسته‌ٔ دیگری انتخاب کنید)</label><select id="edit-vitem-category" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm"></select></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان ویدیو *</label><input type="text" id="edit-vitem-title" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500"></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">لینک جدید آپارات (اختیاری)</label><textarea id="edit-vitem-embed" rows="2" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm font-mono resize-none" placeholder="خالی بذارید تا تغییر نکند"></textarea></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">تصویر بندانگشتی جدید (اختیاری)</label>
@@ -654,6 +655,7 @@
         <form id="edit-audio-track-form" class="flex flex-col gap-4" data-submit="saveEditAudioTrack" data-args='[{"$":"event"}]'>
           <input type="hidden" id="edit-atrack-id">
           <input type="hidden" id="edit-atrack-cat-id">
+          <div><label class="block text-xs font-bold text-gray-500 mb-2">دسته‌بندی (برای انتقال، دسته‌ٔ دیگری انتخاب کنید)</label><select id="edit-atrack-category" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm"></select></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">عنوان صوت *</label><input type="text" id="edit-atrack-title" required class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="عنوان"></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">گوینده / سخنران</label><input type="text" id="edit-atrack-artist" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500" placeholder="نام گوینده"></div>
           <div><label class="block text-xs font-bold text-gray-500 mb-2">لینک فایل صوتی (اختیاری — خالی بذارید تا تغییر نکند)</label><input type="url" id="edit-atrack-url" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl outline-none focus:border-teal-500 text-sm" placeholder="https://..."></div>
@@ -1462,7 +1464,7 @@
   </div>
 </div>
 
-<script src="/js/admin/core.js?v=462a2b5f"></script>
+<script src="/js/admin/core.js?v=b3a2849b"></script>
 <script src="/js/admin/books-sliders.js?v=7a582847"></script>
 <script src="/js/admin/banners-content.js?v=61c0913f"></script>
 <script src="/js/admin/support.js?v=8a29a0ed"></script>
@@ -1470,8 +1472,8 @@
 <script src="/js/admin/users-admins.js?v=b63bd2c9"></script>
 <script src="/js/admin/settings.js?v=a84bb25c"></script>
 <script src="/js/admin/gallery.js?v=564a3926"></script>
-<script src="/js/admin/audio.js?v=6f1c86fc"></script>
-<script src="/js/admin/video.js?v=9332379a"></script>
+<script src="/js/admin/audio.js?v=bafa3cdd"></script>
+<script src="/js/admin/video.js?v=10988108"></script>
 <script src="/js/admin/home-shortcuts.js?v=50116fa5"></script>
 
 <!-- Link Shortcuts Icon Picker Modal -->

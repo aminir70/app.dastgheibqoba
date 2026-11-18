@@ -25,6 +25,20 @@ function safeUrl(v){
 // (قدیمی — فقط برای اپ عمومی؛ پنل ادمین از act(...) در actions.js استفاده می‌کند) آرگومان JS امن داخل attribute
 function jsArg(v){ return escHtml(JSON.stringify(v==null?'':String(v))); }
 
+// گزینه‌های <select> دسته‌بندی به‌صورت درختی (زیردسته‌ها با «— » جلوتر)؛ cats = [{id,name,parent_id}] به ترتیب نمایش
+function categoryOptionsHtml(cats, selectedId){
+  const byParent={};
+  (cats||[]).forEach(c=>{const k=c.parent_id||0;(byParent[k]=byParent[k]||[]).push(c);});
+  const out=[];
+  (function walk(pid,depth){
+    (byParent[pid]||[]).forEach(c=>{
+      out.push('<option value="'+Number(c.id)+'"'+(c.id==selectedId?' selected':'')+'>'+'— '.repeat(depth)+escHtml(c.name)+'</option>');
+      walk(c.id,depth+1);
+    });
+  })(0,0);
+  return out.join('');
+}
+
 async function adminFetch(url, options={}) {
   options.credentials = 'same-origin';
   // پنل ادمین هرگز از کش HTTP نمی‌خواند (نقطه‌های عمومی مثل /api/books تا ۱۲۰–۳۰۰ ثانیه کش می‌شوند)

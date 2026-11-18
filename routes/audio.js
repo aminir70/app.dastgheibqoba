@@ -167,6 +167,8 @@ app.put('/api/admin/audio/tracks/:id',adminAuth,uploadAudio.fields([{name:'audio
     const artist=sanText(req.body.artist||'');
     const publishDate=req.body.publish_date||null;
     const sets=['title=?','artist=?','publish_date=?'];const vals=[title,artist,publishDate];
+    const newCat=req.body.category_id!==undefined&&req.body.category_id!==''?+req.body.category_id:null;   // انتقال به دستهٔ دیگر (اختیاری)
+    if(newCat!==null&&!(Number.isInteger(newCat)&&newCat>0)){_discardUploads(req);return res.status(400).json({error:'دسته‌بندی نامعتبر'});}
     const audioFile=req.files&&req.files['audio_file']?req.files['audio_file'][0]:null;
     const audioUrlInput=req.body.audio_url&&req.body.audio_url.trim().length>5?sanUrl(req.body.audio_url):null;
     if(audioFile){sets.push('audio_url=?');vals.push(`/audio/${audioFile.filename}`);}
@@ -175,8 +177,22 @@ app.put('/api/admin/audio/tracks/:id',adminAuth,uploadAudio.fields([{name:'audio
     const coverUrlInput=req.body.cover_url&&req.body.cover_url.trim().length>5?sanUrl(req.body.cover_url):null;
     if(coverFile){sets.push('cover=?');vals.push(`/gallery/${coverFile.filename}`);}
     else if(coverUrlInput){sets.push('cover=?');vals.push(coverUrlInput);}
-    vals.push(id);
-    mainDb.run(`UPDATE audio_tracks SET ${sets.join(',')} WHERE id=?`,vals,err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});
+    const finish=()=>{vals.push(id);
+        mainDb.run(`UPDATE audio_tracks SET ${sets.join(',')} WHERE id=?`,vals,err=>{if(err){_discardUploads(req);return res.status(500).json({error:failMsg(err)});}res.json({success:true});});};
+    if(newCat===null) return finish();
+    mainDb.get('SELECT id FROM audio_categories WHERE id=?',[newCat],(e1,c)=>{
+        if(e1){_discardUploads(req);return res.status(500).json({error:failMsg(e1)});}
+        if(!c){_discardUploads(req);return res.status(400).json({error:'دسته‌بندی پیدا نشد'});}
+        mainDb.get('SELECT category_id FROM audio_tracks WHERE id=?',[id],(e2,cur)=>{
+            if(e2){_discardUploads(req);return res.status(500).json({error:failMsg(e2)});}
+            if(!cur){_discardUploads(req);return res.status(404).json({error:'صوت پیدا نشد'});}
+            if(cur.category_id===newCat) return finish();   // همان دسته: ترتیب دست نمی‌خورد
+            mainDb.get('SELECT MAX(sort_order) as mx FROM audio_tracks WHERE category_id=?',[newCat],(e3,m)=>{
+                sets.push('category_id=?','sort_order=?');vals.push(newCat,((m&&m.mx)||0)+1);   // آخر دستهٔ مقصد
+                finish();
+            });
+        });
+    });
 });
 }
 

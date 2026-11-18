@@ -266,6 +266,11 @@ async function openEditAudioTrack(id,catId){
   document.getElementById('edit-atrack-url').value='';
   document.getElementById('edit-atrack-cover-url').value='';
   document.getElementById('edit-atrack-cover-file').value='';
+  // فهرست دسته‌ها برای انتقال صوت (انتخاب فعلی = دستهٔ کنونی)
+  try{
+    const cr=await adminFetch('/api/admin/audio/categories');
+    document.getElementById('edit-atrack-category').innerHTML=categoryOptionsHtml(await cr.json(),catId);
+  }catch(e){document.getElementById('edit-atrack-category').innerHTML='';}
   // fetch track data
   try{
     const r=await fetch(`/api/audio/categories/${catId}/tracks`,{cache:'no-store'});
@@ -295,12 +300,15 @@ async function saveEditAudioTrack(e){
   else if(coverUrl) fd.append('cover_url',coverUrl);
   const publishDate=document.getElementById('edit-atrack-publish-date').value;
   if(publishDate) fd.append('publish_date',publishDate);
+  const newCat=document.getElementById('edit-atrack-category').value;
+  const moved=!!newCat&&newCat!==String(catId);
+  if(moved) fd.append('category_id',newCat);
   const btn=document.getElementById('btn-save-atrack');
   btn.innerHTML='<i class="fas fa-spinner fa-spin ml-2"></i>ذخیره...';btn.disabled=true;
   try{
     const r=await adminFetch('/api/admin/audio/tracks/'+id,{method:'PUT',body:fd});
     const d=await r.json();
-    if(r.ok&&d.success){showToast('صوت ویرایش شد');document.getElementById('edit-audio-track-modal').classList.add('hidden');document.getElementById('edit-audio-track-modal').classList.remove('flex');loadCategoryTracksAdmin(catId);}
+    if(r.ok&&d.success){showToast(moved?'صوت به دستهٔ تازه منتقل شد':'صوت ویرایش شد');document.getElementById('edit-audio-track-modal').classList.add('hidden');document.getElementById('edit-audio-track-modal').classList.remove('flex');if(moved)loadAudioGalleryAdmin();else loadCategoryTracksAdmin(catId);}
     else showToast(d.error||'خطا',false);
   }catch(err){showToast('خطا',false);}
   finally{btn.innerHTML='<i class="fas fa-save ml-1"></i>ذخیره تغییرات';btn.disabled=false;}

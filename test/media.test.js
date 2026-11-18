@@ -623,6 +623,56 @@ test('آپلود ردشده: فایل‌های ذخیره‌شده پیش از �
   assert.deepEqual(findByContent('gallery', im6), [], 'ویدیو: لینک نامعتبر');
 });
 
+test('ویدیو: انتقال ویدیو به دستهٔ دیگر با PUT (category_id) و اعتبارسنجی', async () => {
+  const a = (await form('POST', '/api/admin/video/categories', { name: 'مبدأ' })).body.id;
+  const b = (await form('POST', '/api/admin/video/categories', { name: 'مقصد' })).body.id;
+  cleanup.video.push(a, b);
+  const mk = async (cat, title) => (await form('POST', '/api/admin/video/items', { category_id: cat, title, embed_input: 'https://www.aparat.com/v/abc123' })).body.id;
+  const first = await mk(a, 'ویدیوی اول'), existing = await mk(b, 'ویدیوی موجود');
+  assert.ok(first && existing);
+
+  assert.equal((await form('PUT', `/api/admin/video/items/${first}`, { title: 'ویدیوی اول', category_id: 'abc' })).status, 400, 'شناسهٔ نامعتبر');
+  assert.equal((await form('PUT', `/api/admin/video/items/${first}`, { title: 'ویدیوی اول', category_id: 999999 })).status, 400, 'دستهٔ ناموجود');
+  assert.equal((await get(`/api/videos/categories/${a}/items`)).body.length, 1, 'رد شدن، ویدیو را جابه‌جا نمی‌کند');
+
+  assert.equal((await form('PUT', `/api/admin/video/items/${first}`, { title: 'ویدیوی اول (ویرایش)' })).status, 200);
+  assert.equal((await get(`/api/videos/categories/${a}/items`)).body[0].title, 'ویدیوی اول (ویرایش)', 'بدون category_id در همان دسته می‌ماند');
+
+  const mv = await form('PUT', `/api/admin/video/items/${first}`, { title: 'ویدیوی اول', category_id: b });
+  assert.equal(mv.status, 200, mv.text);
+  assert.deepEqual((await get(`/api/videos/categories/${a}/items`)).body, []);
+  const inB = (await get(`/api/videos/categories/${b}/items`)).body;
+  assert.deepEqual(inB.map(v => v.id).sort(), [first, existing].sort());
+  assert.equal(inB[inB.length - 1].id, first, 'ویدیوی منتقل‌شده آخر دستهٔ مقصد می‌نشیند');
+  const cats = (await get('/api/videos/categories')).body;
+  assert.equal(cats.find(c => c.id === a).video_count, 0);
+  assert.equal(cats.find(c => c.id === b).video_count, 2);
+  assert.equal((await form('PUT', `/api/admin/video/items/999999`, { title: 'x', category_id: a })).status, 404);
+});
+
+test('صوت: انتقال قطعه به دستهٔ دیگر با PUT (category_id) و اعتبارسنجی', async () => {
+  const a = (await form('POST', '/api/admin/audio/categories', { name: 'مبدأ صوت' })).body.id;
+  const b = (await form('POST', '/api/admin/audio/categories', { name: 'مقصد صوت' })).body.id;
+  cleanup.audio.push(a, b);
+  const r = await form('POST', '/api/admin/audio/tracks', { category_id: a, title: 'قطعهٔ انتقالی' }, { audio_file: wav('m.wav') });
+  assert.equal(r.status, 200, r.text);
+  files.track(r.body.audio_url);
+  const id = r.body.id;
+
+  assert.equal((await form('PUT', `/api/admin/audio/tracks/${id}`, { title: 'قطعهٔ انتقالی', category_id: 'abc' })).status, 400, 'شناسهٔ نامعتبر');
+  assert.equal((await form('PUT', `/api/admin/audio/tracks/${id}`, { title: 'قطعهٔ انتقالی', category_id: 999999 })).status, 400, 'دستهٔ ناموجود');
+  assert.equal((await get(`/api/audio/categories/${a}/tracks`)).body.length, 1);
+
+  const mv = await form('PUT', `/api/admin/audio/tracks/${id}`, { title: 'قطعهٔ انتقالی', category_id: b });
+  assert.equal(mv.status, 200, mv.text);
+  assert.deepEqual((await get(`/api/audio/categories/${a}/tracks`)).body, []);
+  assert.deepEqual((await get(`/api/audio/categories/${b}/tracks`)).body.map(t => t.id), [id]);
+  assert.ok(files.exists(r.body.audio_url), 'فایل صوتی با انتقال دست نمی‌خورد');
+  const cats = (await get('/api/audio/categories')).body;
+  assert.equal(cats.find(c => c.id === a).track_count, 0);
+  assert.equal(cats.find(c => c.id === b).track_count, 1);
+});
+
 test('گالری/صوت/ویدیو: مسیرهای ادمین بدون کوکی 401 هستند', async () => {
   for (const p of ['/api/admin/gallery/categories', '/api/admin/audio/categories', '/api/admin/audio/all-tracks', '/api/admin/video/categories', '/api/admin/video/all-items']) {
     assert.equal((await get(p)).status, 401, p);
