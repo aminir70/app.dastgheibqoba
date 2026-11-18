@@ -581,7 +581,7 @@ async function loadVideoCategories(parentId, parentName) {
                     ? `<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">`
                     : `<div class="w-full h-full flex items-center justify-center" style="background:${grad}"><i class="fas fa-video text-white text-2xl" style="opacity:0.85"></i></div>`;
                 const badge = cat.sub_count > 0 ? `${cat.sub_count} زیردسته` : `${cat.video_count} ویدیو`;
-                const clickAttr = cat.sub_count > 0 ? act('click', 'videoNavToSub', cat.id, act.s(cat.name)) : act('click', 'loadVideoList', cat.id, act.s(cat.name), cat.video_count);
+                const clickAttr = cat.sub_count > 0 ? act('click', 'videoNavToSub', cat.id, act.s(cat.name), cat.video_count) : act('click', 'loadVideoList', cat.id, act.s(cat.name), cat.video_count);
                 if (_mediaViewMode === 'list') return `
                 <div${clickAttr} class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
                     <div class="w-20 h-12 rounded-xl overflow-hidden shrink-0 bg-white relative">${coverHtml}</div>
@@ -598,6 +598,8 @@ async function loadVideoCategories(parentId, parentName) {
                     <div class="px-3 py-2"><h3 class="font-black text-xs text-gray-800 line-clamp-1">${escHtml(cat.name)}</h3><p class="text-[10px] text-gray-400 mt-0.5">${badge}</p></div>
                 </div>`;
             }).join('');
+            const _ownV = _ownItemsOf(_videoNavStack, parentId);
+            if (_ownV > 0) view.insertAdjacentHTML('afterbegin', _ownItemsCardHtml('loadVideoList', parentId, parentName, _ownV, 'ویدیوهای همین دسته', 'ویدیو', 'play'));
         } else {
             view.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 gap-4"><i class="fas fa-film text-5xl opacity-20"></i><p class="text-sm font-bold opacity-50">دسته‌بندی‌ای وجود ندارد</p></div>`;
         }
@@ -606,8 +608,22 @@ async function loadVideoCategories(parentId, parentName) {
     } finally { setMediaLoading(false); }
 }
 
-function videoNavToSub(catId, catName) {
-    _videoNavStack.push({id: catId, name: catName});
+// دسته‌ای که هم زیردسته دارد و هم خودش آیتم دارد: آیتم‌های خودِ دسته هم باید قابل‌دسترسی باشند
+// (قبلاً با ورود به دسته فقط زیردسته‌ها دیده می‌شد). own = تعداد آیتم‌های مستقیم دسته از پشتهٔ ناوبری.
+function _ownItemsOf(stack, parentId) {
+    const top = stack[stack.length - 1];
+    return (top && top.id == parentId) ? (Number(top.own) || 0) : 0;
+}
+function _ownItemsCardHtml(loader, catId, catName, own, label, unit, icon) {
+    return `<div${act('click', loader, catId, act.s(catName), own)} class="col-span-full bg-white rounded-2xl shadow-sm border border-brand-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
+        <div class="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0"><i class="fas fa-${icon} text-brand-600"></i></div>
+        <div class="flex-1 min-w-0"><h3 class="font-black text-xs text-gray-800 line-clamp-1">${label}</h3><p class="text-[10px] text-gray-400 mt-0.5">${own} ${unit}</p></div>
+        <i class="fas fa-chevron-left text-gray-300 text-xs shrink-0"></i>
+    </div>`;
+}
+
+function videoNavToSub(catId, catName, own) {
+    _videoNavStack.push({id: catId, name: catName, own: Number(own) || 0});
     pushBack(backToVideoCategories, 'media');
     _videoCatsLoaded = false;
     loadVideoCategories(catId, catName);
@@ -990,9 +1006,11 @@ async function loadGalleryCategories(parentId, parentName) {
 
         if(cats && cats.length > 0) {
             _renderGalleryCatGrid(cats, view, (cat) => {
-                if(cat.sub_count > 0) return act('click', 'galleryNavToSub', cat.id, act.s(cat.name));
+                if(cat.sub_count > 0) return act('click', 'galleryNavToSub', cat.id, act.s(cat.name), cat.photo_count);
                 return act('click', 'loadGalleryPhotos', cat.id, act.s(cat.name), cat.photo_count);
             });
+            const _ownG = _ownItemsOf(_galleryNavStack, parentId);
+            if (_ownG > 0) view.insertAdjacentHTML('afterbegin', _ownItemsCardHtml('loadGalleryPhotos', parentId, parentName, _ownG, 'عکس‌های همین دسته', 'تصویر', 'images'));
         } else if(parentId == null) {
             view.innerHTML = `<div class="col-span-2 flex flex-col items-center justify-center py-20 text-gray-400 gap-4">
                 <i class="fas fa-images text-5xl opacity-20"></i>
@@ -1038,8 +1056,8 @@ async function loadGalleryCategories(parentId, parentName) {
     } finally { setMediaLoading(false); }
 }
 
-function galleryNavToSub(catId, catName) {
-    _galleryNavStack.push({id: catId, name: catName});
+function galleryNavToSub(catId, catName, own) {
+    _galleryNavStack.push({id: catId, name: catName, own: Number(own) || 0});
     pushBack(backToGalleryCategories, 'media');
     _galleryCatsLoaded = false;
     loadGalleryCategories(catId, catName);
@@ -1377,7 +1395,7 @@ async function loadAudioCategories(parentId, parentName) {
                 const grad = colors[i % colors.length];
                 const coverHtml = cat.cover ? `<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">` : `<img src="/img/default-audio.svg" class="w-full h-full object-cover">`;
                 const badge = cat.sub_count > 0 ? `${cat.sub_count} زیردسته` : `${cat.track_count} صوت`;
-                const clickAttr = cat.sub_count > 0 ? act('click', 'audioNavToSub', cat.id, act.s(cat.name)) : act('click', 'loadAudioPlaylist', cat.id, act.s(cat.name), cat.track_count);
+                const clickAttr = cat.sub_count > 0 ? act('click', 'audioNavToSub', cat.id, act.s(cat.name), cat.track_count) : act('click', 'loadAudioPlaylist', cat.id, act.s(cat.name), cat.track_count);
                 if (_mediaViewMode === 'list') return `
                 <div${clickAttr} class="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-all active:scale-[0.98] flex items-center gap-3 p-3">
                     <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">${coverHtml}</div>
@@ -1397,6 +1415,8 @@ async function loadAudioCategories(parentId, parentName) {
                     </div>
                 </div>`;
             }).join('');
+            const _ownA = _ownItemsOf(_audioNavStack, parentId);
+            if (_ownA > 0) view.insertAdjacentHTML('afterbegin', _ownItemsCardHtml('loadAudioPlaylist', parentId, parentName, _ownA, 'صوت‌های همین دسته', 'صوت', 'headphones'));
         } else {
             view.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 gap-4"><i class="fas fa-headphones text-5xl opacity-20"></i><p class="text-sm font-bold opacity-50">دسته‌بندی صوتی وجود ندارد</p></div>`;
         }
@@ -1405,8 +1425,8 @@ async function loadAudioCategories(parentId, parentName) {
     } finally { setMediaLoading(false); }
 }
 
-function audioNavToSub(catId, catName) {
-    _audioNavStack.push({id: catId, name: catName});
+function audioNavToSub(catId, catName, own) {
+    _audioNavStack.push({id: catId, name: catName, own: Number(own) || 0});
     pushBack(backToAudioCategories, 'media');
     _audioCatsLoaded = false;
     loadAudioCategories(catId, catName);
@@ -2040,7 +2060,7 @@ async function openAudioCatById(catId) {
     const cats = await sharedJson('/api/audio/categories').catch(() => []);
     const cat = cats.find(c => c.id === catId);
     if (!cat) return;
-    if (cat.sub_count > 0) { audioNavToSub(cat.id, cat.name); }
+    if (cat.sub_count > 0) { audioNavToSub(cat.id, cat.name, cat.track_count); }
     else { loadAudioPlaylist(cat.id, cat.name, cat.track_count); }
 }
 
@@ -2073,7 +2093,7 @@ async function openVideoCatById(catId) {
     const cats = await sharedJson('/api/videos/categories').catch(() => []);
     const cat = cats.find(c => c.id === catId);
     if (!cat) return;
-    if (cat.sub_count > 0) { videoNavToSub(cat.id, cat.name); }
+    if (cat.sub_count > 0) { videoNavToSub(cat.id, cat.name, cat.video_count); }
     else { loadVideoList(cat.id, cat.name, cat.video_count); }
 }
 

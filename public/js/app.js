@@ -517,7 +517,7 @@ function openHomeStoriesAll() {
         try { switchMediaTab('video'); } catch(e) {}
         setTimeout(() => {
             try {
-                if (cat.sub_count > 0 && typeof videoNavToSub === 'function') videoNavToSub(cat.id, cat.name);
+                if (cat.sub_count > 0 && typeof videoNavToSub === 'function') videoNavToSub(cat.id, cat.name, cat.video_count);
                 else if (typeof loadVideoList === 'function') loadVideoList(cat.id, cat.name, (_homeStoryItems || []).length);
             } catch(e) {}
         }, 120);

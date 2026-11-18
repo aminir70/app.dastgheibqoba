@@ -1,7 +1,7 @@
 // Service Worker - مرکز نشر آثار
-const CACHE_NAME = 'nashr-asar-v60';
-const STATIC_CACHE = 'nashr-static-v60';
-const DYNAMIC_CACHE = 'nashr-dynamic-v60';
+const CACHE_NAME = 'nashr-asar-v61';
+const STATIC_CACHE = 'nashr-static-v61';
+const DYNAMIC_CACHE = 'nashr-dynamic-v61';
 // کش جدای تصاویر (بین نسخه‌ها پاک نمی‌شود) با سقف تعداد
 const IMG_CACHE = 'nashr-img-v1';
 const IMG_CACHE_MAX = 300;
