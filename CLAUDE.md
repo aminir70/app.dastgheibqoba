@@ -215,6 +215,12 @@ document.querySelector('[data-nav="X"]').classList.add('active');
   دستهٔ دیگر (باید موجود باشد؛ 400 اگر نه). آیتم آخر دستهٔ مقصد می‌نشیند؛ فایل‌ها دست نمی‌خورند. رابط: پنل ← ویرایش
   ویدیو/صوت ← «دسته‌بندی» (`categoryOptionsHtml` در `admin/core.js`).
 
+- **نمای دسته‌ها در پنل** (گالری ویدیو/صوت/عکس): سه حالت «شبکه‌ای» (پیش‌فرض)، «لیست» (چیدمان قدیمی) و «فشرده»؛ انتخاب در
+  `localStorage` (`adm_cat_view`) می‌ماند (`setCatView`/`applyCatView` در `admin/core.js`). کلاس `cv-grid|cv-list|cv-compact`
+  روی `#video-admin-list` و مشابه می‌نشیند و چیدمان فقط در `public/css/admin.css` است؛ اجزای کارت کلاس‌های `.acat`، `.acat-head`،
+  `.acat-cover`، `.acat-info`، `.acat-actions`، `.acat-items` (گالری عکس: `.acat-photos`) دارند و گروهِ دارای زیردسته `.has-subs`.
+  دستهٔ بازشده کل ردیف را می‌گیرد (`cv-open` با `syncCatOpen`). رندرکنندهٔ دستهٔ تازه همین کلاس‌ها را بگذارد.
+
 > پیوست‌های تیکت زیر `public/ticket-files/` ذخیره می‌شوند ولی مسیر استاتیک
 > بسته است؛ دریافت فقط از `GET /api/ticket-files/:name?t=<امضا>` که هنگام
 > خواندن پیام‌ها (با احراز هویت) تولید می‌شود و ۶ ساعت اعتبار دارد.

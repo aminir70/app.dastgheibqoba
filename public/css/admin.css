@@ -79,3 +79,63 @@ body.h-screen{height:100vh;height:100dvh;height:var(--app-h,100dvh);}
   #support-reply-send{padding:0 .8rem;height:2.25rem;}
   #support-attach-player{max-width:120px!important;}
 }
+
+/* ===== نمای دسته‌ها در گالری ویدیو/صوت/عکس: شبکه‌ای (پیش‌فرض) / لیست / فشرده =====
+   کلاس cv-grid | cv-list | cv-compact روی #video-admin-list و مشابه می‌نشیند (admin/core.js: setCatView).
+   لیست = چیدمان قبلی (بدون قاعده‌ای در اینجا). اجزای کارت: .acat > .acat-head (.acat-cover .acat-info .acat-chev .acat-actions) + .acat-items / .acat-photos
+   گروهی که زیردسته دارد (.has-subs) کل ردیف را می‌گیرد: کارت والد در اولین خانه و زیردسته‌ها زیرش با همان ستون‌ها. */
+.cv-switch{display:inline-flex;gap:2px;background:#fff;border:1px solid #f1f5f9;border-radius:.8rem;padding:2px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.cv-switch button{width:2.3rem;height:2.1rem;border-radius:.65rem;color:#94a3b8;font-size:.85rem;display:inline-flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+.cv-switch button:hover{color:#0f766e}
+.cv-switch button.cv-on{background:#ccfbf1;color:#0f766e}
+
+/* ستون‌ها: شبکه‌ای ۲/۳/۴، فشرده ۱/۲/۳ */
+.cv-grid [id$="-cats-sortable"],.cv-grid .has-subs,.cv-grid .subcats-sortable,
+.cv-compact [id$="-cats-sortable"]{display:grid;gap:.75rem;align-items:start}
+.cv-grid [id$="-cats-sortable"],.cv-grid .has-subs,.cv-grid .subcats-sortable{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cv-compact [id$="-cats-sortable"]{grid-template-columns:minmax(0,1fr)}
+@media(min-width:640px){.cv-grid [id$="-cats-sortable"],.cv-grid .has-subs,.cv-grid .subcats-sortable{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:768px){.cv-compact [id$="-cats-sortable"]{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1100px){.cv-grid [id$="-cats-sortable"],.cv-grid .has-subs,.cv-grid .subcats-sortable{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(min-width:1400px){.cv-compact [id$="-cats-sortable"]{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* گروه دارای زیردسته، و هر دسته‌ای که بازشده، کل ردیف را می‌گیرد */
+.cv-grid [id$="-cats-sortable"] > .has-subs,.cv-grid [id$="-cats-sortable"] > .cv-open,
+.cv-compact [id$="-cats-sortable"] > .cv-open,.cv-grid .has-subs > .subcats-sortable,.cv-grid .acat.cv-open{grid-column:1/-1}
+.cv-grid .subcats-sortable{padding-right:0;margin-top:.25rem}
+.cv-grid .subcats-sortable .acat{margin-right:0}
+
+/* --- کارت شبکه‌ای: کاور بالا، نام و شمارنده، دکمه‌ها پایین --- */
+.cv-grid .acat{position:relative}
+.cv-grid .acat-head{flex-direction:column;align-items:stretch;gap:0;padding:0;border-bottom-width:0}
+.cv-grid .acat-cover{width:100%;height:auto;aspect-ratio:16/10;border-radius:0}
+.cv-grid .acat-info{padding:.55rem .65rem .2rem}
+.cv-grid .acat-info h3{font-size:.8rem;line-height:1.35}
+.cv-grid .acat-info p{display:none}
+.cv-grid .acat-chev{display:none}
+.cv-grid .acat-actions{padding:.35rem .6rem .6rem;gap:.4rem;flex-wrap:wrap}
+.cv-grid .acat-actions button span{display:none}
+.cv-grid .cat-drag-handle,.cv-grid .subcat-drag-handle{position:absolute;top:.4rem;right:.4rem;z-index:2;background:rgba(255,255,255,.92);border-radius:.55rem;padding:.3rem .45rem;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+
+/* کارت بازشده در نمای شبکه‌ای (کل ردیف را گرفته): سرآیند به‌صورت ردیف جمع‌وجور */
+.cv-grid .acat.cv-open .acat-head{flex-direction:row;align-items:center;gap:.6rem;padding:.6rem}
+.cv-grid .acat.cv-open .acat-cover{width:5rem;height:3rem;aspect-ratio:auto;border-radius:.65rem;flex-shrink:0}
+.cv-grid .acat.cv-open .acat-info{padding:0}
+.cv-grid .acat.cv-open .acat-actions{padding:0;flex-wrap:nowrap}
+.cv-grid .acat.cv-open .acat-chev{display:block}
+.cv-grid .acat.cv-open .cat-drag-handle,.cv-grid .acat.cv-open .subcat-drag-handle{position:static;background:none;box-shadow:none;padding:0 .25rem}
+
+/* --- ردیف فشرده --- */
+.cv-compact .acat-head{flex-direction:row;align-items:center;gap:.5rem;padding:.5rem;border-bottom-width:0}
+.cv-compact .acat-cover{width:2.5rem;height:2.5rem;border-radius:.65rem;flex-shrink:0}
+.cv-compact .acat-info p{display:none}
+.cv-compact .acat-info h3{font-size:.78rem}
+.cv-compact .acat-actions{flex-wrap:nowrap;gap:.3rem}
+.cv-compact .acat-actions button span{display:none}
+.cv-compact .subcats-sortable{padding-right:.75rem}
+
+/* --- گالری عکس: در شبکه‌ای/فشرده تصاویر دسته پیش‌فرض بسته‌اند (با کلیک روی دسته باز می‌شوند) --- */
+.cv-grid .acat-photos,.cv-compact .acat-photos{display:none}
+.cv-grid .acat.cv-open > .acat-photos,.cv-compact .acat.cv-open > .acat-photos{display:block}
+
+/* --- آیتم‌های بازشدهٔ هر دسته (کارت‌های ویدیو): روی موبایل دو ستونه --- */
+@media(max-width:639px){.acat-items > .grid{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -25,6 +25,40 @@ function safeUrl(v){
 // (قدیمی — فقط برای اپ عمومی؛ پنل ادمین از act(...) در actions.js استفاده می‌کند) آرگومان JS امن داخل attribute
 function jsArg(v){ return escHtml(JSON.stringify(v==null?'':String(v))); }
 
+// ===== نمای دسته‌ها در پنل (شبکه‌ای / لیست / فشرده) — مشترک بین گالری ویدیو، صوت و عکس =====
+// انتخاب در localStorage می‌ماند؛ کلاس cv-<mode> روی ظرف هر فهرست می‌نشیند و چیدمان در admin.css است.
+const CAT_VIEW_MODES=['grid','list','compact'];
+const CAT_VIEW_LISTS=['video-admin-list','audio-admin-list','gallery-admin-list'];
+function getCatView(){
+  try{const v=localStorage.getItem('adm_cat_view');if(CAT_VIEW_MODES.includes(v))return v;}catch(e){}
+  return 'grid';
+}
+function applyCatView(){
+  const m=getCatView();
+  CAT_VIEW_LISTS.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) CAT_VIEW_MODES.forEach(x=>el.classList.toggle('cv-'+x,x===m));
+  });
+  document.querySelectorAll('.cv-switch button').forEach(b=>{
+    const on=b.dataset.mode===m;
+    b.classList.toggle('cv-on',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
+}
+function setCatView(m){
+  if(!CAT_VIEW_MODES.includes(m)) return;
+  try{localStorage.setItem('adm_cat_view',m);}catch(e){}
+  applyCatView();
+}
+// دستهٔ بازشده (آیتم‌هایش دیده می‌شود) در نمای شبکه‌ای کل ردیف را می‌گیرد: خود کارت و ریشهٔ گروه را علامت می‌زند (el = بدنهٔ .acat-items)
+function syncCatOpen(el){
+  const card=el&&el.closest('.acat');
+  if(!card) return;
+  card.classList.toggle('cv-open', !el.classList.contains('hidden'));
+  const top=card.closest('[id$="-cats-sortable"] > div');
+  if(top) top.classList.toggle('cv-open', !!top.querySelector('.acat-items:not(.hidden)'));
+}
+
 // گزینه‌های <select> دسته‌بندی به‌صورت درختی (زیردسته‌ها با «— » جلوتر)؛ cats = [{id,name,parent_id}] به ترتیب نمایش
 function categoryOptionsHtml(cats, selectedId){
   const byParent={};
@@ -257,3 +291,4 @@ function switchSupportTab(mode) {
   supportSyncAttachUI();
 }
 
+applyCatView();

@@ -17,15 +17,24 @@ function subcatHandle(){
   return `<div class="subcat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" data-click="uiNop" data-stop><i class="fas fa-grip-lines-vertical text-sm"></i></div>`;
 }
 
+// در نمای «شبکه‌ای/فشرده» تصاویر هر دسته پیش‌فرض بسته‌اند؛ با کلیک روی دسته باز می‌شوند (در نمای لیست همیشه باز است)
+function toggleGalleryCat(catId){
+  const card=document.getElementById('gcat-'+catId);
+  if(!card) return;
+  card.classList.toggle('cv-open');
+  const top=card.closest('[id$="-cats-sortable"] > div');
+  if(top) top.classList.toggle('cv-open', !!top.querySelector('.acat.cv-open'));
+}
+
 function renderGalleryAdminCat(cat, isChild=false){
   return `
-    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100 mr-4':'border-gray-100'} overflow-hidden" id="gcat-${cat.id}" data-cat-id="${cat.id}">
-      <div class="flex items-center gap-3 p-3 border-b ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}">
-        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none"><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
-        <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">
+    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100 mr-4':'border-gray-100'} overflow-hidden acat" id="gcat-${cat.id}" data-cat-id="${cat.id}">
+      <div class="acat-head flex items-center gap-3 p-3 border-b ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}"${act('click','toggleGalleryCat',cat.id)}>
+        ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" data-click="uiNop" data-stop><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
+        <div class="acat-cover w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100">
           ${cat.cover?`<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">`:`<div class="w-full h-full flex items-center justify-center text-gray-300"><i class="fas fa-images text-xl"></i></div>`}
         </div>
-        <div class="flex-1 min-w-0">
+        <div class="acat-info flex-1 min-w-0">
           <h3 class="font-black text-sm flex items-center gap-1">
             ${isChild?'<i class="fas fa-folder text-teal-400 text-xs"></i>':'<i class="fas fa-folder-open text-teal-600 text-xs"></i>'}
             ${escHtml(cat.name)}
@@ -36,13 +45,13 @@ function renderGalleryAdminCat(cat, isChild=false){
             ${!isChild&&cat.sub_count>0?`<span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">${cat.sub_count} زیردسته</span>`:''}
           </div>
         </div>
-        <div class="flex gap-1.5 shrink-0">
+        <div class="acat-actions flex gap-1.5 shrink-0" data-click="uiNop" data-stop>
           <button${act('click','openPhotoModal',cat.id,act.s(cat.name),String(cat.id))} class="bg-teal-50 text-teal-600 hover:bg-teal-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"><i class="fas fa-plus"></i><span class="hidden sm:inline">افزودن عکس</span></button>
           <button${act('click','openEditCatModal',cat.id,act.s(cat.name),act.s(cat.description||''),act.s(cat.cover||''),act.s(cat.parent_id||''))} class="bg-blue-50 text-blue-600 hover:bg-blue-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-edit text-xs"></i></button>
           <button${act('click','deleteGalleryCategory',cat.id)} class="bg-rose-50 text-rose-500 hover:bg-rose-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-trash text-xs"></i></button>
         </div>
       </div>
-      <div id="gcat-photos-${cat.id}" class="p-3">
+      <div id="gcat-photos-${cat.id}" class="acat-photos p-3">
         ${cat.photo_count>0?`<div class="text-center py-3 text-gray-400 text-xs"><i class="fas fa-spinner fa-spin ml-1"></i>در حال بارگذاری...</div>`:'<div class="text-center py-3 text-gray-400 text-xs opacity-50">هنوز تصویری اضافه نشده</div>'}
       </div>
     </div>`;
@@ -70,7 +79,7 @@ async function loadGalleryAdmin(){
     allCats.filter(x=>x.parent_id).forEach(x=>{if(!childMap[x.parent_id])childMap[x.parent_id]=[];childMap[x.parent_id].push(x);});
     let html='';
     parents.forEach(cat=>{
-      html+=`<div class="flex flex-col gap-2" data-cat-id="${cat.id}">`;
+      html+=`<div class="flex flex-col gap-2${childMap[cat.id]?' has-subs':''}" data-cat-id="${cat.id}">`;
       html+=renderGalleryAdminCat(cat,false);
       if(childMap[cat.id]){
         html+=`<div class="flex flex-col gap-2 pr-4 subcats-sortable" data-parent-id="${cat.id}">`;

@@ -10,7 +10,7 @@
 <link href="/vendor/quill/quill.snow.css" rel="stylesheet">
 <script src="/vendor/quill/quill.min.js"></script>
 <script src="/js/actions.js?v=acfaf941"></script>
-<link rel="stylesheet" href="/css/admin.css?v=dc1b7c9d">
+<link rel="stylesheet" href="/css/admin.css?v=b319acfe">
 <script src="/vendor/Sortable.min.js"></script>
 <script src="/vendor/jalaali.js"></script>
 </head>
@@ -282,7 +282,14 @@
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-black">دسته‌بندی‌های گالری</h2>
-        <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadGalleryAdmin"><i class="fas fa-sync-alt text-sm"></i></button>
+        <div class="flex items-center gap-2">
+          <div class="cv-switch" role="group" aria-label="نحوهٔ نمایش دسته‌ها">
+            <button type="button" data-mode="grid" data-click="setCatView" data-args='["grid"]' title="شبکه‌ای" aria-label="نمایش شبکه‌ای"><i class="fas fa-table-cells-large"></i></button>
+            <button type="button" data-mode="list" data-click="setCatView" data-args='["list"]' title="لیست" aria-label="نمایش لیستی"><i class="fas fa-list"></i></button>
+            <button type="button" data-mode="compact" data-click="setCatView" data-args='["compact"]' title="فشرده" aria-label="نمایش فشرده"><i class="fas fa-bars"></i></button>
+          </div>
+          <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadGalleryAdmin" aria-label="تازه‌سازی"><i class="fas fa-sync-alt text-sm"></i></button>
+        </div>
       </div>
       <div id="gallery-admin-list" class="flex flex-col gap-6"></div>
     </div>
@@ -378,7 +385,14 @@
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-black">دسته‌بندی‌های ویدیو</h2>
-        <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadVideoGalleryAdmin"><i class="fas fa-sync-alt text-sm"></i></button>
+        <div class="flex items-center gap-2">
+          <div class="cv-switch" role="group" aria-label="نحوهٔ نمایش دسته‌ها">
+            <button type="button" data-mode="grid" data-click="setCatView" data-args='["grid"]' title="شبکه‌ای" aria-label="نمایش شبکه‌ای"><i class="fas fa-table-cells-large"></i></button>
+            <button type="button" data-mode="list" data-click="setCatView" data-args='["list"]' title="لیست" aria-label="نمایش لیستی"><i class="fas fa-list"></i></button>
+            <button type="button" data-mode="compact" data-click="setCatView" data-args='["compact"]' title="فشرده" aria-label="نمایش فشرده"><i class="fas fa-bars"></i></button>
+          </div>
+          <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadVideoGalleryAdmin" aria-label="تازه‌سازی"><i class="fas fa-sync-alt text-sm"></i></button>
+        </div>
       </div>
       <div id="video-admin-list" class="flex flex-col gap-6"></div>
     </div>
@@ -606,7 +620,14 @@
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-black">دسته‌بندی‌های صوتی</h2>
-        <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadAudioGalleryAdmin"><i class="fas fa-sync-alt text-sm"></i></button>
+        <div class="flex items-center gap-2">
+          <div class="cv-switch" role="group" aria-label="نحوهٔ نمایش دسته‌ها">
+            <button type="button" data-mode="grid" data-click="setCatView" data-args='["grid"]' title="شبکه‌ای" aria-label="نمایش شبکه‌ای"><i class="fas fa-table-cells-large"></i></button>
+            <button type="button" data-mode="list" data-click="setCatView" data-args='["list"]' title="لیست" aria-label="نمایش لیستی"><i class="fas fa-list"></i></button>
+            <button type="button" data-mode="compact" data-click="setCatView" data-args='["compact"]' title="فشرده" aria-label="نمایش فشرده"><i class="fas fa-bars"></i></button>
+          </div>
+          <button class="w-9 h-9 bg-white rounded-full shadow-sm text-gray-500 hover:text-teal-600 border border-gray-100" data-click="loadAudioGalleryAdmin" aria-label="تازه‌سازی"><i class="fas fa-sync-alt text-sm"></i></button>
+        </div>
       </div>
       <div id="audio-admin-list" class="flex flex-col gap-6"></div>
     </div>
@@ -1464,16 +1485,16 @@
   </div>
 </div>
 
-<script src="/js/admin/core.js?v=b3a2849b"></script>
+<script src="/js/admin/core.js?v=57975ed9"></script>
 <script src="/js/admin/books-sliders.js?v=7a582847"></script>
 <script src="/js/admin/banners-content.js?v=61c0913f"></script>
 <script src="/js/admin/support.js?v=8a29a0ed"></script>
 <script src="/js/admin/analytics.js?v=f32afcab"></script>
 <script src="/js/admin/users-admins.js?v=b63bd2c9"></script>
 <script src="/js/admin/settings.js?v=a84bb25c"></script>
-<script src="/js/admin/gallery.js?v=564a3926"></script>
-<script src="/js/admin/audio.js?v=bafa3cdd"></script>
-<script src="/js/admin/video.js?v=10988108"></script>
+<script src="/js/admin/gallery.js?v=ba92b372"></script>
+<script src="/js/admin/audio.js?v=cb0c470e"></script>
+<script src="/js/admin/video.js?v=f52a5940"></script>
 <script src="/js/admin/home-shortcuts.js?v=50116fa5"></script>
 
 <!-- Link Shortcuts Icon Picker Modal -->

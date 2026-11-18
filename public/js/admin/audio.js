@@ -3,13 +3,13 @@
 // ====================================================
 function renderAudioAdminCat(cat, isChild=false){
   return `
-    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100':'border-gray-100'} overflow-hidden" id="acat-${cat.id}" data-cat-id="${cat.id}">
-      <div class="flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}"${act('click','toggleAudioCat',cat.id)}>
+    <div class="bg-white rounded-2xl shadow-sm border ${isChild?'border-teal-100':'border-gray-100'} overflow-hidden acat" id="acat-${cat.id}" data-cat-id="${cat.id}">
+      <div class="acat-head flex items-center gap-2 p-3 cursor-pointer select-none ${isChild?'border-teal-50 bg-teal-50/30':'border-gray-100'}"${act('click','toggleAudioCat',cat.id)}>
         ${!isChild?`<div class="cat-drag-handle cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 px-1 shrink-0 touch-none" data-click="uiNop" data-stop><i class="fas fa-grip-lines text-base"></i></div>`:subcatHandle()}
-        <div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
+        <div class="acat-cover w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center">
           ${cat.cover?`<img src="${safeUrl(cat.cover)}" class="w-full h-full object-cover">`:`<div class="w-full h-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center"><i class="fas fa-headphones text-white text-xl"></i></div>`}
         </div>
-        <div class="flex-1 min-w-0">
+        <div class="acat-info flex-1 min-w-0">
           <h3 class="font-black text-sm flex items-center gap-1">
             ${isChild?'<i class="fas fa-folder text-teal-400 text-xs"></i>':'<i class="fas fa-folder-open text-teal-600 text-xs"></i>'}
             ${escHtml(cat.name)}
@@ -20,14 +20,14 @@ function renderAudioAdminCat(cat, isChild=false){
             ${!isChild&&cat.sub_count>0?`<span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">${cat.sub_count} زیردسته</span>`:''}
           </div>
         </div>
-        <i id="acat-chevron-${cat.id}" class="fas fa-chevron-left text-gray-300 text-xs transition-transform shrink-0"></i>
-        <div class="flex gap-1.5 shrink-0" data-click="uiNop" data-stop>
+        <i id="acat-chevron-${cat.id}" class="acat-chev fas fa-chevron-left text-gray-300 text-xs transition-transform shrink-0"></i>
+        <div class="acat-actions flex gap-1.5 shrink-0" data-click="uiNop" data-stop>
           <button${act('click','openAudioTrackModal',cat.id,act.s(cat.name))} class="bg-teal-50 text-teal-600 hover:bg-teal-100 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition"><i class="fas fa-plus"></i><span class="hidden sm:inline">افزودن صوت</span></button>
           <button${act('click','openEditAudioCat',cat.id)} class="bg-amber-50 text-amber-600 hover:bg-amber-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-edit text-xs"></i></button>
           <button${act('click','deleteAudioCategory',cat.id)} class="bg-rose-50 text-rose-500 hover:bg-rose-100 w-8 h-8 rounded-xl flex items-center justify-center transition"><i class="fas fa-trash text-xs"></i></button>
         </div>
       </div>
-      <div id="acat-tracks-${cat.id}" class="hidden p-3 border-t border-gray-100" data-loaded="0">
+      <div id="acat-tracks-${cat.id}" class="acat-items hidden p-3 border-t border-gray-100" data-loaded="0">
         <div class="text-center py-3 text-gray-400 text-xs opacity-50">در حال بارگذاری...</div>
       </div>
     </div>`;
@@ -43,6 +43,7 @@ function toggleAudioCat(catId){
     if(chev){chev.style.transform='rotate(-90deg)';}
     if(body.dataset.loaded==='0'){body.dataset.loaded='1';loadCategoryTracksAdmin(catId);}
   }
+  syncCatOpen(body);
 }
 async function loadAudioGalleryAdmin(){
   try{
@@ -65,7 +66,7 @@ async function loadAudioGalleryAdmin(){
     allCats.filter(x=>x.parent_id).forEach(x=>{if(!childMap[x.parent_id])childMap[x.parent_id]=[];childMap[x.parent_id].push(x);});
     let html='';
     parents.forEach(cat=>{
-      html+=`<div class="flex flex-col gap-2" data-cat-id="${cat.id}">`;
+      html+=`<div class="flex flex-col gap-2${childMap[cat.id]?' has-subs':''}" data-cat-id="${cat.id}">`;
       html+=renderAudioAdminCat(cat,false);
       if(childMap[cat.id]){
         html+=`<div class="flex flex-col gap-2 pr-4 subcats-sortable" data-parent-id="${cat.id}">`;
